@@ -1,0 +1,732 @@
+openapi: 3.1.0
+info:
+  title: Podium Sports API
+  version: 1.0.0
+  description: |
+    API REST da loja Podium Sports.
+
+    * Valores monetários são **inteiros em centavos** (`priceCents: 39990` = R$ 399,90).
+    * Rotas `/admin/*` exigem `Authorization: Bearer <access_token do Supabase Auth>` de um perfil administrativo ativo.
+    * Rotas de usuários e auditoria exigem a função `SUPER_ADMIN`.
+    * Erros seguem o formato `{ "error": { "code", "message", "details?", "requestId" } }`.
+    * Preços de pedidos são sempre calculados no servidor; o cliente envia apenas IDs e quantidades.
+servers:
+  - url: /api/v1
+tags:
+  - name: Loja
+  - name: Pedidos
+  - name: Autenticação
+  - name: Admin · Dashboard
+  - name: Admin · Produtos
+  - name: Admin · Categorias
+  - name: Admin · Estoque
+  - name: Admin · Pedidos
+  - name: Admin · Banners
+  - name: Admin · Promoções
+  - name: Admin · Configurações
+  - name: Admin · Mídia
+  - name: Admin · Usuários
+  - name: Sistema
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT (Supabase Auth)
+  parameters:
+    id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    pageSize: { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+    orderCode: { name: code, in: path, required: true, schema: { type: string, pattern: '^PS-[A-Z0-9]{6}$' } }
+    orderToken: { name: X-Order-Token, in: header, required: true, schema: { type: string }, description: Token devolvido na criação do pedido. }
+    from: { name: from, in: query, schema: { type: string, format: date }, description: Data inicial (fuso da loja). Padrão = 29 dias antes de `to`. }
+    to: { name: to, in: query, schema: { type: string, format: date }, description: Data final inclusiva (fuso da loja). Padrão = hoje. }
+  responses:
+    Error:
+      description: Erro
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NoContent: { description: Sem conteúdo }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, examples: [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, INSUFFICIENT_STOCK, RATE_LIMITED] }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+    Page:
+      type: object
+      properties:
+        items: { type: array, items: {} }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        icon: { type: string, enum: [ball, run, jar, shirt, glove, dumbbell, shoe] }
+        colorFrom: { type: string, examples: ['#2b6a3c'] }
+        colorTo: { type: string }
+        imageUrl: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+        showOnHome: { type: boolean }
+        productCount: { type: integer }
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 80 }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        icon: { type: string }
+        colorFrom: { type: string }
+        colorTo: { type: string }
+        imagePath: { type: [string, 'null'], description: Caminho devolvido por POST /admin/uploads?folder=categories }
+        sortOrder: { type: integer }
+        isActive: { type: boolean }
+        showOnHome: { type: boolean }
+    Product:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        brand: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+        category: { type: object, properties: { id: { type: string }, name: { type: string }, slug: { type: string }, icon: { type: string } } }
+        priceCents: { type: integer, description: Preço efetivo cobrado agora }
+        regularPriceCents: { type: integer, description: Preço cheio }
+        onSale: { type: boolean }
+        discountPercent: { type: integer }
+        promotion: { type: [object, 'null'], properties: { name: { type: string }, endsAt: { type: string, format: date-time } } }
+        imageUrl: { type: [string, 'null'] }
+        images: { type: array, items: { type: object, properties: { id: { type: string }, url: { type: string }, altText: { type: string } } } }
+        availability: { type: string, enum: [IN_STOCK, LOW_STOCK, OUT_OF_STOCK] }
+        maxQuantity: { type: integer, description: Quantidade máxima que pode ser pedida agora }
+        isFeatured: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ProductInput:
+      type: object
+      required: [name, priceCents, categoryId]
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        brand: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+        priceCents: { type: integer, minimum: 1 }
+        salePriceCents: { type: [integer, 'null'], description: Deve ser menor que priceCents }
+        categoryId: { type: string, format: uuid }
+        initialStock: { type: integer, minimum: 0, description: Somente na criação; gera movimentação INITIAL }
+        minStock: { type: integer, minimum: 0 }
+        isActive: { type: boolean }
+        isFeatured: { type: boolean }
+        sortOrder: { type: integer }
+    Banner:
+      type: object
+      properties:
+        id: { type: string }
+        kicker: { type: [string, 'null'] }
+        title: { type: string }
+        highlight: { type: [string, 'null'] }
+        subtitle: { type: [string, 'null'] }
+        imageUrl: { type: [string, 'null'] }
+        icon: { type: [string, 'null'] }
+        colorFrom: { type: string }
+        colorTo: { type: string }
+        buttonLabel: { type: [string, 'null'] }
+        buttonUrl: { type: [string, 'null'], description: Caminho interno ("/...") ou URL https }
+        secondaryButtonLabel: { type: [string, 'null'] }
+        secondaryButtonUrl: { type: [string, 'null'] }
+        badgeTop: { type: [string, 'null'] }
+        badgeMain: { type: [string, 'null'] }
+        badgeBottom: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    BannerInput:
+      allOf:
+        - $ref: '#/components/schemas/Banner'
+        - type: object
+          properties:
+            imagePath: { type: [string, 'null'] }
+            isActive: { type: boolean }
+            startsAt: { type: [string, 'null'], format: date-time }
+            endsAt: { type: [string, 'null'], format: date-time }
+    PromotionInput:
+      type: object
+      required: [name, discountType, value, startsAt, endsAt, productIds]
+      properties:
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        discountType: { type: string, enum: [PERCENTAGE, FIXED_AMOUNT, FIXED_PRICE] }
+        value: { type: integer, description: 'PERCENTAGE: 1–90; FIXED_AMOUNT: centavos de desconto; FIXED_PRICE: preço final em centavos' }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        isActive: { type: boolean }
+        productIds: { type: array, items: { type: string, format: uuid } }
+    OrderItemInput:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, maximum: 20 }
+    OrderInput:
+      type: object
+      required: [customer, fulfillment, items]
+      properties:
+        customer:
+          type: object
+          required: [name, phone]
+          properties: { name: { type: string }, phone: { type: string, description: Telefone com DDD } }
+        fulfillment: { type: string, enum: [PICKUP, DELIVERY] }
+        address:
+          type: [object, 'null']
+          description: Obrigatório para DELIVERY
+          properties:
+            street: { type: string }
+            number: { type: string }
+            district: { type: string }
+            city: { type: string }
+            complement: { type: [string, 'null'] }
+        notes: { type: [string, 'null'], maxLength: 500 }
+        items: { type: array, minItems: 1, maxItems: 30, items: { $ref: '#/components/schemas/OrderItemInput' } }
+    PublicOrder:
+      type: object
+      properties:
+        code: { type: string, examples: [PS-7K3M9Q] }
+        status: { type: string, enum: [PENDING, ACCEPTED, PROCESSING, READY, COMPLETED, CANCELLED, EXPIRED] }
+        statusLabel: { type: string }
+        paymentStatus: { type: string, enum: [UNPAID, PAID, REFUNDED] }
+        createdAt: { type: string, format: date-time }
+        customerName: { type: string }
+        fulfillment: { type: string }
+        address: { type: [object, 'null'] }
+        notes: { type: [string, 'null'] }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productName: { type: string }
+              quantity: { type: integer }
+              unitPriceCents: { type: integer }
+              originalUnitPriceCents: { type: integer }
+              subtotalCents: { type: integer }
+        subtotalCents: { type: integer }
+        discountCents: { type: integer }
+        totalCents: { type: integer }
+        whatsappOpenedAt: { type: [string, 'null'], format: date-time }
+    Settings:
+      type: object
+      description: Configurações públicas da loja (nome, WhatsApp, contatos, textos da home).
+      additionalProperties: true
+
+security: []
+
+paths:
+  /health:
+    get:
+      tags: [Sistema]
+      summary: Health check (inclui conexão com o banco)
+      responses:
+        '200': { description: OK }
+        '503': { description: Banco indisponível }
+
+  /store/settings:
+    get:
+      tags: [Loja]
+      summary: Configurações públicas da loja
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } } }
+  /categories:
+    get:
+      tags: [Loja]
+      summary: Categorias ativas com contagem de produtos ativos
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Category' } } } } } } }
+  /products:
+    get:
+      tags: [Loja]
+      summary: Catálogo público com busca, filtros, ordenação e paginação
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: Busca sem acentos por nome, marca e categoria }
+        - { name: category, in: query, schema: { type: string }, description: Slug da categoria }
+        - { name: onSale, in: query, schema: { type: boolean } }
+        - { name: featured, in: query, schema: { type: boolean } }
+        - { name: minPrice, in: query, schema: { type: integer }, description: Centavos }
+        - { name: maxPrice, in: query, schema: { type: integer }, description: Centavos }
+        - { name: sort, in: query, schema: { type: string, enum: [relevance, price_asc, price_desc, name_asc, newest] } }
+        - $ref: '#/components/parameters/page'
+        - { name: pageSize, in: query, schema: { type: integer, maximum: 60, default: 20 } }
+      responses:
+        '200': { description: Página de produtos, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+  /products/legacy-map:
+    get:
+      tags: [Loja]
+      summary: Converte IDs da versão HTML antiga (sacolas salvas no navegador) em IDs atuais
+      parameters:
+        - { name: ids, in: query, required: true, schema: { type: string, examples: ['1,10,19'] } }
+      responses:
+        '200': { description: OK }
+  /products/{idOrSlug}:
+    get:
+      tags: [Loja]
+      summary: Detalhe do produto (por UUID ou slug) com produtos relacionados
+      parameters:
+        - { name: idOrSlug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /banners:
+    get:
+      tags: [Loja]
+      summary: Banners ativos e dentro do período de publicação
+      responses:
+        '200': { description: OK }
+  /promotions:
+    get:
+      tags: [Loja]
+      summary: Promoções vigentes (validadas no servidor)
+      responses:
+        '200': { description: OK }
+
+  /orders/quote:
+    post:
+      tags: [Pedidos]
+      summary: Recalcula a sacola com preços e disponibilidade oficiais
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/OrderItemInput' } } } } } }
+      responses:
+        '200': { description: Linhas com preço, disponibilidade (`issue`) e totais; `canCheckout` indica se pode finalizar }
+        '400': { $ref: '#/components/responses/Error' }
+  /orders:
+    post:
+      tags: [Pedidos]
+      summary: Registra o pedido (preços e estoque validados no servidor)
+      description: |
+        Reserva o estoque atomicamente. Repetir a requisição com a mesma `Idempotency-Key`
+        devolve o mesmo pedido (200) em vez de criar outro. Limite: 10 pedidos a cada 10 minutos por IP.
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 16, maxLength: 80 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OrderInput' } } }
+      responses:
+        '201':
+          description: Pedido criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order: { $ref: '#/components/schemas/PublicOrder' }
+                  accessToken: { type: string, description: Necessário para consultar o pedido e registrar a abertura do WhatsApp }
+        '200': { description: Repetição idempotente — pedido já existente }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { description: 'Estoque insuficiente (INSUFFICIENT_STOCK) ou chave reutilizada (IDEMPOTENCY_KEY_REUSED)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422': { description: 'Itens indisponíveis (ITEMS_UNAVAILABLE) ou forma de recebimento desativada', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { $ref: '#/components/responses/Error' }
+  /orders/{code}:
+    get:
+      tags: [Pedidos]
+      summary: Consulta o pedido pelo código (requer o token do pedido)
+      parameters:
+        - $ref: '#/components/parameters/orderCode'
+        - $ref: '#/components/parameters/orderToken'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PublicOrder' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /orders/{code}/whatsapp-opened:
+    post:
+      tags: [Pedidos]
+      summary: Registra que o cliente clicou para abrir o WhatsApp
+      description: Não confirma envio da mensagem, aceite nem pagamento.
+      parameters:
+        - $ref: '#/components/parameters/orderCode'
+        - $ref: '#/components/parameters/orderToken'
+      responses:
+        '204': { $ref: '#/components/responses/NoContent' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /auth/me:
+    get:
+      tags: [Autenticação]
+      summary: Perfil e função do administrador autenticado
+      description: Login, logout e renovação de sessão são feitos pelo Supabase Auth no frontend.
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+
+  /admin/dashboard/summary:
+    get:
+      tags: [Admin · Dashboard]
+      summary: Indicadores do período
+      description: |
+        `revenue.confirmedCents` soma apenas pedidos marcados como **pagos** (data do pagamento no período).
+        `revenue.registeredValueCents` é o valor de pedidos registrados não cancelados e **não** é receita.
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/from' }, { $ref: '#/components/parameters/to' }]
+      responses:
+        '200': { description: OK }
+  /admin/dashboard/sales:
+    get:
+      tags: [Admin · Dashboard]
+      summary: Série diária de pedidos, valor registrado e receita confirmada
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/from' }, { $ref: '#/components/parameters/to' }]
+      responses:
+        '200': { description: OK }
+  /admin/dashboard/top-products:
+    get:
+      tags: [Admin · Dashboard]
+      summary: Produtos mais vendidos (pedidos aceitos, em andamento ou concluídos)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/from' }, { $ref: '#/components/parameters/to' }]
+      responses:
+        '200': { description: OK }
+
+  /admin/products:
+    get:
+      tags: [Admin · Produtos]
+      summary: Lista produtos (inclui inativos)
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [active, inactive] } }
+        - { name: stock, in: query, schema: { type: string, enum: [low, out, ok] } }
+        - { name: featured, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [sortOrder, name, price, stock, updated] } }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Admin · Produtos]
+      summary: Cria produto
+      security: [{ bearer: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProductInput' } } } }
+      responses:
+        '201': { description: Criado }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /admin/products/{id}:
+    get:
+      tags: [Admin · Produtos]
+      summary: Detalhe do produto com imagens e `canDelete`
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Admin · Produtos]
+      summary: Atualiza produto (o estoque só muda por movimentações)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProductInput' } } } }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Admin · Produtos]
+      summary: Exclui produto sem pedidos (com pedidos → 409; desative em vez de excluir)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses:
+        '204': { $ref: '#/components/responses/NoContent' }
+        '409': { $ref: '#/components/responses/Error' }
+  /admin/products/{id}/images:
+    post:
+      tags: [Admin · Produtos]
+      summary: Envia até 8 imagens (JPG, PNG ou WEBP, até 5 MB cada; máx. 10 por produto)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object, properties: { images: { type: array, items: { type: string, format: binary } } } }
+      responses:
+        '201': { description: Produto atualizado }
+        '413': { $ref: '#/components/responses/Error' }
+        '415': { $ref: '#/components/responses/Error' }
+  /admin/products/{id}/images/order:
+    put:
+      tags: [Admin · Produtos]
+      summary: Reordena as imagens
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { imageIds: { type: array, items: { type: string } } } } } } }
+      responses:
+        '200': { description: OK }
+  /admin/products/{id}/images/{imageId}:
+    patch:
+      tags: [Admin · Produtos]
+      summary: Altera texto alternativo ou define como principal
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }, { name: imageId, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { altText: { type: string }, isPrimary: { const: true } } } } } }
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Admin · Produtos]
+      summary: Remove imagem (do banco e do Storage)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }, { name: imageId, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: OK }
+
+  /admin/categories:
+    get:
+      tags: [Admin · Categorias]
+      summary: Lista todas as categorias
+      security: [{ bearer: [] }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Admin · Categorias]
+      summary: Cria categoria
+      security: [{ bearer: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryInput' } } } }
+      responses: { '201': { description: Criada }, '409': { $ref: '#/components/responses/Error' } }
+  /admin/categories/{id}:
+    patch:
+      tags: [Admin · Categorias]
+      summary: Atualiza categoria
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryInput' } } } }
+      responses: { '200': { description: OK } }
+    delete:
+      tags: [Admin · Categorias]
+      summary: Exclui categoria sem produtos (com produtos → 409)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses: { '204': { $ref: '#/components/responses/NoContent' }, '409': { $ref: '#/components/responses/Error' } }
+
+  /admin/inventory:
+    get:
+      tags: [Admin · Estoque]
+      summary: Saldos por produto, com quantidade reservada em pedidos abertos
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: stock, in: query, schema: { type: string, enum: [low, out, ok] } }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+      responses: { '200': { description: OK } }
+  /admin/inventory/movements:
+    get:
+      tags: [Admin · Estoque]
+      summary: Histórico de movimentações
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: productId, in: query, schema: { type: string, format: uuid } }
+        - { name: orderId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [INITIAL, IN, OUT, ADJUSTMENT, ORDER_RESERVATION, ORDER_RELEASE] } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Admin · Estoque]
+      summary: Registra entrada, saída ou ajuste (atômico; nunca deixa saldo negativo)
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - { type: object, required: [type, productId, quantity], properties: { type: { const: IN }, productId: { type: string }, quantity: { type: integer }, reason: { type: string } } }
+                - { type: object, required: [type, productId, quantity, reason], properties: { type: { const: OUT }, productId: { type: string }, quantity: { type: integer }, reason: { type: string } } }
+                - { type: object, required: [type, productId, newBalance, reason], properties: { type: { const: ADJUSTMENT }, productId: { type: string }, newBalance: { type: integer }, reason: { type: string } } }
+      responses:
+        '201': { description: Movimentação registrada }
+        '409': { description: Estoque insuficiente, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /admin/inventory/{productId}:
+    patch:
+      tags: [Admin · Estoque]
+      summary: Define o estoque mínimo (o saldo só muda por movimentações)
+      security: [{ bearer: [] }]
+      parameters: [{ name: productId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { minStock: { type: integer } } } } } }
+      responses: { '200': { description: OK } }
+
+  /admin/orders:
+    get:
+      tags: [Admin · Pedidos]
+      summary: Lista pedidos com filtros
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACCEPTED, PROCESSING, READY, COMPLETED, CANCELLED, EXPIRED] } }
+        - { name: paymentStatus, in: query, schema: { type: string, enum: [UNPAID, PAID, REFUNDED] } }
+        - { name: q, in: query, schema: { type: string }, description: Código, nome ou telefone }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+      responses: { '200': { description: OK } }
+  /admin/orders/{id}:
+    get:
+      tags: [Admin · Pedidos]
+      summary: Detalhe com itens, histórico de status e de pagamento
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/Error' } }
+  /admin/orders/{id}/status:
+    patch:
+      tags: [Admin · Pedidos]
+      summary: Altera o status (cancelamento devolve o estoque uma única vez)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [ACCEPTED, PROCESSING, READY, COMPLETED, CANCELLED] }, note: { type: string } } } } } }
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { description: Transição inválida, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /admin/orders/{id}/payment:
+    patch:
+      tags: [Admin · Pedidos]
+      summary: Registra manualmente o pagamento (a loja confirma; nada é marcado como pago automaticamente)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [paymentStatus], properties: { paymentStatus: { type: string, enum: [UNPAID, PAID, REFUNDED] }, note: { type: string } } } } } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Error' } }
+
+  /admin/banners:
+    get:
+      tags: [Admin · Banners]
+      summary: Lista banners com estado (LIVE, SCHEDULED, EXPIRED, INACTIVE)
+      security: [{ bearer: [] }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Admin · Banners]
+      summary: Cria banner
+      security: [{ bearer: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/BannerInput' } } } }
+      responses: { '201': { description: Criado } }
+  /admin/banners/{id}:
+    patch:
+      tags: [Admin · Banners]
+      summary: Atualiza banner
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/BannerInput' } } } }
+      responses: { '200': { description: OK } }
+    delete:
+      tags: [Admin · Banners]
+      summary: Exclui banner e sua imagem
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses: { '204': { $ref: '#/components/responses/NoContent' } }
+
+  /admin/promotions:
+    get:
+      tags: [Admin · Promoções]
+      summary: Lista promoções com estado calculado (ACTIVE, SCHEDULED, EXPIRED, INACTIVE)
+      security: [{ bearer: [] }]
+      parameters: [{ name: active, in: query, schema: { type: boolean } }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Admin · Promoções]
+      summary: Cria promoção (valida o desconto contra o preço de cada produto)
+      security: [{ bearer: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PromotionInput' } } } }
+      responses: { '201': { description: Criada }, '422': { $ref: '#/components/responses/Error' } }
+  /admin/promotions/{id}:
+    get:
+      tags: [Admin · Promoções]
+      summary: Detalhe da promoção
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses: { '200': { description: OK } }
+    patch:
+      tags: [Admin · Promoções]
+      summary: Atualiza promoção
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PromotionInput' } } } }
+      responses: { '200': { description: OK } }
+    delete:
+      tags: [Admin · Promoções]
+      summary: Exclui promoção
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses: { '204': { $ref: '#/components/responses/NoContent' } }
+
+  /admin/store/settings:
+    get:
+      tags: [Admin · Configurações]
+      summary: Configurações completas
+      security: [{ bearer: [] }]
+      responses: { '200': { description: OK } }
+    patch:
+      tags: [Admin · Configurações]
+      summary: Atualiza configurações (auditado)
+      security: [{ bearer: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } } }
+      responses: { '200': { description: OK } }
+
+  /admin/uploads:
+    post:
+      tags: [Admin · Mídia]
+      summary: Envia imagem de categoria, banner ou logotipo e devolve o caminho no Storage
+      security: [{ bearer: [] }]
+      parameters: [{ name: folder, in: query, required: true, schema: { type: string, enum: [categories, banners, store] } }]
+      requestBody:
+        required: true
+        content: { multipart/form-data: { schema: { type: object, properties: { file: { type: string, format: binary } } } } }
+      responses:
+        '201': { description: '{ path, url }' }
+        '413': { $ref: '#/components/responses/Error' }
+        '415': { $ref: '#/components/responses/Error' }
+
+  /admin/users:
+    get:
+      tags: [Admin · Usuários]
+      summary: Lista administradores (SUPER_ADMIN)
+      security: [{ bearer: [] }]
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Error' } }
+    post:
+      tags: [Admin · Usuários]
+      summary: Convida um administrador por e-mail (SUPER_ADMIN)
+      security: [{ bearer: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name, email], properties: { name: { type: string }, email: { type: string }, role: { type: string, enum: [ADMIN, SUPER_ADMIN] } } } } } }
+      responses: { '201': { description: Convite enviado }, '409': { $ref: '#/components/responses/Error' } }
+  /admin/users/{id}:
+    patch:
+      tags: [Admin · Usuários]
+      summary: Altera nome, função ou status (SUPER_ADMIN; mantém ao menos um superadministrador ativo)
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { name: { type: string }, role: { type: string }, status: { type: string, enum: [ACTIVE, DISABLED] } } } } } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Error' } }
+  /admin/audit-logs:
+    get:
+      tags: [Admin · Usuários]
+      summary: Registros de auditoria (SUPER_ADMIN)
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: entityType, in: query, schema: { type: string } }
+        - { name: entityId, in: query, schema: { type: string } }
+        - { name: action, in: query, schema: { type: string }, description: Prefixo, ex. "product." }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+      responses: { '200': { description: OK } }
