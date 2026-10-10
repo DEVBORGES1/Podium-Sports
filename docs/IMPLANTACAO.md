@@ -52,9 +52,11 @@ npm run db:seed               # opcional: catálogo, categorias, banners e texto
 
 Novas alterações de schema: edite `prisma/schema.prisma`, rode `npm run db:migrate:dev -- --name descricao` localmente, revise o SQL gerado e **acrescente** `ENABLE ROW LEVEL SECURITY` + `REVOKE ALL … FROM anon, authenticated` para tabelas novas (o teste `tests/rls.test.ts` falha se esquecer).
 
+> **Sem terminal?** Cole `backend/supabase/01-instalacao.sql` no *SQL Editor* do Supabase: ele faz o mesmo que `db:migrate` + `db:seed` em uma única transação (ver `backend/supabase/LEIA-ME.md`).
+
 ## 3. Primeiro administrador
 
-O cadastro público de administradores não existe. O primeiro superadministrador é criado pelo servidor:
+O cadastro público de administradores não existe. O primeiro superadministrador é criado pelo servidor (ou pelo navegador, com `backend/supabase/02-primeiro-admin.sql`):
 
 ```bash
 cd backend
