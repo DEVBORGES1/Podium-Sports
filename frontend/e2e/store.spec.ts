@@ -48,7 +48,9 @@ test.describe('loja pública', () => {
     const code = page.url().split('/').pop()!;
     const link = page.getByRole('link', { name: 'Enviar pedido pelo WhatsApp' });
     const href = decodeURIComponent((await link.getAttribute('href'))!);
-    expect(href).toContain('https://wa.me/554998090818?text=');
+    // O número vem das configurações (o spec do painel pode tê-lo alterado).
+    const settings = await (await page.request.get('/api/v1/store/settings')).json();
+    expect(href).toContain(`https://wa.me/${settings.whatsappNumber}?text=`);
     expect(href).toContain(`*Pedido ${code}*`);
     expect(href).toContain('1x Chuteira F50 Messi');
     expect(href).toContain('*Total: R$');

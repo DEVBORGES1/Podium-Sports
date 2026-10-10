@@ -1,0 +1,14 @@
+{
+  "name": "podium-sports",
+  "private": true,
+  "description": "Loja Podium Sports: frontend React (frontend/) e API REST (backend/). Cada pasta é implantada separadamente.",
+  "scripts": {
+    "install:all": "npm --prefix backend ci && npm --prefix frontend ci",
+    "dev:api": "npm --prefix backend run dev",
+    "dev:web": "npm --prefix frontend run dev",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "test:e2e": "npm --prefix frontend run test:e2e",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+  }
+}

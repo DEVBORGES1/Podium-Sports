@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router';
 import { LoadingState } from './components/ui/States';
 import StoreLayout from './layouts/StoreLayout';
-import { RequireAdmin } from './routes/RequireAdmin';
 import HomePage from './pages/store/HomePage';
 
 // Páginas carregadas sob demanda (o painel não pesa no carregamento da loja).
@@ -12,6 +11,8 @@ const CheckoutPage = lazy(() => import('./pages/store/CheckoutPage'));
 const OrderPage = lazy(() => import('./pages/store/OrderPage'));
 const NotFoundPage = lazy(() => import('./pages/store/NotFoundPage'));
 
+const AdminRoot = lazy(() => import('./routes/AdminRoot'));
+const RequireAdmin = lazy(() => import('./routes/RequireAdmin').then((m) => ({ default: m.RequireAdmin })));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const LoginPage = lazy(() => import('./pages/admin/LoginPage'));
 const SetPasswordPage = lazy(() => import('./pages/admin/SetPasswordPage'));
@@ -45,35 +46,40 @@ export const routes = [
       { path: '*', element: page(<NotFoundPage />) },
     ],
   },
-  { path: '/admin/login', element: page(<LoginPage />) },
-  { path: '/admin/definir-senha', element: page(<SetPasswordPage />) },
   {
     path: '/admin',
-    element: <RequireAdmin />,
+    element: page(<AdminRoot />),
     children: [
+      { path: 'login', element: page(<LoginPage />) },
+      { path: 'definir-senha', element: page(<SetPasswordPage />) },
       {
-        element: page(<AdminLayout />),
+        element: page(<RequireAdmin />),
         children: [
-          { index: true, element: page(<DashboardPage />) },
-          { path: 'orders', element: page(<OrdersPage />) },
-          { path: 'orders/:id', element: page(<OrderDetailPage />) },
-          { path: 'products', element: page(<ProductsPage />) },
-          { path: 'products/new', element: page(<ProductFormPage />) },
-          { path: 'products/:id', element: page(<ProductFormPage />) },
-          { path: 'categories', element: page(<CategoriesPage />) },
-          { path: 'inventory', element: page(<InventoryPage />) },
-          { path: 'banners', element: page(<BannersPage />) },
-          { path: 'banners/new', element: page(<BannerFormPage />) },
-          { path: 'banners/:id', element: page(<BannerFormPage />) },
-          { path: 'promotions', element: page(<PromotionsPage />) },
-          { path: 'promotions/new', element: page(<PromotionFormPage />) },
-          { path: 'promotions/:id', element: page(<PromotionFormPage />) },
-          { path: 'settings', element: page(<SettingsPage />) },
           {
-            element: <RequireAdmin role="SUPER_ADMIN" />,
+            element: page(<AdminLayout />),
             children: [
-              { path: 'users', element: page(<UsersPage />) },
-              { path: 'audit', element: page(<AuditPage />) },
+              { index: true, element: page(<DashboardPage />) },
+              { path: 'orders', element: page(<OrdersPage />) },
+              { path: 'orders/:id', element: page(<OrderDetailPage />) },
+              { path: 'products', element: page(<ProductsPage />) },
+              { path: 'products/new', element: page(<ProductFormPage />) },
+              { path: 'products/:id', element: page(<ProductFormPage />) },
+              { path: 'categories', element: page(<CategoriesPage />) },
+              { path: 'inventory', element: page(<InventoryPage />) },
+              { path: 'banners', element: page(<BannersPage />) },
+              { path: 'banners/new', element: page(<BannerFormPage />) },
+              { path: 'banners/:id', element: page(<BannerFormPage />) },
+              { path: 'promotions', element: page(<PromotionsPage />) },
+              { path: 'promotions/new', element: page(<PromotionFormPage />) },
+              { path: 'promotions/:id', element: page(<PromotionFormPage />) },
+              { path: 'settings', element: page(<SettingsPage />) },
+              {
+                element: page(<RequireAdmin role="SUPER_ADMIN" />),
+                children: [
+                  { path: 'users', element: page(<UsersPage />) },
+                  { path: 'audit', element: page(<AuditPage />) },
+                ],
+              },
             ],
           },
         ],

@@ -1,0 +1,36 @@
+# Blueprint do Render para a API (backend/). O frontend pode ir para Vercel/Netlify/Cloudflare Pages.
+# Valores secretos são preenchidos no painel do Render (sync: false) — nunca neste arquivo.
+services:
+  - type: web
+    name: podium-sports-api
+    runtime: node
+    rootDir: backend
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build
+    # Migrations versionadas aplicadas antes de cada versão entrar no ar.
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: TRUST_PROXY
+        value: "2"
+      - key: API_DOCS_ENABLED
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ORDER_TOKEN_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ADMIN_APP_URL
+        sync: false
