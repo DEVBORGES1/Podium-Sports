@@ -58,7 +58,7 @@ SQL
   echo "-- ---------------------------------------------------------------------------"
   pg_dump "$TMP_URL" --data-only --column-inserts --no-owner --no-privileges --no-comments \
     -t public.store_settings -t public.categories -t public.products -t public.inventory_movements -t public.banners \
-    | grep -vE '^(SET |SELECT pg_catalog\.set_config|--|$)'
+    | grep -vE '^(SET |SELECT pg_catalog\.set_config|--|\\|$)'
   echo
   echo "COMMIT;"
 } > "$OUT"
