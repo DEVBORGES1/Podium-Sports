@@ -5,10 +5,13 @@ services:
     name: podium-sports-api
     runtime: node
     rootDir: backend
+    # Starter (pago) fica sempre ligado. No plano Free a API "dorme" após 15 min sem acesso
+    # e a primeira visita espera ~1 min — ruim para uma loja.
     plan: starter
-    buildCommand: npm ci --include=dev && npm run build
-    # Migrations versionadas aplicadas antes de cada versão entrar no ar.
-    preDeployCommand: npx prisma migrate deploy
+    # Virgínia (EUA) é a região do Render mais próxima do Supabase em São Paulo.
+    region: virginia
+    # Migrations versionadas aplicadas a cada deploy (sem efeito quando não há novas).
+    buildCommand: npm ci --include=dev && npm run build && npx prisma migrate deploy
     startCommand: npm start
     healthCheckPath: /api/v1/health
     envVars:
@@ -20,6 +23,8 @@ services:
         value: "2"
       - key: API_DOCS_ENABLED
         value: "false"
+      - key: SUPABASE_JWT_SECRET
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
