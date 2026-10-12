@@ -41,6 +41,8 @@ export interface RequestOptions {
   auth?: boolean;
   signal?: AbortSignal;
   keepalive?: boolean;
+  /** Não encerra a sessão automaticamente em 401 (usado na validação inicial do login). */
+  keepSessionOn401?: boolean;
 }
 
 export function buildQuery(query?: RequestOptions['query']) {
@@ -85,7 +87,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const e = data?.error;
-    if (res.status === 401 && options.auth) onUnauthorized();
+    if (res.status === 401 && options.auth && !options.keepSessionOn401) onUnauthorized();
     throw new ApiError(
       res.status,
       e?.code ?? 'HTTP_ERROR',

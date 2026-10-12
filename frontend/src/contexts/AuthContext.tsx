@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!accessToken) return;
     let cancelled = false;
-    request<Me>('/auth/me', { auth: true })
+    request<Me>('/auth/me', { auth: true, keepSessionOn401: true })
       .then((profile) => {
         if (cancelled) return;
         setMe(profile);
@@ -67,7 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setStatus('forbidden');
           setError(err.message);
         } else if (err instanceof ApiError && err.status === 401) {
-          setStatus('signedOut');
+          // Login aceito pelo Supabase, mas o token foi recusado pela API: quase sempre configuração do servidor.
+          setStatus('error');
+          setError(
+            'O login foi aceito, mas o servidor recusou a sessão. Verifique no Render as variáveis SUPABASE_URL e SUPABASE_JWT_SECRET.',
+          );
+        } else if (err instanceof ApiError && err.status === 0) {
+          setStatus('error');
+          setError('Não foi possível falar com o servidor da loja. Ele pode estar iniciando — aguarde alguns segundos e recarregue a página.');
         } else {
           setStatus('error');
           setError(err instanceof ApiError ? err.message : 'Falha ao validar o acesso.');
@@ -83,7 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) throw new Error('Autenticação não configurada.');
     const { error: e } = await supabase.auth.signInWithPassword({ email, password });
-    if (e) throw new Error(e.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar. Tente novamente.');
+    if (e) {
+      if (/invalid login credentials/i.test(e.message)) throw new Error('E-mail ou senha incorretos.');
+      if (/email not confirmed/i.test(e.message)) {
+        throw new Error('E-mail ainda não confirmado. No Supabase, abra Authentication → Users e confirme o usuário.');
+      }
+      throw new Error(`Não foi possível entrar (${e.message}).`);
+    }
   }, []);
 
   const signOut = useCallback(async () => {

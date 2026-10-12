@@ -54,7 +54,14 @@ export default function LoginPage() {
             </button>
           </div>
         )}
-        {status === 'error' && <p className="alert alert-error">{authError}</p>}
+        {status === 'error' && (
+          <div className="alert alert-error" role="alert">
+            {authError}{' '}
+            <button type="button" className="link-btn" onClick={() => void signOut()}>
+              Sair
+            </button>
+          </div>
+        )}
         {resetSent ? (
           <p className="alert alert-ok" role="status">
             Se o e-mail estiver cadastrado, você receberá um link para criar uma nova senha.
