@@ -57,10 +57,10 @@ O site de página única (HTML/CSS/JS com 66 produtos fixos no código) virou um
 
 ## Pendências (dependem de acesso ou decisão da loja)
 
-1. **Projeto Supabase real**: este ambiente não tem credenciais do Supabase. Falta criar o projeto, rodar `db:migrate`, `db:seed`, `admin:create` e `check:rls` (passo a passo em `docs/IMPLANTACAO.md`). O login real do painel e o envio de convites por e-mail (SMTP) só podem ser verificados nesse momento; nos testes, o Supabase Auth foi simulado com tokens assinados no mesmo formato.
+1. ~~**Projeto Supabase real**~~ — **concluído**: banco instalado pelo SQL Editor (`backend/supabase/`), primeiro superadministrador criado e login no painel funcionando em produção. Ainda falta: rodar `check:rls` contra o projeto real e configurar SMTP próprio para os convites por e-mail.
 2. **Estoque real**: o HTML não tinha estoque; o seed usa 10 unidades provisórias por produto. Ajustar em **Estoque** antes de divulgar.
 3. **Fotos dos produtos**: o site original não tinha fotos (usava ícones, que continuam como reserva). Enviar pelo painel.
 4. **Produto duplicado no catálogo original**: dois “Joma Top-Flex” com preços diferentes (R$ 749,90 e R$ 649,90) — importados como `joma-top-flex` e `joma-top-flex-2` para a loja revisar.
-5. **Deploy**: definir domínio, conferir a URL da API em `frontend/vercel.json` e preencher as variáveis no provedor.
+5. ~~**Deploy**~~ — **concluído**: API no Render (plano Free, mantida ativa por monitor a cada 5 min) e site na Vercel (`podium-sports.vercel.app`). Ao adotar domínio próprio, atualizar `CORS_ORIGINS`, `ADMIN_APP_URL` e as URLs do Supabase Auth.
 6. **CI no GitHub**: o workflow foi criado, mas ainda não rodou no GitHub Actions (aqui as mesmas etapas foram executadas localmente).
 7. **Fora do escopo desta versão**: pagamento online, cálculo automático de frete (a taxa é combinada pelo WhatsApp) e tela de clientes (os dados de contato ficam nos pedidos). A estrutura de pedidos/pagamento já separa os estados para receber essas funcionalidades.
