@@ -4,4 +4,4 @@ Disallow: /admin
 Disallow: /checkout
 Disallow: /pedido/
 
-Sitemap: https://podium-sports-omega.vercel.app/sitemap.xml
+Sitemap: https://podiumsports.vercel.app/sitemap.xml
