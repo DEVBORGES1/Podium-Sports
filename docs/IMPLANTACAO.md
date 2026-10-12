@@ -123,7 +123,7 @@ O build falha se encontrar algo parecido com uma chave secreta no bundle (`scrip
 
 1. *Import Project* → *Root Directory* `frontend`, *Framework* Vite, build `npm run build`, output `dist`.
 2. Variáveis `VITE_*` (seção 5).
-3. Em `frontend/vercel.json`, troque `https://SUA-API.onrender.com` pela URL da API. Assim `/api/*` fica no mesmo domínio da loja (sem CORS no navegador e com a CSP restrita a `'self'`).
+3. Em `frontend/vercel.json`, confira se `https://podium-sports-api.onrender.com` é a URL da API (troque se o Render gerar outra). Assim `/api/*` fica no mesmo domínio da loja (sem CORS no navegador e com a CSP restrita a `'self'`).
 4. `CORS_ORIGINS` da API deve conter o domínio da loja (o proxy repassa o cabeçalho `Origin`).
 
 **API em outro domínio** (sem rewrite): use `VITE_API_URL=https://api.seudominio.com/api/v1`, inclua o domínio em `connect-src` da CSP do `vercel.json` e em `CORS_ORIGINS` da API.
