@@ -132,3 +132,22 @@ describe('categorias, banners e configurações públicas', () => {
     expect(res.body).not.toHaveProperty('logoPath');
   });
 });
+
+describe('GET /sitemap.xml', () => {
+  it('lista páginas, categorias e produtos ativos com a URL da loja', async () => {
+    const cat = await createCategory({ name: 'Tênis', slug: 'tenis' });
+    const visible = await createProduct({ name: 'Nike Quest 6', categoryId: cat.id });
+    const inactive = await createProduct({ name: 'Inativo', categoryId: cat.id, isActive: false });
+    const hidden = await createCategory({ name: 'Oculta', slug: 'oculta', isActive: false });
+    const inHidden = await createProduct({ name: 'Escondido', categoryId: hidden.id });
+
+    const res = await api(app).get('/api/v1/sitemap.xml');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/xml');
+    expect(res.text).toContain('<loc>https://loja.test/</loc>');
+    expect(res.text).toContain('<loc>https://loja.test/produtos?ofertas=1</loc>');
+    expect(res.text).toContain('<loc>https://loja.test/produtos?categoria=tenis</loc>');
+    expect(res.text).toContain(`<loc>https://loja.test/produto/${visible.slug}</loc>`);
+    for (const slug of [inactive.slug, inHidden.slug, 'oculta']) expect(res.text).not.toContain(slug);
+  });
+});

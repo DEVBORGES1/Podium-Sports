@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /checkout
+Disallow: /pedido/
+
+Sitemap: https://podium-sports.vercel.app/sitemap.xml

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ProductCard } from '../../components/store/ProductCard';
 import { CategoryGlyph, productGlyph } from '../../components/ui/Icons';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
 import { useCart } from '../../contexts/CartContext';
-import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { siteUrl, useJsonLd, usePageMeta } from '../../hooks/usePageMeta';
 import { useProduct, useSettings } from '../../hooks/useStoreData';
 import { ApiError } from '../../lib/api';
 import { brl, formatDate } from '../../lib/format';
@@ -24,7 +24,35 @@ export default function ProductPage() {
   const navigate = useNavigate();
   const [qty, setQty] = useState(1);
   const [imageIndex, setImageIndex] = useState(0);
-  useDocumentTitle(product.data?.name);
+  const d = product.data;
+  usePageMeta({
+    title: d?.name,
+    description: d ? d.description || `${d.name}${d.brand ? ` (${d.brand})` : ''} por ${brl(d.priceCents)} na Podium Sports, em Videira, SC. Peça pelo site e finalize pelo WhatsApp.` : undefined,
+    image: d?.images[0]?.url,
+    path: `/produto/${slug}`,
+  });
+  const jsonLd = useMemo(
+    () =>
+      d && {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: d.name,
+        ...(d.brand ? { brand: { '@type': 'Brand', name: d.brand } } : {}),
+        ...(d.description ? { description: d.description } : {}),
+        ...(d.images.length ? { image: d.images.map((i) => i.url) } : {}),
+        category: d.category.name,
+        offers: {
+          '@type': 'Offer',
+          url: `${siteUrl}/produto/${d.slug}`,
+          priceCurrency: 'BRL',
+          price: (d.priceCents / 100).toFixed(2),
+          availability: d.availability === 'OUT_OF_STOCK' ? 'https://schema.org/OutOfStock' : d.availability === 'LOW_STOCK' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
+          seller: { '@type': 'Organization', name: 'Podium Sports' },
+        },
+      },
+    [d],
+  );
+  useJsonLd('product-jsonld', jsonLd ?? null);
 
   if (product.isPending) return <LoadingState label="Carregando produto…" />;
   if (product.isError) {

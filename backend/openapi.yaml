@@ -254,6 +254,12 @@ paths:
       summary: Categorias ativas com contagem de produtos ativos
       responses:
         '200': { description: OK, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Category' } } } } } } }
+  /sitemap.xml:
+    get:
+      tags: [Loja]
+      summary: Sitemap da loja (páginas, categorias e produtos ativos) para buscadores
+      responses:
+        '200': { description: XML no formato sitemaps.org, content: { application/xml: { schema: { type: string } } } }
   /products:
     get:
       tags: [Loja]

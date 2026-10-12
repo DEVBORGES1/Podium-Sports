@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { CartDrawer } from '../components/store/CartDrawer';
 import { SiteFooter } from '../components/store/SiteFooter';
@@ -6,6 +6,7 @@ import { SiteHeader } from '../components/store/SiteHeader';
 import { TopBar } from '../components/store/TopBar';
 import { WhatsAppFab } from '../components/store/WhatsAppFab';
 import { ErrorState, LoadingState } from '../components/ui/States';
+import { siteUrl, useJsonLd } from '../hooks/usePageMeta';
 import { useCategories, useSettings } from '../hooks/useStoreData';
 import '../styles/store.css';
 
@@ -17,6 +18,32 @@ export default function StoreLayout() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [pathname]);
+
+  // Dados da loja para o Google (nome, contato, endereço e redes sociais).
+  const storeJsonLd = useMemo(() => {
+    const st = settings.data;
+    if (!st) return null;
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'SportingGoodsStore',
+      name: st.storeName,
+      url: `${siteUrl}/`,
+      image: `${siteUrl}/og-image.jpg`,
+      ...(st.logoUrl ? { logo: st.logoUrl } : {}),
+      telephone: `+${st.whatsappNumber}`,
+      ...(st.email ? { email: st.email } : {}),
+      address: {
+        '@type': 'PostalAddress',
+        ...(st.address ? { streetAddress: st.address } : {}),
+        addressLocality: 'Videira',
+        addressRegion: 'SC',
+        addressCountry: 'BR',
+      },
+      priceRange: 'R$',
+      sameAs: [st.instagramUrl, st.facebookUrl, st.tiktokUrl].filter(Boolean),
+    };
+  }, [settings.data]);
+  useJsonLd('store-jsonld', storeJsonLd);
 
   if (settings.isPending) return <LoadingState label="Carregando a loja…" />;
   if (settings.isError) {

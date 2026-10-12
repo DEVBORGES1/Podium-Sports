@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://podium-sports-api.onrender.com/api/:path*" },
-    { "source": "/((?!assets/|favicon\\.png).*)", "destination": "/index.html" }
+    { "source": "/sitemap.xml", "destination": "https://podium-sports-api.onrender.com/api/v1/sitemap.xml" },
+    { "source": "/((?!assets/|favicon\\.png|og-image\\.jpg|robots\\.txt).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

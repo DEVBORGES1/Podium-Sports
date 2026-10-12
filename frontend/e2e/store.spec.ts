@@ -62,6 +62,22 @@ test.describe('loja pública', () => {
     await expect(page.getByRole('button', { name: /Sacola, 0 itens/ })).toBeVisible();
   });
 
+  test('página de produto atualiza título, card de compartilhamento e dados estruturados', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('script#store-jsonld')).toHaveCount(1);
+    await page.getByRole('region', { name: 'Destaques' }).getByRole('link', { name: 'Chuteira F50 Messi' }).click();
+    await expect(page).toHaveTitle('Chuteira F50 Messi · Podium Sports');
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'Chuteira F50 Messi · Podium Sports');
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', /\/produto\/[\w-]+$/);
+    const product = JSON.parse((await page.locator('script#product-jsonld').textContent())!);
+    expect(product).toMatchObject({ '@type': 'Product', name: 'Chuteira F50 Messi', offers: { priceCurrency: 'BRL' } });
+    // Ao sair do produto, os dados dele não ficam na página seguinte.
+    await page.getByRole('navigation', { name: 'Você está em' }).getByRole('link', { name: 'Início' }).click();
+    await expect(page.locator('script#product-jsonld')).toHaveCount(0);
+    await expect(page).toHaveTitle('Podium Sports · Artigos esportivos em Videira, SC');
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', /\/$/);
+  });
+
   test('rota inexistente mostra 404', async ({ page }) => {
     await page.goto('/nao-existe');
     await expect(page.getByRole('heading', { name: '404' })).toBeVisible();

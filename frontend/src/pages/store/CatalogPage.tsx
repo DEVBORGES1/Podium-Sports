@@ -4,7 +4,7 @@ import { ProductCard, ProductGridSkeleton } from '../../components/store/Product
 import { SearchIcon } from '../../components/ui/Icons';
 import { ErrorState, Pagination } from '../../components/ui/States';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { usePageMeta } from '../../hooks/usePageMeta';
 import { useCategories, useProducts, useSettings } from '../../hooks/useStoreData';
 import { parseMoneyToCents } from '../../lib/format';
 import type { ProductQuery } from '../../lib/store-api';
@@ -69,7 +69,15 @@ export default function CatalogPage() {
   const products = useProducts(query);
   const currentCategory = categories.data?.find((c) => c.slug === category);
   const title = onSale ? 'Ofertas' : currentCategory?.name ?? (params.get('q') ? `Resultados para “${params.get('q')}”` : 'Catálogo completo');
-  useDocumentTitle(title);
+  usePageMeta({
+    title,
+    description: currentCategory
+      ? currentCategory.description || `${currentCategory.name} na Podium Sports, em Videira, SC. Confira preços e disponibilidade e peça pelo WhatsApp.`
+      : onSale
+        ? 'Ofertas da Podium Sports em Videira, SC: chuteiras, tênis, suplementos e moda fitness com desconto. Peça pelo WhatsApp.'
+        : 'Catálogo completo da Podium Sports: chuteiras, tênis, suplementos e moda fitness em Videira, SC. Peça pelo WhatsApp.',
+    path: currentCategory ? `/produtos?categoria=${currentCategory.slug}` : onSale ? '/produtos?ofertas=1' : '/produtos',
+  });
 
   return (
     <div className="wrap">

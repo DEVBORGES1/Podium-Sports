@@ -6,7 +6,7 @@ import { BrandBanner, CategoryTiles, CtaBand, InfoStrip, SectionTitle } from '..
 import { EmptyState, ErrorState } from '../../components/ui/States';
 import { SearchIcon } from '../../components/ui/Icons';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { usePageMeta } from '../../hooks/usePageMeta';
 import { useReveal } from '../../hooks/useReveal';
 import { useBanners, useCategories, useProducts, useSettings } from '../../hooks/useStoreData';
 import type { ProductQuery } from '../../lib/store-api';
@@ -102,7 +102,7 @@ export default function HomePage() {
   const categories = useCategories();
   const mainRef = useRef<HTMLDivElement>(null);
   const s = settings.data!;
-  useDocumentTitle(s.storeName);
+  usePageMeta({ title: `${s.storeName} · Artigos esportivos em Videira, SC`, path: '/' });
   useReveal(mainRef);
   const home = s.content.home;
   const tiles = (categories.data ?? []).filter((c) => c.showOnHome);

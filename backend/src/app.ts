@@ -23,6 +23,7 @@ import { adminOrdersRouter, publicOrdersRouter } from './modules/orders/orders.r
 import { adminProductsRouter, publicProductsRouter } from './modules/products/products.routes.js';
 import { adminPromotionsRouter, publicPromotionsRouter } from './modules/promotions/promotions.routes.js';
 import { adminSettingsRouter, publicSettingsRouter } from './modules/settings/settings.routes.js';
+import { publicSeoRouter } from './modules/seo/seo.routes.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
 import { adminUsersRouter } from './modules/users/users.routes.js';
 
@@ -141,7 +142,7 @@ export function createApp(options: AppOptions = {}) {
   // ---------- Público ----------
   const publicApi = Router();
   publicApi.use(limiter(60_000, limits.publicPerMin));
-  publicApi.use(publicSettingsRouter, publicCategoriesRouter, publicProductsRouter, publicBannersRouter, publicPromotionsRouter);
+  publicApi.use(publicSettingsRouter, publicCategoriesRouter, publicProductsRouter, publicBannersRouter, publicPromotionsRouter, publicSeoRouter);
   publicApi.post('/orders', limiter(10 * 60_000, limits.ordersPer10Min));
   publicApi.use(publicOrdersRouter);
   api.use(publicApi);

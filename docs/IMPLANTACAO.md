@@ -131,7 +131,14 @@ O build falha se encontrar algo parecido com uma chave secreta no bundle (`scrip
 ### Domínios
 
 - Loja: `www.seudominio.com.br` (frontend). API: subdomínio próprio ou via rewrite.
-- Atualize `Site URL`/`Redirect URLs` do Supabase Auth, `ADMIN_APP_URL` e `CORS_ORIGINS` sempre que o domínio mudar.
+- Atualize `Site URL`/`Redirect URLs` do Supabase Auth, `ADMIN_APP_URL` `CORS_ORIGINS` e `VITE_SITE_URL` (`frontend/.env.production`, usada no card de compartilhamento) sempre que o domínio mudar.
+
+### Card de compartilhamento e SEO
+
+- **Card (WhatsApp, Instagram, Facebook):** imagem `frontend/public/og-image.jpg` (1200×630), gerada a partir de `frontend/scripts/og/og-card.html`. Para alterar textos ou cores, edite o HTML e rode `node scripts/og/render.mjs` dentro de `frontend/`.
+- **Testar a prévia:** [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) (botão *Scrape Again* limpa o cache) ou [opengraph.xyz](https://www.opengraph.xyz). O WhatsApp guarda a prévia de cada link por um tempo: para ver a nova, envie o link com `?v=2` no final.
+- **Google:** título, descrição e link canônico mudam por página (produto, categoria, ofertas); a página de produto inclui dados estruturados `Product` (preço em BRL e disponibilidade) e o layout inclui `SportingGoodsStore`. O `sitemap.xml` é gerado pela API (`/api/v1/sitemap.xml`, repassado pela Vercel) com as categorias e os produtos ativos. Cadastre `https://<dominio>/sitemap.xml` no [Google Search Console](https://search.google.com/search-console).
+- Apps de mensagem não executam JavaScript, então links de produto mostram o card padrão da loja no WhatsApp.
 
 ## 7. Testes
 
