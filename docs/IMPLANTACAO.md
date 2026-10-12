@@ -23,7 +23,7 @@ Navegador ──▶ Supabase Auth (login do painel, chave pública)
    - chave **secreta** (`service_role` ou `sb_secret_…`) → `SUPABASE_SERVICE_ROLE_KEY` (**somente** na API).
 3. **JWT**: projetos novos usam chaves assimétricas — deixe `SUPABASE_JWT_SECRET` vazio e a API valida pelo JWKS (`/auth/v1/.well-known/jwks.json`). Projetos com segredo HS256 legado: preencha `SUPABASE_JWT_SECRET` com o *JWT Secret*.
 4. **Project Settings → Database → Connection string**:
-   - `DATABASE_URL`: pooler em **modo transação** (porta `6543`) acrescentando `?pgbouncer=true&connection_limit=5`;
+   - `DATABASE_URL`: pooler em **modo sessão** (porta `5432`) acrescentando `?connection_limit=5` — configuração usada em produção, ideal para uma única instância da API. Ao escalar para várias instâncias, troque para o modo transação (porta `6543`) com `?pgbouncer=true&connection_limit=5`;
    - `DIRECT_URL`: pooler em modo sessão ou conexão direta (porta `5432`) — usada pelas migrations.
 5. **Authentication → Sign In / Providers**:
    - **desative “Allow new users to sign up”** — administradores só entram por convite;
@@ -175,6 +175,8 @@ O workflow `.github/workflows/ci.yml` roda lint, typecheck, testes, build e E2E 
 | `GET /api/v1/health` → `503` | banco inacessível | confira `DATABASE_URL`, senha, se o projeto Supabase está pausado |
 | Erros `prepared statement … already exists` | pooler em modo transação sem `pgbouncer=true` | acrescente `?pgbouncer=true` à `DATABASE_URL` |
 | Migrations travam ou falham | usando a porta 6543 | `DIRECT_URL` deve apontar para a porta 5432 |
+| `P1000 Authentication failed` | senha errada, colchetes de `[YOUR-PASSWORD]` mantidos, usuário sem o sufixo `.ID_DO_PROJETO` ou host diferente (`aws-0` × `aws-1`) | redefina a senha só com letras e números e monte as duas URLs a partir do mesmo modelo; confira o host exibido em *Connect* |
+| `ECIRCUITBREAKER too many authentication failures` | bloqueio temporário do Supabase após várias senhas erradas | corrija as variáveis e espere ~15 min antes de novo deploy |
 | Login ok, mas painel diz “Esta conta não possui acesso administrativo” | usuário sem perfil | `npm run admin:create` ou convite por um SUPER_ADMIN |
 | Todas as rotas do painel retornam 401 | `SUPABASE_URL` da API diferente do frontend (emissor do token) ou segredo HS256 errado | alinhe as URLs; deixe `SUPABASE_JWT_SECRET` vazio em projetos com chaves assimétricas |
 | Navegador bloqueia chamadas (CORS) | domínio fora de `CORS_ORIGINS` | adicione a origem exata (com `https://`, sem barra final) |
