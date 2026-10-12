@@ -41,12 +41,13 @@ CREATE TABLE "_prisma_migrations" (
 SQL
   for dir in prisma/migrations/*/; do
     name=$(basename "$dir")
-    sum=$(sha256sum "$dir/migration.sql" | cut -c1-64)
+    # Sem CR: no Windows (core.autocrlf) o arquivo vem com CRLF, mas o Prisma do servidor calcula o checksum com LF.
+    sum=$(tr -d '\r' < "$dir/migration.sql" | sha256sum | cut -c1-64)
     echo
     echo "-- ---------------------------------------------------------------------------"
     echo "-- Migration ${name}"
     echo "-- ---------------------------------------------------------------------------"
-    cat "$dir/migration.sql"
+    tr -d '\r' < "$dir/migration.sql"
     echo
     echo "INSERT INTO \"_prisma_migrations\" (id, checksum, finished_at, migration_name, applied_steps_count)"
     echo "VALUES (gen_random_uuid()::text, '${sum}', now(), '${name}', 1);"
