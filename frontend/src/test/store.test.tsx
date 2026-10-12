@@ -185,3 +185,57 @@ describe('checkout', () => {
     expect(await screen.findByText('Sua sacola está vazia')).toBeInTheDocument();
   });
 });
+
+describe('banner da página inicial', () => {
+  const banner = {
+    id: 'b1',
+    kicker: 'Oferta especial',
+    title: 'O próximo nível do seu jogo',
+    highlight: 'começa aqui',
+    subtitle: 'Encontre sua próxima chuteira.',
+    footnote: 'Confirme o tamanho pelo WhatsApp.',
+    priceOriginalCents: 59_900,
+    priceSaleCents: 39_990,
+    imageUrl: 'https://storage.test/banners/f.png',
+    imageFrame: { desktop: { mode: 'fit', x: 70, y: 50, zoom: 1.2 }, mobile: null },
+    imageBg: '#f2f2f2',
+    layout: 'split',
+    contentAlign: 'left',
+    overlay: 0,
+    icon: null,
+    colorFrom: '#1d4a2c',
+    colorTo: '#08140c',
+    buttonLabel: 'Quero a minha',
+    buttonUrl: '/produto/chuteira-f50-messi',
+    secondaryButtonLabel: 'Ver todas as chuteiras',
+    secondaryButtonUrl: '/produtos?categoria=chuteiras',
+    badgeTop: null,
+    badgeMain: null,
+    badgeBottom: null,
+    sortOrder: 0,
+  };
+
+  it('mostra selo, título, preços com desconto e botões com os destinos gerados pela API', async () => {
+    server.use(http.get(`${API}/banners`, () => HttpResponse.json({ items: [banner] })));
+    renderStore('/');
+    const hero = await screen.findByRole('region', { name: 'Destaques da loja' });
+    expect(within(hero).getByText('Oferta especial')).toBeInTheDocument();
+    expect(within(hero).getByRole('heading', { level: 1 })).toHaveTextContent('O próximo nível do seu jogocomeça aqui');
+    expect(within(hero).getByText('-33%')).toBeInTheDocument();
+    expect(within(hero).getByText('R$ 399,90')).toBeInTheDocument();
+    expect(within(hero).getByRole('link', { name: 'Quero a minha' })).toHaveAttribute('href', '/produto/chuteira-f50-messi');
+    expect(within(hero).getByRole('link', { name: 'Ver todas as chuteiras' })).toHaveAttribute('href', '/produtos?categoria=chuteiras');
+    expect(within(hero).getByText('Confirme o tamanho pelo WhatsApp.')).toBeInTheDocument();
+    expect(hero.querySelector('.slide')).toHaveClass('layout-split');
+    expect(document.body.textContent).not.toContain('///');
+  });
+
+  it('sem preço original válido não exibe desconto', async () => {
+    server.use(http.get(`${API}/banners`, () => HttpResponse.json({ items: [{ ...banner, priceOriginalCents: null, secondaryButtonLabel: null, secondaryButtonUrl: null }] })));
+    renderStore('/');
+    const hero = await screen.findByRole('region', { name: 'Destaques da loja' });
+    expect(within(hero).getByText('R$ 399,90')).toBeInTheDocument();
+    expect(within(hero).queryByText(/%$/)).toBeNull();
+    expect(within(hero).getAllByRole('link')).toHaveLength(1);
+  });
+});

@@ -16,12 +16,12 @@ adminBannersRouter.get('/banners', async (_req, res) => {
 });
 adminBannersRouter.post('/banners', async (req, res) => {
   const input = parse(createBannerSchema, req.body);
-  res.status(201).json(service.toAdminBanner(await service.createBanner(input, currentProfile(req).id)));
+  res.status(201).json(await service.adminView(await service.createBanner(input, currentProfile(req).id)));
 });
 adminBannersRouter.patch('/banners/:id', async (req, res) => {
   const { id } = parse(uuidParam, req.params);
   const input = parse(updateBannerSchema, req.body);
-  res.json(service.toAdminBanner(await service.updateBanner(id, input, currentProfile(req).id)));
+  res.json(await service.adminView(await service.updateBanner(id, input, currentProfile(req).id)));
 });
 adminBannersRouter.delete('/banners/:id', async (req, res) => {
   const { id } = parse(uuidParam, req.params);

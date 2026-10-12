@@ -27,13 +27,7 @@ export function InfoStrip({ items, className, label }: { items: InfoItem[]; clas
 export function SectionTitle({ children, id }: { children: string; id?: string }) {
   return (
     <h2 id={id} data-reveal>
-      <span className="slash" aria-hidden>
-        ///
-      </span>{' '}
-      {children}{' '}
-      <span className="slash" aria-hidden>
-        ///
-      </span>
+      {children}
     </h2>
   );
 }

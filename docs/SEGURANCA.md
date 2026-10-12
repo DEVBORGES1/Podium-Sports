@@ -39,6 +39,7 @@ Ocultar botões no frontend é apenas conveniência: **todas** as rotas `/api/v1
 - **Logs estruturados (pino)** sem cabeçalhos (`Authorization`, cookies, `X-Order-Token`), sem corpo das requisições, sem IP; campos sensíveis com *redact*.
 - **Variáveis obrigatórias verificadas** na inicialização (a API não sobe incompleta) e mensagens que citam apenas o nome da variável.
 - Links configuráveis (botões de banners, banner de marcas) aceitam apenas caminhos internos (`/…`) ou `https://` — bloqueia `javascript:`, `data:` e `//dominio`.
+- Botões dos banners usam destinos estruturados (`{ type: product | category | page | external | whatsapp }`, validados com Zod `strict`): o servidor confere se o produto/categoria existe e **monta o endereço** com as rotas reais da loja; link externo só `https://` com domínio e sem usuário/senha; a mensagem do WhatsApp é codificada com `encodeURIComponent`. Destinos removidos ou desativados somem da loja (o painel avisa).
 
 ## Pedidos, preços e estoque
 

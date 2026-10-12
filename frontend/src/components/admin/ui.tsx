@@ -151,6 +151,7 @@ export function ImageUpload({
   onRemove,
   variant = 'wide',
   label = 'Imagem',
+  showPreview = true,
 }: {
   folder: 'categories' | 'banners' | 'store';
   url: string | null;
@@ -158,6 +159,8 @@ export function ImageUpload({
   onRemove?: () => void;
   variant?: 'wide' | 'square' | 'logo';
   label?: string;
+  /** false quando a tela já mostra a imagem em outro lugar (ex.: prévia do banner). */
+  showPreview?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,7 +184,9 @@ export function ImageUpload({
   };
   return (
     <div className="uploader">
-      <div className={`preview ${variant === 'square' ? 'square' : variant === 'logo' ? 'logo' : ''}`}>{url ? <img src={url} alt={`Prévia: ${label}`} /> : <span>Sem imagem</span>}</div>
+      {showPreview && (
+        <div className={`preview ${variant === 'square' ? 'square' : variant === 'logo' ? 'logo' : ''}`}>{url ? <img src={url} alt={`Prévia: ${label}`} /> : <span>Sem imagem</span>}</div>
+      )}
       <div className="row-actions" style={{ justifyContent: 'flex-start' }}>
         <label className="btn btn-outline btn-sm" aria-busy={busy}>
           {busy ? 'Enviando…' : url ? 'Trocar imagem' : 'Enviar imagem'}

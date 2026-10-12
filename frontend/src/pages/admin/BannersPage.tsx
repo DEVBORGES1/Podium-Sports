@@ -10,7 +10,7 @@ import { formatDateTime } from '../../lib/format';
 import { CONTENT_STATE } from '../../lib/labels';
 import type { AdminBanner } from '../../types/admin';
 import { BannerSlidePreview } from '../../components/admin/BannerSlidePreview';
-import '../../styles/store.css';
+import { adminSlideData } from '../../lib/banner';
 
 const INVALIDATE = [['admin', 'banners'], ['banners']];
 
@@ -30,6 +30,19 @@ function reorderPatches(list: AdminBanner[], index: number, dir: -1 | 1) {
   next[index] = b;
   next[target] = a;
   return next.flatMap((item, i) => ((i + 1) * 10 !== item.sortOrder ? [{ id: item.id, sortOrder: (i + 1) * 10 }] : []));
+}
+
+/** Botões cujo destino precisa de atenção (produto/categoria removido ou desativado, endereço antigo digitado). */
+function buttonWarnings(b: AdminBanner) {
+  const out: { tone: 'danger' | 'warn'; text: string }[] = [];
+  const check = (name: string, label: string | null, info: AdminBanner['buttonInfo']) => {
+    if (!label || !info?.issue) return;
+    if (info.issue === 'LEGACY_LINK') out.push({ tone: 'warn', text: `${name}: endereço digitado à mão — escolha o destino no editor.` });
+    else out.push({ tone: 'danger', text: `${name}: ${info.description.toLowerCase()} — atualize o destino (o botão está oculto na loja).` });
+  };
+  check('Botão principal', b.buttonLabel, b.buttonInfo);
+  if (b.secondaryButtonEnabled) check('Botão secundário', b.secondaryButtonLabel, b.secondaryButtonInfo);
+  return out;
 }
 
 function period(b: AdminBanner) {
@@ -110,7 +123,12 @@ export default function BannersPage() {
               const state = CONTENT_STATE[b.state] ?? { label: b.state, tone: 'neutral' as const };
               return (
                 <article key={b.id} className="adm-card" style={{ marginTop: 0, display: 'grid', gap: 12, alignContent: 'start' }} aria-label={`Banner ${b.title}`}>
-                  <BannerSlidePreview banner={b} zoom={0.4} />
+                  <BannerSlidePreview data={adminSlideData(b)} />
+                  {buttonWarnings(b).map((w) => (
+                    <p key={w.text} className={`alert ${w.tone === 'danger' ? 'alert-error' : 'alert-warn'}`} role="status" style={{ margin: 0 }}>
+                      {w.text}
+                    </p>
+                  ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <div style={{ minWidth: 0 }}>
                       <b>

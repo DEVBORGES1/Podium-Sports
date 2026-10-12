@@ -77,7 +77,32 @@ export interface Banner {
   badgeTop: string | null;
   badgeMain: string | null;
   badgeBottom: string | null;
+  footnote: string | null;
+  priceOriginalCents: number | null;
+  priceSaleCents: number | null;
+  layout: BannerLayout;
+  contentAlign: 'left' | 'right';
+  overlay: number;
+  imageFrame: BannerImageFrame | null;
+  imageBg: string | null;
   sortOrder: number;
+}
+
+/** "split": foto em painel ao lado do texto; "full": foto ocupando todo o banner. */
+export type BannerLayout = 'split' | 'full';
+
+/** Enquadramento da foto: posição em % (como object-position) e zoom ≥ 1. A imagem original não é alterada. */
+export interface BannerFrame {
+  mode: 'fill' | 'fit';
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+export interface BannerImageFrame {
+  desktop: BannerFrame;
+  /** null: o celular usa o mesmo ajuste do computador. */
+  mobile: BannerFrame | null;
 }
 
 export interface InfoItem {

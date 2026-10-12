@@ -183,13 +183,7 @@ export default function ProductPage() {
       {p.related.length > 0 && (
         <section className="sec" aria-labelledby="related-title">
           <h2 id="related-title">
-            <span className="slash" aria-hidden>
-              ///
-            </span>{' '}
-            Você também pode gostar{' '}
-            <span className="slash" aria-hidden>
-              ///
-            </span>
+            Você também pode gostar
           </h2>
           <div className="grid">
             {p.related.map((r, i) => (

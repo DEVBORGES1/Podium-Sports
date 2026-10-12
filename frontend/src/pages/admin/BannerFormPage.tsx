@@ -1,18 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { Controller, useForm, useWatch, type Control } from 'react-hook-form';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Controller, useForm, useWatch, type Control, type FieldErrors, type UseFormReturn } from 'react-hook-form';
+import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
-import { LinkPicker } from '../../components/admin/LinkPicker';
-import { FormField, ImageUpload, PageHeader, Switch, Tag } from '../../components/admin/ui';
+import { BannerSlidePreview, type PreviewDevice } from '../../components/admin/BannerSlidePreview';
+import { ButtonTargetField } from '../../components/admin/ButtonTargetField';
+import { ConfirmDialog, FormField, ImageUpload, MoneyInput, PageHeader, Switch, Tag } from '../../components/admin/ui';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import { useAdminMutation } from '../../hooks/useAdminMutation';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { adminApi, ApiError } from '../../lib/api';
+import { draftFromTarget, EMPTY_TARGET, targetError, targetFromDraft, type TargetDraft } from '../../lib/banner-targets';
+import { BANNER_ICONS, CENTER_FRAME, clampFrame, defaultFrame, defaultOverlay, discountPercent, MAX_ZOOM, MIN_ZOOM, sampleEdgeColor, type BannerIcon, type SlideData } from '../../lib/banner';
+import { brl } from '../../lib/format';
 import { CONTENT_STATE } from '../../lib/labels';
-import type { AdminBanner } from '../../types/admin';
-import { BANNER_ICONS, BannerSlidePreview, type BannerIcon, type SlideData } from '../../components/admin/BannerSlidePreview';
+import type { AdminBanner, AdminProduct } from '../../types/admin';
+import type { BannerFrame, BannerLayout } from '../../types/api';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const ICON_LABELS: Record<BannerIcon, string> = {
@@ -25,27 +29,48 @@ const ICON_LABELS: Record<BannerIcon, string> = {
   dumbbell: 'Halter',
   shoe: 'Tênis / chuteira',
 };
-
-/** Mesmo critério do servidor: caminho interno ("/produtos?...") ou URL https. */
-const isSafeLink = (v: string) => /^\/(?!\/)[^\s]*$/.test(v) || /^https:\/\/[^\s]+$/.test(v);
-const LINK_MESSAGE = 'Use um caminho interno começando com "/" ou uma URL https://.';
+const CTA_SUGGESTIONS = ['Quero a minha', 'Comprar agora', 'Ver oferta', 'Aproveitar desconto', 'Ver todas as chuteiras', 'Ver todos os produtos', 'Falar no WhatsApp'];
 
 const text = (max: number) => z.string().trim().max(max, `Máximo de ${max} caracteres.`);
+const cents = z.number().int().positive('O preço deve ser maior que zero.').nullable();
+const targetDraft = z.object({
+  type: z.enum(['none', 'legacy', 'product', 'category', 'page', 'external', 'whatsapp']),
+  productId: z.string(),
+  categoryId: z.string(),
+  page: z.enum(['home', 'catalog', 'offers', 'new']),
+  url: z.string(),
+  whatsappMessage: z.string(),
+  legacyUrl: z.string(),
+});
+const frame = z.object({ mode: z.enum(['fill', 'fit']), x: z.number(), y: z.number(), zoom: z.number() });
+
 const schema = z
   .object({
     kicker: text(80),
+    showKicker: z.boolean(),
     title: z.string().trim().min(1, 'Informe o título.').max(80, 'Máximo de 80 caracteres.'),
     highlight: text(80),
     subtitle: text(300),
+    footnote: text(160),
+    priceOriginalCents: cents,
+    priceSaleCents: cents,
+    showPrices: z.boolean(),
+    buttonLabel: text(40),
+    buttonTarget: targetDraft,
+    secondaryButtonEnabled: z.boolean(),
+    secondaryButtonLabel: text(40),
+    secondaryButtonTarget: targetDraft,
     imagePath: z.string().nullable(),
     imageUrl: z.string().nullable(),
+    frameDesktop: frame,
+    frameMobile: frame.nullable(),
+    imageBg: z.string().refine((v) => v === '' || HEX.test(v), 'Use uma cor no formato #RRGGBB.'),
+    layout: z.enum(['split', 'full']),
+    contentAlign: z.enum(['left', 'right']),
+    overlay: z.number().int().min(0).max(90),
     icon: z.enum(['', ...BANNER_ICONS]),
     colorFrom: z.string().regex(HEX, 'Use uma cor no formato #RRGGBB.'),
     colorTo: z.string().regex(HEX, 'Use uma cor no formato #RRGGBB.'),
-    buttonLabel: text(40),
-    buttonUrl: text(300).refine((v) => v === '' || isSafeLink(v), LINK_MESSAGE),
-    secondaryButtonLabel: text(40),
-    secondaryButtonUrl: text(300).refine((v) => v === '' || isSafeLink(v), LINK_MESSAGE),
     badgeTop: text(20),
     badgeMain: text(12),
     badgeBottom: text(20),
@@ -55,15 +80,18 @@ const schema = z
     endsAt: z.string(),
   })
   .superRefine((v, ctx) => {
-    if (!v.buttonLabel !== !v.buttonUrl) {
-      ctx.addIssue({ code: 'custom', path: [v.buttonLabel ? 'buttonUrl' : 'buttonLabel'], message: 'Informe o texto e o destino do botão juntos.' });
-    }
-    if (!v.secondaryButtonLabel !== !v.secondaryButtonUrl) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [v.secondaryButtonLabel ? 'secondaryButtonUrl' : 'secondaryButtonLabel'],
-        message: 'Informe o texto e o destino do botão juntos.',
-      });
+    const button = (label: string, target: TargetDraft, prefix: 'button' | 'secondaryButton') => {
+      if (label) {
+        const err = targetError(target);
+        if (err) ctx.addIssue({ code: 'custom', path: [`${prefix}Target`], message: err });
+      } else if (target.type !== 'none') {
+        ctx.addIssue({ code: 'custom', path: [`${prefix}Label`], message: 'Escreva o texto do botão.' });
+      }
+    };
+    button(v.buttonLabel, v.buttonTarget, 'button');
+    if (v.secondaryButtonEnabled) button(v.secondaryButtonLabel, v.secondaryButtonTarget, 'secondaryButton');
+    if (v.priceOriginalCents && v.priceSaleCents && v.priceOriginalCents <= v.priceSaleCents) {
+      ctx.addIssue({ code: 'custom', path: ['priceOriginalCents'], message: 'O preço original deve ser maior que o promocional.' });
     }
     if (v.startsAt && Number.isNaN(new Date(v.startsAt).getTime())) ctx.addIssue({ code: 'custom', path: ['startsAt'], message: 'Data inválida.' });
     if (v.endsAt && Number.isNaN(new Date(v.endsAt).getTime())) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'Data inválida.' });
@@ -72,21 +100,34 @@ const schema = z
     }
   });
 type FormValues = z.infer<typeof schema>;
+type Form = UseFormReturn<FormValues>;
 
 const DEFAULTS: FormValues = {
   kicker: '',
+  showKicker: true,
   title: '',
   highlight: '',
   subtitle: '',
+  footnote: '',
+  priceOriginalCents: null,
+  priceSaleCents: null,
+  showPrices: true,
+  buttonLabel: '',
+  buttonTarget: EMPTY_TARGET,
+  secondaryButtonEnabled: true,
+  secondaryButtonLabel: '',
+  secondaryButtonTarget: EMPTY_TARGET,
   imagePath: null,
   imageUrl: null,
+  frameDesktop: defaultFrame('split'),
+  frameMobile: null,
+  imageBg: '',
+  layout: 'split',
+  contentAlign: 'left',
+  overlay: defaultOverlay('split'),
   icon: '',
   colorFrom: '#2a2a2e',
   colorTo: '#0b0b0c',
-  buttonLabel: '',
-  buttonUrl: '',
-  secondaryButtonLabel: '',
-  secondaryButtonUrl: '',
   badgeTop: '',
   badgeMain: '',
   badgeBottom: '',
@@ -95,6 +136,113 @@ const DEFAULTS: FormValues = {
   startsAt: '',
   endsAt: '',
 };
+
+function fromBanner(b: AdminBanner): FormValues {
+  return {
+    kicker: b.kicker ?? '',
+    showKicker: b.showKicker,
+    title: b.title,
+    highlight: b.highlight ?? '',
+    subtitle: b.subtitle ?? '',
+    footnote: b.footnote ?? '',
+    priceOriginalCents: b.priceOriginalCents,
+    priceSaleCents: b.priceSaleCents,
+    showPrices: b.showPrices,
+    buttonLabel: b.buttonLabel ?? '',
+    buttonTarget: draftFromTarget(b.buttonTarget, b.buttonUrl),
+    secondaryButtonEnabled: b.secondaryButtonEnabled,
+    secondaryButtonLabel: b.secondaryButtonLabel ?? '',
+    secondaryButtonTarget: draftFromTarget(b.secondaryButtonTarget, b.secondaryButtonUrl),
+    imagePath: b.imagePath,
+    imageUrl: b.imageUrl,
+    // Banners antigos (sem ajuste salvo) continuam com a foto centralizada, como eram exibidos.
+    frameDesktop: b.imageFrame?.desktop ?? CENTER_FRAME,
+    frameMobile: b.imageFrame?.mobile ?? null,
+    imageBg: b.imageBg ?? '',
+    layout: b.layout,
+    contentAlign: b.contentAlign,
+    overlay: b.overlay,
+    icon: b.icon ?? '',
+    colorFrom: b.colorFrom,
+    colorTo: b.colorTo,
+    badgeTop: b.badgeTop ?? '',
+    badgeMain: b.badgeMain ?? '',
+    badgeBottom: b.badgeBottom ?? '',
+    sortOrder: b.sortOrder,
+    isActive: b.isActive,
+    startsAt: toLocalInput(b.startsAt),
+    endsAt: toLocalInput(b.endsAt),
+  };
+}
+
+function toBody(v: FormValues) {
+  const primary = targetFromDraft(v.buttonTarget);
+  const secondary = targetFromDraft(v.secondaryButtonTarget);
+  return {
+    kicker: v.kicker || null,
+    showKicker: v.showKicker,
+    title: v.title,
+    highlight: v.highlight || null,
+    subtitle: v.subtitle || null,
+    footnote: v.footnote || null,
+    priceOriginalCents: v.priceOriginalCents,
+    priceSaleCents: v.priceSaleCents,
+    showPrices: v.showPrices,
+    buttonLabel: v.buttonLabel || null,
+    buttonTarget: primary.target,
+    ...(primary.target ? {} : { buttonUrl: primary.url }),
+    secondaryButtonEnabled: v.secondaryButtonEnabled,
+    secondaryButtonLabel: v.secondaryButtonLabel || null,
+    secondaryButtonTarget: secondary.target,
+    ...(secondary.target ? {} : { secondaryButtonUrl: secondary.url }),
+    imagePath: v.imagePath,
+    imageFrame: { desktop: clampFrame(v.frameDesktop), mobile: v.frameMobile ? clampFrame(v.frameMobile) : null },
+    imageBg: v.imageBg || null,
+    layout: v.layout,
+    contentAlign: v.contentAlign,
+    overlay: v.overlay,
+    icon: v.icon || null,
+    colorFrom: v.colorFrom,
+    colorTo: v.colorTo,
+    badgeTop: v.badgeTop || null,
+    badgeMain: v.badgeMain || null,
+    badgeBottom: v.badgeBottom || null,
+    sortOrder: v.sortOrder,
+    isActive: v.isActive,
+    startsAt: fromLocalInput(v.startsAt),
+    endsAt: fromLocalInput(v.endsAt),
+  };
+}
+
+/** O que a prévia mostra: mesmas regras da loja (selo/preços ocultos e botão secundário desligado ficam de fora). */
+function toSlide(v: FormValues): SlideData {
+  const label = (enabled: boolean, l: string) => (enabled && l.trim() ? l.trim() : null);
+  return {
+    kicker: v.showKicker ? v.kicker.trim() || null : null,
+    title: v.title.trim(),
+    highlight: v.highlight.trim() || null,
+    subtitle: v.subtitle.trim() || null,
+    footnote: v.footnote.trim() || null,
+    priceOriginalCents: v.showPrices ? v.priceOriginalCents : null,
+    priceSaleCents: v.showPrices ? v.priceSaleCents : null,
+    imageUrl: v.imageUrl,
+    imageFrame: { desktop: v.frameDesktop, mobile: v.frameMobile },
+    imageBg: v.imageBg || null,
+    layout: v.layout,
+    contentAlign: v.contentAlign,
+    overlay: v.overlay,
+    icon: v.icon || null,
+    colorFrom: v.colorFrom,
+    colorTo: v.colorTo,
+    buttonLabel: label(true, v.buttonLabel),
+    buttonUrl: null,
+    secondaryButtonLabel: label(v.secondaryButtonEnabled, v.secondaryButtonLabel),
+    secondaryButtonUrl: null,
+    badgeTop: v.badgeTop.trim() || null,
+    badgeMain: v.badgeMain.trim() || null,
+    badgeBottom: v.badgeBottom.trim() || null,
+  };
+}
 
 const toInt = (v: string) => (v === '' ? 0 : Math.max(0, Math.floor(Number(v)) || 0));
 
@@ -106,16 +254,58 @@ function toLocalInput(iso: string | null) {
 }
 const fromLocalInput = (v: string) => (v ? new Date(v).toISOString() : null);
 
-function ColorField({ id, label, name, control, error }: { id: string; label: string; name: 'colorFrom' | 'colorTo'; control: Control<FormValues>; error?: string }) {
+/** Contraste do texto branco sobre a cor (WCAG). */
+function contrastWithWhite(hex: string) {
+  if (!HEX.test(hex)) return 21;
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 1.05 / (lum + 0.05);
+}
+
+/* ------------------------------------------------------------------ */
+
+type TabId = 'content' | 'buttons' | 'image' | 'look' | 'publish';
+const TABS: { id: TabId; label: string; fields: (keyof FormValues)[] }[] = [
+  { id: 'content', label: 'Conteúdo', fields: ['kicker', 'title', 'highlight', 'subtitle', 'footnote', 'priceOriginalCents', 'priceSaleCents'] },
+  { id: 'buttons', label: 'Botões', fields: ['buttonLabel', 'buttonTarget', 'secondaryButtonLabel', 'secondaryButtonTarget'] },
+  { id: 'image', label: 'Imagem', fields: ['imagePath', 'frameDesktop', 'frameMobile'] },
+  { id: 'look', label: 'Aparência', fields: ['colorFrom', 'colorTo', 'overlay', 'imageBg', 'icon', 'badgeTop', 'badgeMain', 'badgeBottom', 'contentAlign'] },
+  { id: 'publish', label: 'Publicação', fields: ['isActive', 'sortOrder', 'startsAt', 'endsAt'] },
+];
+const tabWithError = (errors: FieldErrors<FormValues>) => TABS.find((t) => t.fields.some((f) => errors[f]))?.id;
+
+function Segmented<T extends string>({ label, value, options, onChange, name }: { label: string; name: string; value: T; options: { value: T; label: string; hint?: string }[]; onChange: (v: T) => void }) {
   return (
-    <FormField id={id} label={label} error={error}>
+    <div className="field" role="radiogroup" aria-label={label}>
+      <span className="label">{label}</span>
+      <div className="segmented">
+        {options.map((o) => (
+          <label key={o.value} className="segment">
+            <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} />
+            <span>
+              <b>{o.label}</b>
+              {o.hint && <small>{o.hint}</small>}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ColorField({ id, label, name, control, error, hint }: { id: string; label: string; name: 'colorFrom' | 'colorTo' | 'imageBg'; control: Control<FormValues>; error?: string; hint?: string }) {
+  return (
+    <FormField id={id} label={label} error={error} hint={hint}>
       <Controller
         control={control}
         name={name}
         render={({ field }) => (
           <div className="color-row">
             <input type="color" aria-label={`${label} (seletor)`} value={HEX.test(field.value) ? field.value : '#000000'} onChange={(e) => field.onChange(e.target.value)} />
-            <input id={id} className="input" maxLength={7} aria-invalid={!!error} value={field.value} onChange={(e) => field.onChange(e.target.value.trim())} onBlur={field.onBlur} />
+            <input id={id} className="input" maxLength={7} placeholder={name === 'imageBg' ? 'Sem cor' : undefined} aria-invalid={!!error} value={field.value} onChange={(e) => field.onChange(e.target.value.trim())} onBlur={field.onBlur} />
           </div>
         )}
       />
@@ -123,64 +313,484 @@ function ColorField({ id, label, name, control, error }: { id: string; label: st
   );
 }
 
-function LivePreview({ control }: { control: Control<FormValues> }) {
-  const v = useWatch({ control });
-  const data: SlideData = {
-    kicker: v.kicker?.trim() || null,
-    title: v.title?.trim() ?? '',
-    highlight: v.highlight?.trim() || null,
-    subtitle: v.subtitle?.trim() || null,
-    imageUrl: v.imageUrl ?? null,
-    icon: v.icon ? v.icon : null,
-    colorFrom: v.colorFrom ?? DEFAULTS.colorFrom,
-    colorTo: v.colorTo ?? DEFAULTS.colorTo,
-    buttonLabel: v.buttonLabel?.trim() || null,
-    secondaryButtonLabel: v.secondaryButtonLabel?.trim() || null,
-    badgeTop: v.badgeTop?.trim() || null,
-    badgeMain: v.badgeMain?.trim() || null,
-    badgeBottom: v.badgeBottom?.trim() || null,
-  };
-  return <BannerSlidePreview banner={data} zoom={0.5} />;
+function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <section className="editor-block">
+      <h3>{title}</h3>
+      {hint && <p className="notice">{hint}</p>}
+      {children}
+    </section>
+  );
 }
+
+/* ---------------------------- A · Conteúdo ---------------------------- */
+
+function ContentTab({ form, product }: { form: Form; product: AdminProduct | null }) {
+  const { register, control, setValue, formState } = form;
+  const errors = formState.errors;
+  const [original, sale, showKicker] = useWatch({ control, name: ['priceOriginalCents', 'priceSaleCents', 'showKicker'] });
+  const off = discountPercent(original, sale);
+  const dirty = { shouldDirty: true, shouldValidate: formState.isSubmitted };
+  return (
+    <>
+      <Section title="Selo promocional" hint="Pequena etiqueta acima do título, como “Oferta especial” ou “Lançamento”.">
+        <div className="form-cols two">
+          <FormField id="kicker" label="Texto do selo" error={errors.kicker?.message}>
+            <input id="kicker" className="input" placeholder="Oferta especial" aria-invalid={!!errors.kicker} {...register('kicker')} />
+          </FormField>
+          <div className="field switch-cell">
+            <Controller control={control} name="showKicker" render={({ field }) => <Switch label="Mostrar o selo" checked={field.value} onChange={field.onChange} />} />
+            {!showKicker && <span className="hint">Oculto na loja. O texto fica guardado.</span>}
+          </div>
+        </div>
+      </Section>
+      <Section title="Título e texto">
+        <div className="form-cols two">
+          <FormField id="title" label="Título" error={errors.title?.message} hint="Frase curta e direta. Até 80 caracteres.">
+            <input id="title" className="input" placeholder="O próximo nível do seu jogo" aria-invalid={!!errors.title} {...register('title')} />
+          </FormField>
+          <FormField id="highlight" label="Destaque (2ª linha em dourado)" error={errors.highlight?.message} hint="Opcional. Completa o título com destaque.">
+            <input id="highlight" className="input" placeholder="começa aqui" aria-invalid={!!errors.highlight} {...register('highlight')} />
+          </FormField>
+          <FormField id="subtitle" label="Subtítulo" error={errors.subtitle?.message} className="full" hint="Explique o benefício em uma ou duas frases.">
+            <textarea
+              id="subtitle"
+              className="textarea"
+              rows={2}
+              placeholder="Encontre sua próxima chuteira e escolha o modelo ideal para entrar em campo."
+              aria-invalid={!!errors.subtitle}
+              {...register('subtitle')}
+            />
+          </FormField>
+        </div>
+      </Section>
+      <Section title="Preços" hint="Opcional. Informe os dois valores para mostrar “De … por …” e o desconto calculado automaticamente.">
+        <div className="form-cols two">
+          <FormField id="priceOriginalCents" label="Preço original (De)" error={errors.priceOriginalCents?.message}>
+            <Controller
+              control={control}
+              name="priceOriginalCents"
+              render={({ field }) => <MoneyInput id="priceOriginalCents" value={field.value} onChange={field.onChange} invalid={!!errors.priceOriginalCents} />}
+            />
+          </FormField>
+          <FormField id="priceSaleCents" label="Preço promocional (Por)" error={errors.priceSaleCents?.message}>
+            <Controller control={control} name="priceSaleCents" render={({ field }) => <MoneyInput id="priceSaleCents" value={field.value} onChange={field.onChange} invalid={!!errors.priceSaleCents} />} />
+          </FormField>
+        </div>
+        <div className="row-actions start" style={{ marginTop: 10, alignItems: 'center' }}>
+          <Controller control={control} name="showPrices" render={({ field }) => <Switch label="Mostrar preços no banner" checked={field.value} onChange={field.onChange} />} />
+          {product && (
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => {
+                setValue('priceOriginalCents', product.onSale ? product.priceCents : null, dirty);
+                setValue('priceSaleCents', product.effectivePriceCents, dirty);
+              }}
+            >
+              Usar preços de “{product.name.length > 28 ? `${product.name.slice(0, 28)}…` : product.name}”
+            </button>
+          )}
+        </div>
+        <p className="notice" role="status" style={{ marginTop: 8 }}>
+          {off
+            ? `Desconto exibido: -${off}% (de ${brl(original!)} por ${brl(sale!)}).`
+            : original && sale
+              ? 'Sem desconto exibido: o preço original precisa ser maior que o promocional.'
+              : 'O desconto só aparece quando os dois preços estão preenchidos.'}
+        </p>
+      </Section>
+      <Section title="Texto complementar" hint="Opcional. Aparece em letras menores abaixo dos botões.">
+        <FormField id="footnote" label="Texto complementar" error={errors.footnote?.message}>
+          <input id="footnote" className="input" placeholder="Confirme o tamanho pelo WhatsApp antes de finalizar." aria-invalid={!!errors.footnote} {...register('footnote')} />
+        </FormField>
+      </Section>
+    </>
+  );
+}
+
+/* ---------------------------- B · Botões ---------------------------- */
+
+function ButtonsTab({ form, onProduct }: { form: Form; onProduct: (p: AdminProduct | null) => void }) {
+  const { register, control, formState } = form;
+  const errors = formState.errors;
+  const secondaryOn = useWatch({ control, name: 'secondaryButtonEnabled' });
+  return (
+    <>
+      <datalist id="cta-suggestions">
+        {CTA_SUGGESTIONS.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
+      <Section title="Botão principal" hint="O botão em destaque. Deixe o texto em branco para não exibir botão.">
+        <FormField id="buttonLabel" label="Texto do botão" error={errors.buttonLabel?.message} hint="Comece digitando para ver sugestões.">
+          <input id="buttonLabel" className="input" list="cta-suggestions" placeholder="Quero a minha" aria-invalid={!!errors.buttonLabel} {...register('buttonLabel')} />
+        </FormField>
+        <Controller
+          control={control}
+          name="buttonTarget"
+          render={({ field }) => <ButtonTargetField id="buttonTarget" value={field.value} onChange={field.onChange} error={errors.buttonTarget?.message} onProduct={onProduct} />}
+        />
+      </Section>
+      <Section title="Botão secundário">
+        <Controller control={control} name="secondaryButtonEnabled" render={({ field }) => <Switch label="Mostrar botão secundário" checked={field.value} onChange={field.onChange} />} />
+        {secondaryOn ? (
+          <div style={{ marginTop: 12 }}>
+            <FormField id="secondaryButtonLabel" label="Texto do botão secundário" error={errors.secondaryButtonLabel?.message}>
+              <input id="secondaryButtonLabel" className="input" list="cta-suggestions" placeholder="Ver todas as chuteiras" aria-invalid={!!errors.secondaryButtonLabel} {...register('secondaryButtonLabel')} />
+            </FormField>
+            <Controller
+              control={control}
+              name="secondaryButtonTarget"
+              render={({ field }) => <ButtonTargetField id="secondaryButtonTarget" value={field.value} onChange={field.onChange} error={errors.secondaryButtonTarget?.message} />}
+            />
+          </div>
+        ) : (
+          <p className="notice" style={{ marginTop: 8 }}>
+            Desligado: o botão não aparece na loja. O texto e o destino ficam guardados para quando você religar.
+          </p>
+        )}
+      </Section>
+    </>
+  );
+}
+
+/* ---------------------------- C · Imagem ---------------------------- */
+
+function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevice; setDevice: (d: PreviewDevice) => void }) {
+  const { control, setValue, getValues, getFieldState, formState } = form;
+  const [imageUrl, layout, frameDesktop, frameMobile] = useWatch({ control, name: ['imageUrl', 'layout', 'frameDesktop', 'frameMobile'] });
+  const [detecting, setDetecting] = useState(false);
+  const dirty = { shouldDirty: true };
+  const current = device === 'mobile' ? (frameMobile ?? frameDesktop) : frameDesktop;
+  const setFrame = (f: BannerFrame) => {
+    const next = clampFrame(f);
+    if (device === 'mobile') setValue('frameMobile', next, dirty);
+    else setValue('frameDesktop', next, dirty);
+  };
+  const changeLayout = (next: BannerLayout) => {
+    const prev = getValues('layout');
+    if (prev === next) return;
+    setValue('layout', next, dirty);
+    // Ajustes ainda no padrão acompanham o novo formato; ajustes feitos à mão são mantidos.
+    const isDefault = (f: BannerFrame | null) => !f || JSON.stringify(f) === JSON.stringify(defaultFrame(prev)) || JSON.stringify(f) === JSON.stringify(CENTER_FRAME);
+    if (isDefault(getValues('frameDesktop'))) setValue('frameDesktop', defaultFrame(next), dirty);
+    if (getValues('frameMobile') && isDefault(getValues('frameMobile'))) setValue('frameMobile', null, dirty);
+    // Escurecimento ainda não ajustado nesta edição acompanha o formato (foto de produto ao lado do texto não escurece).
+    if (!getFieldState('overlay').isDirty || getValues('overlay') === defaultOverlay(prev)) setValue('overlay', defaultOverlay(next), dirty);
+  };
+  const detect = async (url: string) => {
+    setDetecting(true);
+    const color = await sampleEdgeColor(url);
+    setDetecting(false);
+    if (color) setValue('imageBg', color, dirty);
+  };
+
+  return (
+    <>
+      <Section title="Foto" hint="De preferência uma foto do produto com fundo limpo. JPG, PNG ou WEBP até 5 MB. A foto original não é alterada: os ajustes ficam salvos à parte.">
+        <ImageUpload
+          folder="banners"
+          label="Foto do banner"
+          url={imageUrl}
+          showPreview={false}
+          onUploaded={(path, url) => {
+            setValue('imagePath', path, dirty);
+            setValue('imageUrl', url, dirty);
+            setValue('frameDesktop', defaultFrame(getValues('layout')), dirty);
+            setValue('frameMobile', null, dirty);
+            void detect(url);
+          }}
+          onRemove={() => {
+            setValue('imagePath', null, dirty);
+            setValue('imageUrl', null, dirty);
+          }}
+        />
+        {formState.errors.imagePath && (
+          <span className="err" role="alert">
+            {formState.errors.imagePath.message}
+          </span>
+        )}
+      </Section>
+
+      <Section title="Formato do banner">
+        <Segmented
+          label="Como a foto aparece"
+          name="layout"
+          value={layout}
+          onChange={changeLayout}
+          options={[
+            { value: 'split', label: 'Produto ao lado do texto', hint: 'Ideal para fotos de produto. O texto nunca fica sobre a imagem.' },
+            { value: 'full', label: 'Foto de fundo', hint: 'A foto ocupa todo o banner, com escurecimento atrás do texto.' },
+          ]}
+        />
+      </Section>
+
+      {imageUrl ? (
+        <Section
+          title="Enquadramento"
+          hint={
+            layout === 'full'
+              ? 'Arraste a imagem na prévia para posicionar. Na foto de fundo, deixe o produto do lado oposto ao texto (a área do texto aparece tracejada ao passar o mouse).'
+              : 'Arraste a imagem na prévia para posicionar. Os ajustes valem para o dispositivo escolhido.'
+          }
+        >
+          <Segmented
+            label="Ajustando para"
+            name="frame-device"
+            value={device}
+            onChange={setDevice}
+            options={[
+              { value: 'desktop', label: 'Computador' },
+              { value: 'mobile', label: 'Celular' },
+            ]}
+          />
+          {device === 'mobile' && (
+            <div style={{ margin: '10px 0' }}>
+              <Switch
+                label="Ajuste próprio para o celular"
+                checked={!!frameMobile}
+                onChange={(on) => setValue('frameMobile', on ? { ...frameDesktop } : null, dirty)}
+              />
+              <span className="hint" style={{ display: 'block', marginTop: 4 }}>
+                {frameMobile ? 'O celular usa um enquadramento separado.' : 'Usando o mesmo ajuste do computador. Arrastar a imagem aqui cria um ajuste só para o celular.'}
+              </span>
+            </div>
+          )}
+          <Segmented
+            label="Exibição da imagem"
+            name="frame-mode"
+            value={current.mode}
+            onChange={(mode) => setFrame({ ...current, mode })}
+            options={[
+              { value: 'fit', label: 'Mostrar a imagem inteira', hint: 'Nada é cortado.' },
+              { value: 'fill', label: 'Preencher o espaço', hint: 'Sem bordas; pode cortar as laterais.' },
+            ]}
+          />
+          <div className="field" style={{ marginTop: 12 }}>
+            <label htmlFor="frame-zoom">Zoom: {Math.round(current.zoom * 100)}%</label>
+            <div className="range-row">
+              <button type="button" className="btn btn-outline btn-sm btn-icon" aria-label="Diminuir zoom" onClick={() => setFrame({ ...current, zoom: current.zoom - 0.1 })} disabled={current.zoom <= MIN_ZOOM}>
+                −
+              </button>
+              <input
+                id="frame-zoom"
+                type="range"
+                min={MIN_ZOOM * 100}
+                max={MAX_ZOOM * 100}
+                step={1}
+                value={Math.round(current.zoom * 100)}
+                onChange={(e) => setFrame({ ...current, zoom: Number(e.target.value) / 100 })}
+              />
+              <button type="button" className="btn btn-outline btn-sm btn-icon" aria-label="Aumentar zoom" onClick={() => setFrame({ ...current, zoom: current.zoom + 0.1 })} disabled={current.zoom >= MAX_ZOOM}>
+                +
+              </button>
+            </div>
+          </div>
+          <details className="advanced">
+            <summary>Ajuste fino da posição</summary>
+            <div className="form-cols two" style={{ marginTop: 10 }}>
+              <div className="field">
+                <label htmlFor="frame-x">Horizontal: {Math.round(current.x)}%</label>
+                <input id="frame-x" type="range" min={0} max={100} value={current.x} onChange={(e) => setFrame({ ...current, x: Number(e.target.value) })} />
+              </div>
+              <div className="field">
+                <label htmlFor="frame-y">Vertical: {Math.round(current.y)}%</label>
+                <input id="frame-y" type="range" min={0} max={100} value={current.y} onChange={(e) => setFrame({ ...current, y: Number(e.target.value) })} />
+              </div>
+            </div>
+          </details>
+          <div className="row-actions start" style={{ marginTop: 12 }}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setFrame({ ...current, x: 50, y: 50 })}>
+              Centralizar
+            </button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setFrame(defaultFrame(layout))}>
+              Restaurar enquadramento
+            </button>
+            <button type="button" className="btn btn-quiet btn-sm" onClick={() => imageUrl && detect(imageUrl)} disabled={detecting} aria-busy={detecting}>
+              Detectar cor de fundo da foto
+            </button>
+          </div>
+        </Section>
+      ) : (
+        <p className="notice editor-block">Sem foto, o banner usa o fundo em degradê e o ícone escolhidos em Aparência.</p>
+      )}
+    </>
+  );
+}
+
+/* ---------------------------- D · Aparência ---------------------------- */
+
+function LookTab({ form }: { form: Form }) {
+  const { register, control, formState } = form;
+  const errors = formState.errors;
+  const [imageUrl, layout, colorTo, overlay, contentAlign] = useWatch({ control, name: ['imageUrl', 'layout', 'colorTo', 'overlay', 'contentAlign'] });
+  const lowContrast = contrastWithWhite(colorTo) < 4.5;
+  return (
+    <>
+      <Section title="Cores">
+        <div className="form-cols two">
+          <ColorField id="colorFrom" label="Cor de destaque" name="colorFrom" control={control} error={errors.colorFrom?.message} hint="Brilho do degradê de fundo." />
+          <ColorField id="colorTo" label="Cor de fundo" name="colorTo" control={control} error={errors.colorTo?.message} hint="Base do banner, atrás do texto." />
+          {imageUrl && (
+            <ColorField id="imageBg" label="Cor atrás da foto" name="imageBg" control={control} error={errors.imageBg?.message} hint="Preenche as sobras quando a imagem aparece inteira." />
+          )}
+        </div>
+        {lowContrast && (
+          <p className="alert alert-warn" role="status" style={{ marginTop: 10 }}>
+            A cor de fundo está clara demais para o texto branco. Escolha um tom mais escuro para manter a leitura fácil.
+          </p>
+        )}
+      </Section>
+      <Section title="Posição do conteúdo">
+        <Controller
+          control={control}
+          name="contentAlign"
+          render={({ field }) => (
+            <Segmented
+              label="Texto no computador"
+              name="contentAlign"
+              value={field.value}
+              onChange={field.onChange}
+              options={[
+                { value: 'left', label: 'Texto à esquerda', hint: layout === 'split' ? 'Imagem à direita' : undefined },
+                { value: 'right', label: 'Texto à direita', hint: layout === 'split' ? 'Imagem à esquerda' : undefined },
+              ]}
+            />
+          )}
+        />
+        <p className="notice" style={{ marginTop: 6 }}>
+          No celular a imagem fica sempre acima do texto, para o produto não ficar encoberto.
+        </p>
+      </Section>
+      {imageUrl && (
+        <Section title="Escurecimento da foto" hint={layout === 'full' ? 'Escurece a foto atrás do texto para manter a leitura.' : 'Normalmente desnecessário com o produto ao lado do texto.'}>
+          <div className="field">
+            <label htmlFor="overlay">Intensidade: {overlay}%</label>
+            <Controller
+              control={control}
+              name="overlay"
+              render={({ field }) => <input id="overlay" type="range" min={0} max={90} step={5} value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />}
+            />
+          </div>
+          {layout === 'full' && overlay < 40 && (
+            <p className="alert alert-warn" role="status" style={{ marginTop: 8 }}>
+              Pouco escurecimento: confira na prévia se o texto {contentAlign === 'left' ? 'à esquerda' : 'à direita'} continua legível sobre a foto.
+            </p>
+          )}
+        </Section>
+      )}
+      <details className="advanced editor-block">
+        <summary>Opções avançadas: ícone e selo redondo (banners sem foto)</summary>
+        <div className="form-cols two" style={{ marginTop: 12 }}>
+          <FormField id="icon" label="Ícone no anel dourado" error={errors.icon?.message} className="full">
+            <select id="icon" className="select" {...register('icon')}>
+              <option value="">Nenhum</option>
+              {BANNER_ICONS.map((i) => (
+                <option key={i} value={i}>
+                  {ICON_LABELS[i]}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        </div>
+        <div className="form-cols three" style={{ marginTop: 12 }}>
+          <FormField id="badgeTop" label="Selo: linha de cima" error={errors.badgeTop?.message}>
+            <input id="badgeTop" className="input" placeholder="Até" {...register('badgeTop')} />
+          </FormField>
+          <FormField id="badgeMain" label="Selo: destaque" error={errors.badgeMain?.message}>
+            <input id="badgeMain" className="input" placeholder="40%" {...register('badgeMain')} />
+          </FormField>
+          <FormField id="badgeBottom" label="Selo: linha de baixo" error={errors.badgeBottom?.message}>
+            <input id="badgeBottom" className="input" placeholder="OFF" {...register('badgeBottom')} />
+          </FormField>
+        </div>
+        <p className="notice" style={{ marginTop: 8 }}>
+          O ícone aparece quando o banner não tem foto. O selo redondo aparece sobre o ícone quando o destaque está preenchido.
+        </p>
+      </details>
+    </>
+  );
+}
+
+/* ---------------------------- F · Publicação ---------------------------- */
+
+function PublishTab({ form }: { form: Form }) {
+  const { register, control, formState } = form;
+  const errors = formState.errors;
+  return (
+    <Section title="Publicação" hint="Sem datas, o banner fica no ar enquanto estiver ativo. Fora do período ele sai da página inicial automaticamente.">
+      <div style={{ display: 'grid', gap: 12 }}>
+        <Controller control={control} name="isActive" render={({ field }) => <Switch label="Ativo (publicado na loja)" checked={field.value} onChange={field.onChange} />} />
+        <FormField id="sortOrder" label="Ordem de exibição" error={errors.sortOrder?.message} hint="Menor número aparece primeiro.">
+          <input id="sortOrder" className="input" type="number" min={0} {...register('sortOrder', { setValueAs: toInt })} />
+        </FormField>
+        <div className="form-cols two">
+          <FormField id="startsAt" label="Início (opcional)" error={errors.startsAt?.message}>
+            <input id="startsAt" className="input" type="datetime-local" aria-invalid={!!errors.startsAt} {...register('startsAt')} />
+          </FormField>
+          <FormField id="endsAt" label="Fim (opcional)" error={errors.endsAt?.message}>
+            <input id="endsAt" className="input" type="datetime-local" aria-invalid={!!errors.endsAt} {...register('endsAt')} />
+          </FormField>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+/* ---------------------------- E · Prévia ---------------------------- */
+
+function LivePreview({ form, device, setDevice }: { form: Form; device: PreviewDevice; setDevice: (d: PreviewDevice) => void }) {
+  const v = useWatch({ control: form.control }) as FormValues;
+  const onFrameChange = (f: BannerFrame) => form.setValue(device === 'mobile' ? 'frameMobile' : 'frameDesktop', f, { shouldDirty: true });
+  return (
+    <section className="adm-card banner-editor-preview" aria-labelledby="preview-title">
+      <div className="preview-head">
+        <h2 id="preview-title">Pré-visualização</h2>
+        <div className="device-toggle" role="group" aria-label="Dispositivo da prévia">
+          {(['desktop', 'mobile'] as const).map((d) => (
+            <button key={d} type="button" className={device === d ? 'on' : ''} aria-pressed={device === d} onClick={() => setDevice(d)}>
+              {d === 'desktop' ? 'Computador' : 'Celular'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <BannerSlidePreview data={toSlide(v)} device={device} onFrameChange={onFrameChange} />
+      <p className="notice" style={{ marginTop: 10 }}>
+        É assim que o banner aparece na loja{device === 'desktop' ? ' em uma tela de notebook; telas maiores mostram um pouco mais das laterais da foto de fundo' : ' em um celular'}.
+        {v.imageUrl ? ' Arraste a imagem para ajustar o enquadramento.' : ''}
+      </p>
+    </section>
+  );
+}
+
+/* ---------------------------- Página ---------------------------- */
 
 export default function BannerFormPage() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
   useDocumentTitle(isNew ? 'Novo banner' : 'Editar banner');
+  const [tab, setTab] = useState<TabId>('content');
+  const [device, setDevice] = useState<PreviewDevice>('desktop');
+  const [product, setProduct] = useState<AdminProduct | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const leaving = useRef(false);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const banners = useQuery({ queryKey: ['admin', 'banners'], queryFn: () => adminApi.get<{ items: AdminBanner[] }>('/banners').then((r) => r.items) });
   const banner = id ? banners.data?.find((b) => b.id === id) : undefined;
 
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULTS });
-  const { register, control, handleSubmit, formState, reset, setError, setValue, getFieldState } = form;
+  const { handleSubmit, formState, reset, setError, setValue, getFieldState } = form;
   const errors = formState.errors;
-  const imageUrl = useWatch({ control, name: 'imageUrl' });
 
+  // Carrega o banner uma vez: atualizações da lista em segundo plano não apagam o que está sendo editado.
+  const loadedId = useRef<string | null>(null);
   useEffect(() => {
-    if (!banner) return;
-    reset({
-      kicker: banner.kicker ?? '',
-      title: banner.title,
-      highlight: banner.highlight ?? '',
-      subtitle: banner.subtitle ?? '',
-      imagePath: banner.imagePath,
-      imageUrl: banner.imageUrl,
-      icon: banner.icon ?? '',
-      colorFrom: banner.colorFrom,
-      colorTo: banner.colorTo,
-      buttonLabel: banner.buttonLabel ?? '',
-      buttonUrl: banner.buttonUrl ?? '',
-      secondaryButtonLabel: banner.secondaryButtonLabel ?? '',
-      secondaryButtonUrl: banner.secondaryButtonUrl ?? '',
-      badgeTop: banner.badgeTop ?? '',
-      badgeMain: banner.badgeMain ?? '',
-      badgeBottom: banner.badgeBottom ?? '',
-      sortOrder: banner.sortOrder,
-      isActive: banner.isActive,
-      startsAt: toLocalInput(banner.startsAt),
-      endsAt: toLocalInput(banner.endsAt),
-    });
+    if (!banner || loadedId.current === banner.id) return;
+    loadedId.current = banner.id;
+    reset(fromBanner(banner));
   }, [banner, reset]);
 
   // Novo banner entra no fim da fila, a menos que a ordem já tenha sido editada.
@@ -191,51 +801,57 @@ export default function BannerFormPage() {
     setValue('sortOrder', list.reduce((max, b) => Math.max(max, b.sortOrder), 0) + (list.length ? 10 : 0));
   }, [isNew, list, getFieldState, setValue]);
 
-  const save = useAdminMutation(
-    (v: FormValues) => {
-      const body = {
-        kicker: v.kicker || null,
-        title: v.title,
-        highlight: v.highlight || null,
-        subtitle: v.subtitle || null,
-        imagePath: v.imagePath,
-        icon: v.icon || null,
-        colorFrom: v.colorFrom,
-        colorTo: v.colorTo,
-        buttonLabel: v.buttonLabel || null,
-        buttonUrl: v.buttonUrl || null,
-        secondaryButtonLabel: v.secondaryButtonLabel || null,
-        secondaryButtonUrl: v.secondaryButtonUrl || null,
-        badgeTop: v.badgeTop || null,
-        badgeMain: v.badgeMain || null,
-        badgeBottom: v.badgeBottom || null,
-        sortOrder: v.sortOrder,
-        isActive: v.isActive,
-        startsAt: fromLocalInput(v.startsAt),
-        endsAt: fromLocalInput(v.endsAt),
-      };
-      return isNew ? adminApi.post<AdminBanner>('/banners', body) : adminApi.patch<AdminBanner>(`/banners/${id}`, body);
+  // Aviso de alterações não salvas: navegação interna (diálogo) e fechar/recarregar a aba (navegador).
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => formState.isDirty && !leaving.current && currentLocation.pathname !== nextLocation.pathname);
+  useEffect(() => {
+    if (!formState.isDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [formState.isDirty]);
+
+  const save = useAdminMutation((v: FormValues) => (isNew ? adminApi.post<AdminBanner>('/banners', toBody(v)) : adminApi.patch<AdminBanner>(`/banners/${id}`, toBody(v))), {
+    success: (b: AdminBanner) =>
+      b.state === 'LIVE' ? 'Banner publicado: já aparece na página inicial.' : b.state === 'SCHEDULED' ? 'Banner salvo e agendado.' : 'Banner salvo (fora do ar).',
+    invalidate: [['admin', 'banners'], ['banners']],
+    onSuccess: () => {
+      leaving.current = true;
+      navigate('/admin/banners');
     },
-    {
-      success: (b: AdminBanner) =>
-        b.state === 'LIVE' ? 'Banner publicado: já aparece na página inicial.' : b.state === 'SCHEDULED' ? 'Banner salvo e agendado.' : 'Banner salvo (fora do ar).',
-      invalidate: [['admin', 'banners'], ['banners']],
-      onSuccess: () => navigate('/admin/banners'),
-    },
+  });
+
+  const goToErrors = (errs: FieldErrors<FormValues>) => {
+    const t = tabWithError(errs);
+    if (t) setTab(t);
+  };
+  const onSubmit = handleSubmit(
+    (v) =>
+      save.mutate(v, {
+        onError: (err) => {
+          if (!(err instanceof ApiError)) return;
+          const names = Object.keys(DEFAULTS) as (keyof FormValues)[];
+          const failed: (keyof FormValues)[] = [];
+          for (const issue of err.fieldIssues) {
+            const field = (issue.field.startsWith('imageFrame') ? 'frameDesktop' : issue.field.split('.')[0]) as keyof FormValues;
+            if (!names.includes(field)) continue;
+            setError(field, { message: issue.message });
+            failed.push(field);
+          }
+          const t = TABS.find((x) => x.fields.some((f) => failed.includes(f)));
+          if (t) setTab(t.id);
+        },
+      }),
+    goToErrors,
   );
 
-  const fieldNames = Object.keys(DEFAULTS) as (keyof FormValues)[];
-  const onSubmit = handleSubmit((v) =>
-    save.mutate(v, {
-      onError: (err) => {
-        if (!(err instanceof ApiError)) return;
-        for (const issue of err.fieldIssues) {
-          const field = issue.field as keyof FormValues;
-          if (fieldNames.includes(field)) setError(field, { message: issue.message });
-        }
-      },
-    }),
-  );
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const delta = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!delta) return;
+    e.preventDefault();
+    const next = TABS[(index + delta + TABS.length) % TABS.length]!;
+    setTab(next.id);
+    tabRefs.current[next.id]?.focus();
+  };
 
   if (!isNew && banners.isPending) return <LoadingState />;
   if (!isNew && banners.isError) return <ErrorState error={banners.error} onRetry={() => banners.refetch()} />;
@@ -252,6 +868,13 @@ export default function BannerFormPage() {
     );
   }
   const state = banner ? CONTENT_STATE[banner.state] : undefined;
+  const panels: Record<TabId, ReactNode> = {
+    content: <ContentTab form={form} product={product} />,
+    buttons: <ButtonsTab form={form} onProduct={setProduct} />,
+    image: <ImageTab form={form} device={device} setDevice={setDevice} />,
+    look: <LookTab form={form} />,
+    publish: <PublishTab form={form} />,
+  };
 
   return (
     <>
@@ -265,142 +888,54 @@ export default function BannerFormPage() {
         }
       />
       <form onSubmit={onSubmit} noValidate>
-        <div className="adm-grid main-side">
-          <div>
-            <section className="adm-card">
-              <h2>Textos</h2>
-              <div className="form-cols two">
-                <FormField id="kicker" label="Chamada (acima do título)" error={errors.kicker?.message} className="full">
-                  <input id="kicker" className="input" aria-invalid={!!errors.kicker} {...register('kicker')} />
-                </FormField>
-                <FormField id="title" label="Título" error={errors.title?.message}>
-                  <input id="title" className="input" aria-invalid={!!errors.title} {...register('title')} />
-                </FormField>
-                <FormField id="highlight" label="Destaque (2ª linha em dourado)" error={errors.highlight?.message}>
-                  <input id="highlight" className="input" aria-invalid={!!errors.highlight} {...register('highlight')} />
-                </FormField>
-                <FormField id="subtitle" label="Subtítulo" error={errors.subtitle?.message} className="full">
-                  <textarea id="subtitle" className="textarea" rows={3} aria-invalid={!!errors.subtitle} {...register('subtitle')} />
-                </FormField>
-              </div>
-            </section>
-
-            <section className="adm-card">
-              <h2>
-                Botões <small>Escolha para onde cada botão leva. Deixe sem texto para não exibir o botão.</small>
-              </h2>
-              <div className="form-cols two">
-                <FormField id="buttonLabel" label="Texto do botão principal" error={errors.buttonLabel?.message}>
-                  <input id="buttonLabel" className="input" aria-invalid={!!errors.buttonLabel} {...register('buttonLabel')} />
-                </FormField>
-                <FormField id="buttonUrl" label="Destino do botão principal" error={errors.buttonUrl?.message}>
-                  <Controller
-                    control={control}
-                    name="buttonUrl"
-                    render={({ field }) => <LinkPicker id="buttonUrl" value={field.value} onChange={field.onChange} invalid={!!errors.buttonUrl} allowEmpty />}
-                  />
-                </FormField>
-                <FormField id="secondaryButtonLabel" label="Texto do botão secundário" error={errors.secondaryButtonLabel?.message}>
-                  <input id="secondaryButtonLabel" className="input" aria-invalid={!!errors.secondaryButtonLabel} {...register('secondaryButtonLabel')} />
-                </FormField>
-                <FormField id="secondaryButtonUrl" label="Destino do botão secundário" error={errors.secondaryButtonUrl?.message}>
-                  <Controller
-                    control={control}
-                    name="secondaryButtonUrl"
-                    render={({ field }) => <LinkPicker id="secondaryButtonUrl" value={field.value} onChange={field.onChange} invalid={!!errors.secondaryButtonUrl} allowEmpty />}
-                  />
-                </FormField>
-              </div>
-            </section>
-
-            <section className="adm-card">
-              <h2>Visual</h2>
-              <div className="form-cols two">
-                <div className="field full">
-                  <span className="label">Foto de fundo (opcional)</span>
-                  <ImageUpload
-                    folder="banners"
-                    label="Foto de fundo do banner"
-                    url={imageUrl}
-                    onUploaded={(path, url) => {
-                      setValue('imagePath', path, { shouldDirty: true });
-                      setValue('imageUrl', url, { shouldDirty: true });
+        <div className="banner-editor">
+          <div className="adm-card banner-editor-form">
+            <div className="tabs editor-tabs" role="tablist" aria-label="Seções do banner">
+              {TABS.map((t, i) => {
+                const hasError = t.fields.some((f) => errors[f]);
+                return (
+                  <button
+                    key={t.id}
+                    ref={(el) => {
+                      tabRefs.current[t.id] = el;
                     }}
-                    onRemove={() => {
-                      setValue('imagePath', null, { shouldDirty: true });
-                      setValue('imageUrl', null, { shouldDirty: true });
-                    }}
-                  />
-                  {errors.imagePath && (
-                    <span className="err" role="alert">
-                      {errors.imagePath.message}
-                    </span>
-                  )}
-                  <span className="hint">Com foto, a loja aplica um escurecimento à esquerda para manter o texto legível. Sem foto, usa o gradiente abaixo.</span>
-                </div>
-                <ColorField id="colorFrom" label="Cor do brilho" name="colorFrom" control={control} error={errors.colorFrom?.message} />
-                <ColorField id="colorTo" label="Cor do fundo" name="colorTo" control={control} error={errors.colorTo?.message} />
-                <FormField id="icon" label="Ícone no anel dourado" error={errors.icon?.message} className="full">
-                  <select id="icon" className="select" {...register('icon')}>
-                    <option value="">Nenhum</option>
-                    {BANNER_ICONS.map((i) => (
-                      <option key={i} value={i}>
-                        {ICON_LABELS[i]}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
+                    type="button"
+                    role="tab"
+                    id={`tab-${t.id}`}
+                    aria-selected={tab === t.id}
+                    aria-controls={`panel-${t.id}`}
+                    tabIndex={tab === t.id ? 0 : -1}
+                    onClick={() => setTab(t.id)}
+                    onKeyDown={(e) => onTabKey(e, i)}
+                  >
+                    {t.label}
+                    {hasError && (
+                      <span className="tab-error" aria-label="(contém erro)">
+                        !
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Sem desmontar: os campos das abas ocultas mantêm valores e erros. */}
+            {TABS.map((t) => (
+              <div key={t.id} role="tabpanel" id={`panel-${t.id}`} aria-labelledby={`tab-${t.id}`} hidden={tab !== t.id}>
+                {panels[t.id]}
               </div>
-              <div className="form-cols three" style={{ marginTop: 14 }}>
-                <FormField id="badgeTop" label="Selo: linha de cima" error={errors.badgeTop?.message}>
-                  <input id="badgeTop" className="input" placeholder="Até" {...register('badgeTop')} />
-                </FormField>
-                <FormField id="badgeMain" label="Selo: destaque" error={errors.badgeMain?.message}>
-                  <input id="badgeMain" className="input" placeholder="40%" {...register('badgeMain')} />
-                </FormField>
-                <FormField id="badgeBottom" label="Selo: linha de baixo" error={errors.badgeBottom?.message}>
-                  <input id="badgeBottom" className="input" placeholder="OFF" {...register('badgeBottom')} />
-                </FormField>
-              </div>
-              <p className="notice" style={{ marginTop: 8 }}>
-                O selo aparece sobre o anel quando há um ícone e o destaque está preenchido.
-              </p>
-            </section>
-
-            <section className="adm-card">
-              <h2>Publicação</h2>
-              <div style={{ display: 'grid', gap: 12 }}>
-                <Controller control={control} name="isActive" render={({ field }) => <Switch label="Ativo" checked={field.value} onChange={field.onChange} />} />
-                <FormField id="sortOrder" label="Ordem de exibição" error={errors.sortOrder?.message} hint="Menor número aparece primeiro.">
-                  <input id="sortOrder" className="input" type="number" min={0} {...register('sortOrder', { setValueAs: toInt })} />
-                </FormField>
-                <div className="form-cols two">
-                  <FormField id="startsAt" label="Início (opcional)" error={errors.startsAt?.message}>
-                    <input id="startsAt" className="input" type="datetime-local" aria-invalid={!!errors.startsAt} {...register('startsAt')} />
-                  </FormField>
-                  <FormField id="endsAt" label="Fim (opcional)" error={errors.endsAt?.message}>
-                    <input id="endsAt" className="input" type="datetime-local" aria-invalid={!!errors.endsAt} {...register('endsAt')} />
-                  </FormField>
-                </div>
-                <p className="notice">Sem datas, o banner fica no ar enquanto estiver ativo. Fora do período ele sai da página inicial automaticamente.</p>
-              </div>
-            </section>
+            ))}
           </div>
-
-          <div style={{ position: 'sticky', top: 74 }}>
-            <section className="adm-card">
-              <h2>
-                Prévia <small>Atualiza enquanto você digita</small>
-              </h2>
-              <LivePreview control={control} />
-              <p className="notice" style={{ marginTop: 10 }}>
-                Visualização em escala reduzida. Na loja o slide ocupa toda a largura da tela e os botões levam aos destinos informados.
-              </p>
-            </section>
-          </div>
+          <LivePreview form={form} device={device} setDevice={setDevice} />
         </div>
         <div className="form-bar">
-          <span className="notice">{formState.isDirty ? 'Há alterações não salvas.' : isNew ? 'Preencha os campos e salve.' : 'Tudo salvo.'}</span>
+          <span className={`notice ${formState.isDirty ? 'pending-hint' : ''}`} role="status">
+            {formState.isDirty ? 'Há alterações não salvas.' : isNew ? 'Preencha os campos e salve.' : 'Tudo salvo.'}
+          </span>
+          {formState.isDirty && !isNew && (
+            <button type="button" className="btn btn-quiet" onClick={() => setConfirmDiscard(true)}>
+              Descartar alterações
+            </button>
+          )}
           <Link to="/admin/banners" className="btn btn-quiet">
             Cancelar
           </Link>
@@ -409,6 +944,30 @@ export default function BannerFormPage() {
           </button>
         </div>
       </form>
+
+      {confirmDiscard && banner && (
+        <ConfirmDialog
+          title="Descartar alterações?"
+          message="O banner volta a ficar como está salvo. As mudanças feitas agora serão perdidas."
+          confirmLabel="Descartar"
+          danger
+          onConfirm={() => {
+            reset(fromBanner(banner));
+            setConfirmDiscard(false);
+          }}
+          onCancel={() => setConfirmDiscard(false)}
+        />
+      )}
+      {blocker.state === 'blocked' && (
+        <ConfirmDialog
+          title="Sair sem salvar?"
+          message="As alterações deste banner ainda não foram salvas e serão perdidas."
+          confirmLabel="Sair sem salvar"
+          danger
+          onConfirm={() => blocker.proceed()}
+          onCancel={() => blocker.reset()}
+        />
+      )}
     </>
   );
 }

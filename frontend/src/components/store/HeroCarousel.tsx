@@ -1,26 +1,35 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import trophy from '../../assets/trophy.png';
+import type { SlideData } from '../../lib/banner';
 import type { Banner } from '../../types/api';
-import { CategoryGlyph, ChevronLeft, ChevronRight } from '../ui/Icons';
-import { SmartLink } from '../ui/SmartLink';
+import { ChevronLeft, ChevronRight } from '../ui/Icons';
+import { BannerSlide } from './BannerSlide';
 
-function SlideArt({ banner }: { banner: Banner }) {
-  if (!banner.icon) return null;
-  return (
-    <div className="hero-art" aria-hidden>
-      <div className="ring">{banner.icon === 'trophy' ? <img src={trophy} alt="" /> : <CategoryGlyph icon={banner.icon} className="big" strokeWidth={1.1} />}</div>
-      {banner.badgeMain && (
-        <div className="badge">
-          <div>
-            {banner.badgeTop && <small>{banner.badgeTop}</small>}
-            <strong>{banner.badgeMain}</strong>
-            {banner.badgeBottom && <small>{banner.badgeBottom}</small>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+/** Slide institucional exibido enquanto não há banners ativos. */
+const fallbackSlide = (storeName: string): SlideData => ({
+  kicker: storeName,
+  title: 'Supere',
+  highlight: 'seus limites',
+  subtitle: null,
+  footnote: null,
+  priceOriginalCents: null,
+  priceSaleCents: null,
+  imageUrl: null,
+  imageFrame: null,
+  imageBg: null,
+  layout: 'full',
+  contentAlign: 'left',
+  overlay: 0,
+  icon: 'trophy',
+  colorFrom: '#2a2a2e',
+  colorTo: '#0b0b0c',
+  buttonLabel: 'Ver produtos →',
+  buttonUrl: '/produtos',
+  secondaryButtonLabel: null,
+  secondaryButtonUrl: null,
+  badgeTop: null,
+  badgeMain: null,
+  badgeBottom: null,
+});
 
 /**
  * Carrossel do hero (mesmo comportamento do original): avanço automático com barra de progresso,
@@ -59,27 +68,7 @@ export function HeroCarousel({ banners, intervalSeconds, storeName }: { banners:
     return (
       <section className="hero hero-fallback" aria-label="Destaque">
         <div className="slides">
-          <div className="slide active" style={{ '--sbg': 'radial-gradient(circle at 75% 40%,#2a2a2e 0,#0b0b0c 58%)' } as CSSProperties}>
-            <div className="stripe s1" />
-            <div className="stripe s2" />
-            <div className="wrap">
-              <div>
-                <div className="kicker">
-                  {storeName} <span className="slash">///</span>
-                </div>
-                <h2 className="h1">
-                  <span className="l1">Supere</span>
-                  <span>seus limites</span>
-                </h2>
-                <div className="btns">
-                  <SmartLink to="/produtos" className="btn btn-gold">
-                    Ver produtos →
-                  </SmartLink>
-                </div>
-              </div>
-              <SlideArt banner={{ icon: 'trophy' } as Banner} />
-            </div>
-          </div>
+          <BannerSlide data={fallbackSlide(storeName)} active />
         </div>
       </section>
     );
@@ -119,54 +108,14 @@ export function HeroCarousel({ banners, intervalSeconds, storeName }: { banners:
       <div className="slides" aria-live={paused ? 'polite' : 'off'}>
         {banners.map((b, i) => {
           const active = i === index;
-          const style = {
-            '--sbg': `radial-gradient(circle at 75% 40%,${b.colorFrom} 0,${b.colorTo} 58%)`,
-            ...(b.imageUrl ? { '--simg': `url("${encodeURI(b.imageUrl)}")` } : {}),
-          } as CSSProperties;
-          const Heading = i === 0 ? 'h1' : 'h2';
           return (
-            <div
+            <BannerSlide
               key={b.id}
-              className={`slide ${active ? 'active' : ''} ${b.imageUrl ? 'has-photo' : ''}`}
-              style={style}
-              role="group"
-              aria-roledescription="slide"
-              aria-label={`${i + 1} de ${count}`}
-              aria-hidden={!active}
-              inert={!active}
-            >
-              <div className="stripe s1" />
-              <div className="stripe s2" />
-              <div className="wrap">
-                <div>
-                  {b.kicker && (
-                    <div className="kicker">
-                      {b.kicker} <span className="slash">///</span>
-                    </div>
-                  )}
-                  <Heading className="h1">
-                    <span className="l1">{b.title}</span>
-                    {b.highlight && <span>{b.highlight}</span>}
-                  </Heading>
-                  {b.subtitle && <p>{b.subtitle}</p>}
-                  {(b.buttonUrl || b.secondaryButtonUrl) && (
-                    <div className="btns">
-                      {b.buttonUrl && b.buttonLabel && (
-                        <SmartLink to={b.buttonUrl} className="btn btn-gold">
-                          {b.buttonLabel}
-                        </SmartLink>
-                      )}
-                      {b.secondaryButtonUrl && b.secondaryButtonLabel && (
-                        <SmartLink to={b.secondaryButtonUrl} className="btn btn-ghost">
-                          {b.secondaryButtonLabel}
-                        </SmartLink>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <SlideArt banner={b} />
-              </div>
-            </div>
+              data={b as SlideData}
+              active={active}
+              heading={i === 0 ? 'h1' : 'h2'}
+              slideProps={{ role: 'group', 'aria-roledescription': 'slide', 'aria-label': `${i + 1} de ${count}`, 'aria-hidden': !active, inert: !active }}
+            />
           );
         })}
       </div>

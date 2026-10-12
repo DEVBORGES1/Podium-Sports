@@ -88,13 +88,7 @@ export default function CatalogPage() {
       </div>
       <section className="sec" style={{ paddingTop: 8 }} aria-labelledby="catalog-title">
         <h1 id="catalog-title" className="sec-title">
-          <span className="slash" aria-hidden>
-            ///
-          </span>{' '}
-          {title}{' '}
-          <span className="slash" aria-hidden>
-            ///
-          </span>
+          {title}
         </h1>
         <div className="search">
           <SearchIcon />

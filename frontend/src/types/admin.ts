@@ -1,5 +1,5 @@
 // Tipos das respostas das rotas /admin. Valores monetários em centavos.
-import type { Availability, CategoryIcon, Fulfillment, InfoItem, OrderStatus, PaymentStatus, Product, StoreContent, StoreSettings, UserRole } from './api';
+import type { Availability, Banner, CategoryIcon, Fulfillment, InfoItem, OrderStatus, PaymentStatus, Product, StoreContent, StoreSettings, UserRole } from './api';
 
 export interface AdminProductImage {
   id: string;
@@ -152,25 +152,36 @@ export interface AdminOrder {
   paymentHistory: { id: string; createdAt: string; user: { id: string; name: string } | null; from?: PaymentStatus; to?: PaymentStatus; note?: string | null }[];
 }
 
-export interface AdminBanner {
-  id: string;
-  kicker: string | null;
-  title: string;
-  highlight: string | null;
-  subtitle: string | null;
-  imageUrl: string | null;
+export type BannerPage = 'home' | 'catalog' | 'offers' | 'new';
+
+/** Destino de um botão do banner, escolhido no painel (o servidor monta o endereço). */
+export type ButtonTarget =
+  | { type: 'product'; productId: string }
+  | { type: 'category'; categoryId: string }
+  | { type: 'page'; page: BannerPage }
+  | { type: 'external'; url: string }
+  | { type: 'whatsapp'; message: string | null };
+
+export type ButtonTargetIssue = 'PRODUCT_REMOVED' | 'PRODUCT_INACTIVE' | 'CATEGORY_REMOVED' | 'CATEGORY_INACTIVE' | 'WHATSAPP_MISSING' | 'LEGACY_LINK';
+
+export interface ButtonInfo {
+  description: string;
+  issue: ButtonTargetIssue | null;
+  url: string | null;
+}
+
+export interface AdminBanner extends Omit<Banner, 'buttonUrl' | 'secondaryButtonUrl'> {
+  showKicker: boolean;
+  showPrices: boolean;
   imagePath: string | null;
-  icon: CategoryIcon | 'trophy' | null;
-  colorFrom: string;
-  colorTo: string;
-  buttonLabel: string | null;
+  /** Endereço salvo (gerado a partir do destino ou digitado nos banners antigos). */
   buttonUrl: string | null;
-  secondaryButtonLabel: string | null;
+  buttonTarget: ButtonTarget | null;
+  buttonInfo: ButtonInfo | null;
   secondaryButtonUrl: string | null;
-  badgeTop: string | null;
-  badgeMain: string | null;
-  badgeBottom: string | null;
-  sortOrder: number;
+  secondaryButtonTarget: ButtonTarget | null;
+  secondaryButtonInfo: ButtonInfo | null;
+  secondaryButtonEnabled: boolean;
   isActive: boolean;
   startsAt: string | null;
   endsAt: string | null;

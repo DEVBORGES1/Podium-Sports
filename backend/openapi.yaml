@@ -146,18 +146,59 @@ components:
         colorFrom: { type: string }
         colorTo: { type: string }
         buttonLabel: { type: [string, 'null'] }
-        buttonUrl: { type: [string, 'null'], description: Caminho interno ("/...") ou URL https }
+        buttonUrl:
+          type: [string, 'null']
+          description: >-
+            Na loja: endereço gerado a partir do destino escolhido (slug atual do produto/categoria) ou o link
+            salvo nos banners antigos. Nulo quando o destino deixou de existir ou foi desativado.
         secondaryButtonLabel: { type: [string, 'null'] }
-        secondaryButtonUrl: { type: [string, 'null'] }
+        secondaryButtonUrl: { type: [string, 'null'], description: Nulo também quando o botão secundário está desligado }
         badgeTop: { type: [string, 'null'] }
         badgeMain: { type: [string, 'null'] }
         badgeBottom: { type: [string, 'null'] }
+        footnote: { type: [string, 'null'], description: Texto complementar exibido abaixo dos botões }
+        priceOriginalCents: { type: [integer, 'null'], description: Preço original ("De"), em centavos }
+        priceSaleCents: { type: [integer, 'null'], description: Preço promocional ("Por"), em centavos }
+        layout: { type: string, enum: [split, full], description: 'split: imagem em painel ao lado do texto; full: foto em todo o banner' }
+        contentAlign: { type: string, enum: [left, right] }
+        overlay: { type: integer, minimum: 0, maximum: 90, description: Escurecimento sobre a foto (%) }
+        imageFrame: { oneOf: [{ $ref: '#/components/schemas/BannerImageFrame' }, { type: 'null' }] }
+        imageBg: { type: [string, 'null'], description: 'Cor atrás da foto (#RRGGBB)' }
         sortOrder: { type: integer }
+    BannerFrame:
+      type: object
+      required: [mode, x, y, zoom]
+      properties:
+        mode: { type: string, enum: [fill, fit], description: 'fill: preenche a área (pode cortar); fit: mostra a imagem inteira' }
+        x: { type: number, minimum: 0, maximum: 100 }
+        y: { type: number, minimum: 0, maximum: 100 }
+        zoom: { type: number, minimum: 1, maximum: 3 }
+    BannerImageFrame:
+      type: object
+      required: [desktop, mobile]
+      description: Enquadramento da foto salvo separadamente da imagem original (que nunca é alterada)
+      properties:
+        desktop: { $ref: '#/components/schemas/BannerFrame' }
+        mobile: { oneOf: [{ $ref: '#/components/schemas/BannerFrame' }, { type: 'null' }], description: Nulo = usa o ajuste do computador }
+    BannerTarget:
+      description: Destino de um botão, escolhido no painel. O servidor monta o endereço com as rotas reais da loja.
+      oneOf:
+        - { type: object, required: [type, productId], properties: { type: { const: product }, productId: { type: string, format: uuid } } }
+        - { type: object, required: [type, categoryId], properties: { type: { const: category }, categoryId: { type: string, format: uuid } } }
+        - { type: object, required: [type, page], properties: { type: { const: page }, page: { type: string, enum: [home, catalog, offers, new] } } }
+        - { type: object, required: [type, url], properties: { type: { const: external }, url: { type: string, description: Somente https } } }
+        - { type: object, required: [type], properties: { type: { const: whatsapp }, message: { type: [string, 'null'], maxLength: 300 } } }
     BannerInput:
       allOf:
         - $ref: '#/components/schemas/Banner'
         - type: object
           properties:
+            buttonUrl: { type: [string, 'null'], description: 'Legado: caminho interno ("/...") ou URL https. Prefira buttonTarget.' }
+            buttonTarget: { oneOf: [{ $ref: '#/components/schemas/BannerTarget' }, { type: 'null' }] }
+            secondaryButtonTarget: { oneOf: [{ $ref: '#/components/schemas/BannerTarget' }, { type: 'null' }] }
+            secondaryButtonEnabled: { type: boolean, description: Desligado, o botão some da loja sem apagar texto e destino }
+            showKicker: { type: boolean }
+            showPrices: { type: boolean }
             imagePath: { type: [string, 'null'] }
             isActive: { type: boolean }
             startsAt: { type: [string, 'null'], format: date-time }
@@ -652,7 +693,7 @@ paths:
   /admin/banners:
     get:
       tags: [Admin · Banners]
-      summary: Lista banners com estado (LIVE, SCHEDULED, EXPIRED, INACTIVE)
+      summary: Lista banners com estado (LIVE, SCHEDULED, EXPIRED, INACTIVE) e situação dos destinos dos botões (buttonInfo.issue)
       security: [{ bearer: [] }]
       responses: { '200': { description: OK } }
     post:

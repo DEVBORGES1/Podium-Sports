@@ -169,6 +169,28 @@ test.describe('operação da loja', () => {
     await expect(page.locator('.slide')).toHaveCount(5);
   });
 
+  test('banner: destino do botão escolhido no seletor visual, sem digitar endereço', async ({ page }) => {
+    await login(page, USERS.owner.email);
+    await page.goto('/admin/banners/new');
+    await page.getByLabel('Título', { exact: true }).fill('Semana da Chuteira');
+    await page.getByRole('tab', { name: 'Botões' }).click();
+    await page.getByLabel('Texto do botão', { exact: true }).fill('Quero a minha');
+    await page.getByText('Um produto', { exact: true }).first().click();
+    await page.getByRole('button', { name: /Escolher produto/ }).click();
+    const picker = page.getByRole('dialog', { name: 'Escolher produto' });
+    await picker.getByLabel('Buscar produto').fill('F50');
+    await picker.getByRole('button', { name: /Chuteira F50 Messi/ }).click();
+    await expect(page.locator('#panel-buttons .pick-selected')).toContainText('Chuteira F50 Messi');
+    // Botão secundário desligado: não aparece na loja.
+    await page.getByRole('switch', { name: 'Mostrar botão secundário' }).uncheck();
+    await page.getByRole('button', { name: 'Criar banner' }).click();
+    await expect(page).toHaveURL(/\/admin\/banners$/);
+
+    await page.goto('/');
+    const slide = page.locator('.slide', { hasText: 'Semana da Chuteira' });
+    await expect(slide.locator('a', { hasText: 'Quero a minha' })).toHaveAttribute('href', '/produto/chuteira-f50-messi');
+    await expect(slide.locator('.btns a')).toHaveCount(1);
+  });
 
   test('configurações: novo número do WhatsApp é usado pela loja', async ({ page }) => {
     await login(page, USERS.owner.email);
