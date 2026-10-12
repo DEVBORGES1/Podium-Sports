@@ -1,8 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
-import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify, type JWTPayload } from 'jose';
+import { createRemoteJWKSet, decodeJwt, decodeProtectedHeader, jwtVerify, type JWTPayload } from 'jose';
 import type { Profile, UserRole } from '@prisma/client';
 import { env } from '../config/env.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
 import { prisma } from '../lib/prisma.js';
 
 declare module 'express-serve-static-core' {
@@ -30,14 +31,23 @@ export async function verifyAccessToken(token: string): Promise<JWTPayload & { s
   let payload: JWTPayload;
   try {
     if (alg === 'HS256') {
-      if (!hsSecret) throw new Error('HS256 desabilitado');
+      if (!hsSecret) throw new Error('token HS256 recebido, mas SUPABASE_JWT_SECRET não está configurado');
       ({ payload } = await jwtVerify(token, hsSecret, { ...options, algorithms: ['HS256'] }));
     } else {
-      if (!jwks) throw new Error('JWKS não configurado');
+      if (!jwks) throw new Error('SUPABASE_URL não configurado (JWKS indisponível)');
       ({ payload } = await jwtVerify(token, jwks, { ...options, algorithms: ['ES256', 'RS256'] }));
     }
   } catch (err) {
-    if ((err as { code?: string }).code === 'ERR_JWT_EXPIRED') throw unauthorized('Sessão expirada. Entre novamente.');
+    const e = err as { code?: string; claim?: string; message?: string };
+    if (e.code === 'ERR_JWT_EXPIRED') throw unauthorized('Sessão expirada. Entre novamente.');
+    // Diagnóstico de configuração: registra o motivo e os emissores (nunca o token).
+    let tokenIssuer: unknown;
+    try {
+      tokenIssuer = decodeJwt(token).iss;
+    } catch {
+      tokenIssuer = undefined;
+    }
+    logger.warn({ alg, code: e.code, claim: e.claim, reason: e.message, expectedIssuer: issuer, tokenIssuer }, 'access token rejected');
     throw unauthorized('Token inválido.');
   }
   if (typeof payload.sub !== 'string' || !payload.sub) throw unauthorized('Token inválido.');
