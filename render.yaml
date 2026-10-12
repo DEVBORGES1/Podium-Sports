@@ -5,9 +5,9 @@ services:
     name: podium-sports-api
     runtime: node
     rootDir: backend
-    # Starter (pago) fica sempre ligado. No plano Free a API "dorme" após 15 min sem acesso
-    # e a primeira visita espera ~1 min — ruim para uma loja.
-    plan: starter
+    # Free: a API "dorme" após 15 min sem acesso — mantenha um monitor (ex.: UptimeRobot)
+    # chamando /api/v1/health a cada 5 min. Troque para "starter" (pago) para ficar sempre ligada.
+    plan: free
     # Virgínia (EUA) é a região do Render mais próxima do Supabase em São Paulo.
     region: virginia
     # Migrations versionadas aplicadas a cada deploy (sem efeito quando não há novas).
