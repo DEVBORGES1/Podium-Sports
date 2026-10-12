@@ -61,6 +61,6 @@ O site de página única (HTML/CSS/JS com 66 produtos fixos no código) virou um
 2. **Estoque real**: o HTML não tinha estoque; o seed usa 10 unidades provisórias por produto. Ajustar em **Estoque** antes de divulgar.
 3. **Fotos dos produtos**: o site original não tinha fotos (usava ícones, que continuam como reserva). Enviar pelo painel.
 4. **Produto duplicado no catálogo original**: dois “Joma Top-Flex” com preços diferentes (R$ 749,90 e R$ 649,90) — importados como `joma-top-flex` e `joma-top-flex-2` para a loja revisar.
-5. ~~**Deploy**~~ — **concluído**: API no Render (plano Free, mantida ativa por monitor a cada 5 min) e site na Vercel (`podium-sports.vercel.app`). Ao adotar domínio próprio, atualizar `CORS_ORIGINS`, `ADMIN_APP_URL` e as URLs do Supabase Auth.
+5. ~~**Deploy**~~ — **concluído**: API no Render (plano Free, mantida ativa por monitor a cada 5 min) e site na Vercel (`podium-sports-omega.vercel.app`). Ao adotar domínio próprio, atualizar `CORS_ORIGINS`, `ADMIN_APP_URL` e as URLs do Supabase Auth.
 6. **CI no GitHub**: o workflow foi criado, mas ainda não rodou no GitHub Actions (aqui as mesmas etapas foram executadas localmente).
 7. **Fora do escopo desta versão**: pagamento online, cálculo automático de frete (a taxa é combinada pelo WhatsApp) e tela de clientes (os dados de contato ficam nos pedidos). A estrutura de pedidos/pagamento já separa os estados para receber essas funcionalidades.
