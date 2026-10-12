@@ -167,12 +167,11 @@ export default function UsersPage() {
                         </button>
                         <button
                           type="button"
-                          className="btn btn-outline btn-sm"
+                          className={`btn btn-sm ${u.status === 'ACTIVE' ? 'btn-danger-outline' : 'btn-outline'}`}
                           disabled={self || lastSuper}
                           title={self ? selfReason : lastSuper ? lastSuperReason : undefined}
                           onClick={() => openConfirm({ user: u, kind: 'status' })}
                           aria-label={`${u.status === 'ACTIVE' ? 'Desativar' : 'Reativar'} ${u.name}`}
-                          style={u.status === 'ACTIVE' && !self && !lastSuper ? { color: 'var(--danger)' } : undefined}
                         >
                           {u.status === 'ACTIVE' ? 'Desativar' : 'Reativar'}
                         </button>

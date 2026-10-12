@@ -6,10 +6,9 @@ import { prisma } from '../../lib/prisma.js';
 import { applyStockChange, lockStock } from '../../lib/stock.js';
 import { normalizeSearch } from '../../lib/text.js';
 import { paged } from '../../lib/validation.js';
+import { OPEN_ORDER_STATUSES } from '../orders/orders.labels.js';
 import { availabilityOf } from '../products/products.service.js';
 import type { createMovementSchema, inventoryListQuery, movementsQuery } from './inventory.schemas.js';
-
-export const OPEN_ORDER_STATUSES = ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY'] as const;
 
 export async function listInventory(query: z.infer<typeof inventoryListQuery>) {
   const conditions: Prisma.Sql[] = [Prisma.sql`TRUE`];
@@ -42,7 +41,7 @@ export async function listInventory(query: z.infer<typeof inventoryListQuery>) {
              COALESCE((
                SELECT SUM(oi.quantity) FROM order_items oi JOIN orders o ON o.id = oi.order_id
                 WHERE oi.product_id = p.id
-                  AND o.status IN ('PENDING', 'ACCEPTED', 'PROCESSING', 'READY')
+                  AND o.status::text IN (${Prisma.join([...OPEN_ORDER_STATUSES])})
              ), 0)::bigint AS reserved,
              (SELECT MAX(m.created_at) FROM inventory_movements m WHERE m.product_id = p.id) AS last_movement_at
         FROM products p JOIN categories c ON c.id = p.category_id

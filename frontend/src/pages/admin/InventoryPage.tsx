@@ -17,8 +17,8 @@ import type { Page } from '../../types/api';
 
 type Tab = 'balances' | 'movements';
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'balances', label: 'Saldos' },
-  { id: 'movements', label: 'Movimentações' },
+  { id: 'balances', label: 'Saldo atual' },
+  { id: 'movements', label: 'Histórico de movimentações' },
 ];
 const MOVEMENT_TYPES = Object.keys(MOVEMENT_TYPE) as MovementType[];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -63,10 +63,9 @@ export default function InventoryPage() {
 
   return (
     <>
-      <PageHeader title="Estoque" description="Saldos, estoque mínimo e histórico de movimentações." />
+      <PageHeader title="Estoque" description="Quanto há de cada produto. Use “Adicionar” quando chegar mercadoria e “Saída” para perdas ou uso interno." />
       <p className="notice" style={{ marginBottom: 14 }}>
-        O saldo só muda por meio de movimentações (entradas, saídas, ajustes e reservas de pedidos). Cada alteração fica registrada com data, responsável e
-        justificativa.
+        Pedidos reservam as unidades automaticamente e devolvem se forem cancelados. Toda alteração fica no histórico com data, responsável e motivo.
       </p>
       <div className="tabs" role="tablist" aria-label="Seções do estoque">
         {TABS.map((t) => (
@@ -101,7 +100,7 @@ export default function InventoryPage() {
 function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set: SetParam; onHistory: (productId: string) => void }) {
   const [search, setSearch] = useState(params.get('q') ?? '');
   const q = useDebouncedValue(search.trim(), 300);
-  const [moving, setMoving] = useState<InventoryRow | null>(null);
+  const [moving, setMoving] = useState<{ row: InventoryRow; type: MovementForm['type'] } | null>(null);
   const stockParam = params.get('stock') ?? '';
   const filters = {
     q,
@@ -167,7 +166,9 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
               <th className="num" title="Quantidade em pedidos ainda abertos (já descontada do saldo)">
                 Reservado
               </th>
-              <th className="num">Mínimo</th>
+              <th className="num" title="Avisar quando o saldo chegar a este número">
+                Avisar em
+              </th>
               <th>Situação</th>
               <th>Última movimentação</th>
               <th>
@@ -206,12 +207,18 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>{r.lastMovementAt ? formatDateTime(r.lastMovementAt) : <span className="muted">—</span>}</td>
                     <td>
-                      <div className="row-actions" style={{ flexWrap: 'nowrap' }}>
-                        <button type="button" className="btn btn-outline btn-sm" onClick={() => onHistory(r.productId)} aria-label={`Histórico de ${r.name}`}>
-                          Histórico
+                      <div className="row-actions nowrap">
+                        <button type="button" className="btn btn-gold btn-sm" onClick={() => setMoving({ row: r, type: 'IN' })} aria-label={`Adicionar estoque de ${r.name}`}>
+                          + Adicionar
                         </button>
-                        <button type="button" className="btn btn-gold btn-sm" onClick={() => setMoving(r)} aria-label={`Movimentar estoque de ${r.name}`}>
-                          Movimentar
+                        <button type="button" className="btn btn-outline btn-sm" onClick={() => setMoving({ row: r, type: 'OUT' })} aria-label={`Registrar saída de ${r.name}`}>
+                          − Saída
+                        </button>
+                        <button type="button" className="btn btn-outline btn-sm" onClick={() => setMoving({ row: r, type: 'ADJUSTMENT' })} aria-label={`Ajustar a quantidade de ${r.name}`}>
+                          Ajustar
+                        </button>
+                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => onHistory(r.productId)} aria-label={`Histórico de ${r.name}`}>
+                          Histórico
                         </button>
                       </div>
                     </td>
@@ -226,7 +233,7 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
       <p className="notice" style={{ marginTop: 12 }}>
         "Reservado" mostra as unidades em pedidos abertos — elas já foram descontadas do saldo e voltam automaticamente se o pedido for cancelado ou expirar.
       </p>
-      {moving && <MovementModal row={moving} onClose={() => setMoving(null)} />}
+      {moving && <MovementModal row={moving.row} initialType={moving.type} onClose={() => setMoving(null)} />}
     </>
   );
 }
@@ -322,11 +329,15 @@ const toOptionalInt = (v: unknown) => {
   return Number.isFinite(n) ? n : undefined;
 };
 
-function MovementModal({ row, onClose }: { row: InventoryRow; onClose: () => void }) {
+const MOVEMENT_TITLE: Record<MovementForm['type'], string> = { IN: 'Adicionar estoque', OUT: 'Registrar saída', ADJUSTMENT: 'Ajustar quantidade' };
+
+function MovementModal({ row, initialType, onClose }: { row: InventoryRow; initialType: MovementForm['type']; onClose: () => void }) {
   const { register, control, handleSubmit, formState, setError } = useForm<MovementForm>({
     resolver: zodResolver(movementSchema),
-    defaultValues: { type: 'IN', quantity: undefined, newBalance: undefined, reason: '' },
+    defaultValues: { type: initialType, quantity: undefined, newBalance: undefined, reason: '' },
   });
+  // Ajuste substitui o saldo: pede uma segunda confirmação mostrando o antes e o depois.
+  const [confirmAdjust, setConfirmAdjust] = useState<MovementForm | null>(null);
   const errors = formState.errors;
   const [type, quantity, newBalance] = useWatch({ control, name: ['type', 'quantity', 'newBalance'] });
 
@@ -339,7 +350,7 @@ function MovementModal({ row, onClose }: { row: InventoryRow; onClose: () => voi
       return adminApi.post<CreatedMovement>('/inventory/movements', body);
     },
     {
-      success: (m) => `Movimentação registrada. Saldo: ${m.balanceBefore} → ${m.balanceAfter}.`,
+      success: (m) => `Estoque atualizado: ${row.name} passou de ${m.balanceBefore} para ${m.balanceAfter}.`,
       invalidate: STOCK_KEYS,
       onSuccess: onClose,
     },
@@ -362,6 +373,14 @@ function MovementModal({ row, onClose }: { row: InventoryRow; onClose: () => voi
       setError('quantity', { message: `Saldo insuficiente. Disponível: ${current}.` });
       return;
     }
+    if (v.type === 'ADJUSTMENT' && !confirmAdjust) {
+      setConfirmAdjust(v);
+      return;
+    }
+    send(v);
+  });
+
+  const send = (v: MovementForm) =>
     create.mutate(v, {
       onError: (err) => {
         if (err instanceof ApiError) {
@@ -370,24 +389,30 @@ function MovementModal({ row, onClose }: { row: InventoryRow; onClose: () => voi
             if (field) setError(field, { message: issue.message });
           }
         }
+        setConfirmAdjust(null);
       },
     });
-  });
 
   const reasonRequired = type !== 'IN';
 
   return (
     <Modal
-      title={`Movimentar estoque — ${row.name}`}
+      title={`${MOVEMENT_TITLE[type ?? initialType]} — ${row.name}`}
       onClose={() => !busy && onClose()}
       footer={
         <>
-          <button type="button" className="btn btn-outline btn-sm" onClick={onClose} disabled={busy}>
-            Cancelar
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => (confirmAdjust ? setConfirmAdjust(null) : onClose())} disabled={busy}>
+            {confirmAdjust ? 'Voltar' : 'Cancelar'}
           </button>
-          <button type="submit" form="movement-form" className="btn btn-gold btn-sm" disabled={busy} aria-busy={busy}>
-            {busy ? 'Registrando…' : 'Registrar movimentação'}
-          </button>
+          {confirmAdjust ? (
+            <button type="button" className="btn btn-gold btn-sm" disabled={busy} aria-busy={busy} onClick={() => send(confirmAdjust)}>
+              Confirmar: {current} → {confirmAdjust.newBalance}
+            </button>
+          ) : (
+            <button type="submit" form="movement-form" className="btn btn-gold btn-sm" disabled={busy} aria-busy={busy}>
+              {type === 'ADJUSTMENT' ? 'Revisar ajuste' : MOVEMENT_TITLE[type ?? initialType]}
+            </button>
+          )}
         </>
       }
     >
@@ -400,50 +425,60 @@ function MovementModal({ row, onClose }: { row: InventoryRow; onClose: () => voi
           <dt>Reservado em pedidos abertos</dt>
           <dd>{row.reservedInOpenOrders}</dd>
         </dl>
-        <FormField id="mv-type" label="Tipo de movimentação">
-          <select id="mv-type" className="select" {...register('type')}>
-            <option value="IN">Entrada (soma ao saldo)</option>
-            <option value="OUT">Saída (subtrai do saldo)</option>
-            <option value="ADJUSTMENT">Ajuste de saldo (define o valor contado)</option>
-          </select>
-        </FormField>
-        {type === 'ADJUSTMENT' ? (
-          <FormField id="mv-newBalance" label="Novo saldo" error={errors.newBalance?.message} hint="Quantidade real contada no estoque.">
-            <input
-              key="newBalance"
-              id="mv-newBalance"
-              className="input"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              step={1}
-              aria-invalid={!!errors.newBalance}
-              {...register('newBalance', { setValueAs: toOptionalInt })}
-            />
-          </FormField>
-        ) : (
-          <FormField id="mv-quantity" label="Quantidade" error={errors.quantity?.message}>
-            <input
-              key="quantity"
-              id="mv-quantity"
-              className="input"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              step={1}
-              aria-invalid={!!errors.quantity}
-              {...register('quantity', { setValueAs: toOptionalInt })}
-            />
-          </FormField>
+        {confirmAdjust && (
+          <p className="alert alert-warn" role="alert" style={{ margin: 0 }}>
+            Confirme o ajuste: o saldo de <b>{row.name}</b> passará de <b>{current}</b> para <b>{confirmAdjust.newBalance}</b> (
+            {(confirmAdjust.newBalance ?? 0) - current >= 0 ? '+' : '−'}
+            {Math.abs((confirmAdjust.newBalance ?? 0) - current)}). Motivo: “{confirmAdjust.reason}”.
+          </p>
         )}
-        <FormField
-          id="mv-reason"
-          label={reasonRequired ? 'Justificativa (obrigatória)' : 'Justificativa (opcional)'}
-          error={errors.reason?.message}
-          hint={reasonRequired ? 'Ex.: avaria, perda, contagem de inventário.' : 'Ex.: nota fiscal do fornecedor.'}
-        >
-          <textarea id="mv-reason" className="textarea" rows={2} maxLength={300} aria-invalid={!!errors.reason} {...register('reason')} />
-        </FormField>
+        {/* Na revisão do ajuste os campos ficam travados: o que foi revisado é exatamente o que será gravado. */}
+        <fieldset className="plain-fieldset" disabled={!!confirmAdjust}>
+          <FormField id="mv-type" label="O que aconteceu?">
+            <select id="mv-type" className="select" {...register('type')}>
+              <option value="IN">Chegou mercadoria (adicionar ao estoque)</option>
+              <option value="OUT">Saída: perda, avaria ou uso interno</option>
+              <option value="ADJUSTMENT">Contei o estoque e o número está diferente (ajuste)</option>
+            </select>
+          </FormField>
+          {type === 'ADJUSTMENT' ? (
+            <FormField id="mv-newBalance" label="Novo saldo" error={errors.newBalance?.message} hint="Quantidade real contada no estoque.">
+              <input
+                key="newBalance"
+                id="mv-newBalance"
+                className="input"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                aria-invalid={!!errors.newBalance}
+                {...register('newBalance', { setValueAs: toOptionalInt })}
+              />
+            </FormField>
+          ) : (
+            <FormField id="mv-quantity" label="Quantidade" error={errors.quantity?.message}>
+              <input
+                key="quantity"
+                id="mv-quantity"
+                className="input"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                step={1}
+                aria-invalid={!!errors.quantity}
+                {...register('quantity', { setValueAs: toOptionalInt })}
+              />
+            </FormField>
+          )}
+          <FormField
+            id="mv-reason"
+            label={reasonRequired ? 'Justificativa (obrigatória)' : 'Justificativa (opcional)'}
+            error={errors.reason?.message}
+            hint={reasonRequired ? 'Ex.: avaria, perda, contagem de inventário.' : 'Ex.: nota fiscal do fornecedor.'}
+          >
+            <textarea id="mv-reason" className="textarea" rows={2} maxLength={300} aria-invalid={!!errors.reason} {...register('reason')} />
+          </FormField>
+        </fieldset>
         <p className={`alert ${preview !== null && preview < 0 ? 'alert-error' : 'alert-warn'}`} role="status" aria-live="polite" style={{ margin: 0 }}>
           {preview === null ? (
             <>Saldo atual: {current}. Preencha a quantidade para ver o saldo resultante.</>

@@ -11,9 +11,10 @@ import { mediaUrl } from '../../lib/storage.js';
 import { paged } from '../../lib/validation.js';
 import { MAX_QUANTITY_PER_ITEM } from '../products/products.schemas.js';
 import { priceOf, productInclude, type ProductWithRelations } from '../products/products.service.js';
-import { getSettings } from '../settings/settings.service.js';
-import { ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL, STATUS_TRANSITIONS } from './orders.labels.js';
-import type { adminOrdersQuery, createOrderSchema, quoteSchema } from './orders.schemas.js';
+import { getSettings, readContent } from '../settings/settings.service.js';
+import { allowedTransitions, OPEN_ORDER_STATUSES, ORDER_STATUS_LABEL, orderStatusLabel, PAYMENT_STATUS_LABEL } from './orders.labels.js';
+import { buildCustomerMessage, type MESSAGE_STATUSES, whatsappLink } from './orders.messages.js';
+import type { adminOrdersQuery, createOrderSchema, quoteSchema, updateStatusSchema } from './orders.schemas.js';
 
 type CreateOrderInput = z.infer<typeof createOrderSchema>;
 type OrderWithItems = Order & { items: OrderItem[] };
@@ -110,7 +111,7 @@ export function toPublicOrder(order: OrderWithItems) {
   return {
     code: order.code,
     status: order.status,
-    statusLabel: ORDER_STATUS_LABEL[order.status],
+    statusLabel: orderStatusLabel(order.status, order.fulfillment),
     paymentStatus: order.paymentStatus,
     createdAt: order.createdAt,
     customerName: order.customerName,
@@ -303,7 +304,7 @@ async function closeOrder(
   reason: string | null,
 ) {
   const now = new Date();
-  const allowedFrom: OrderStatus[] = toStatus === 'EXPIRED' ? ['PENDING'] : ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY'];
+  const allowedFrom: OrderStatus[] = toStatus === 'EXPIRED' ? ['PENDING'] : [...OPEN_ORDER_STATUSES];
   const result = await tx.order.updateMany({
     where: { id: order.id, status: { in: allowedFrom }, stockReleasedAt: null },
     data: { status: toStatus, cancelledAt: now, cancelReason: reason, stockReleasedAt: now },
@@ -327,14 +328,24 @@ async function closeOrder(
   });
 }
 
-export async function updateOrderStatus(orderId: string, toStatus: OrderStatus, note: string | null, profileId: string) {
+export async function updateOrderStatus(orderId: string, input: z.infer<typeof updateStatusSchema>, profileId: string) {
+  const { status: toStatus, note, expectedStatus } = input;
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order) throw notFound('Pedido não encontrado.');
-    if (!STATUS_TRANSITIONS[order.status].includes(toStatus)) {
+    if (expectedStatus && order.status !== expectedStatus) {
+      // Outra pessoa (ou outra aba) alterou o pedido depois que a tela foi carregada.
+      throw conflict(
+        `O pedido ${order.code} já está como "${orderStatusLabel(order.status, order.fulfillment)}". A tela foi atualizada — confira antes de continuar.`,
+        { current: order.status },
+        'ORDER_STATE_CHANGED',
+      );
+    }
+    const allowed = allowedTransitions(order.status, order.fulfillment);
+    if (!allowed.includes(toStatus)) {
       throw unprocessable(
-        `Não é possível mudar de "${ORDER_STATUS_LABEL[order.status]}" para "${ORDER_STATUS_LABEL[toStatus]}".`,
-        { from: order.status, to: toStatus, allowed: STATUS_TRANSITIONS[order.status] },
+        `Não é possível mudar de "${orderStatusLabel(order.status, order.fulfillment)}" para "${orderStatusLabel(toStatus, order.fulfillment)}".`,
+        { from: order.status, to: toStatus, allowed },
         'INVALID_STATUS_TRANSITION',
       );
     }
@@ -419,7 +430,7 @@ export async function expireStaleOrders(now = new Date()) {
 export async function listAdminOrders(query: z.infer<typeof adminOrdersQuery>) {
   const q = query.q?.trim();
   const where: Prisma.OrderWhereInput = {
-    ...(query.status ? { status: query.status } : {}),
+    ...(query.status ? { status: { in: query.status } } : {}),
     ...(query.paymentStatus ? { paymentStatus: query.paymentStatus } : {}),
     ...(query.from || query.to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}),
     ...(q
@@ -436,7 +447,10 @@ export async function listAdminOrders(query: z.infer<typeof adminOrdersQuery>) {
     prisma.order.count({ where }),
     prisma.order.findMany({
       where,
-      include: { _count: { select: { items: true } } },
+      include: {
+        _count: { select: { items: true } },
+        items: { select: { productName: true, quantity: true }, orderBy: { subtotalCents: 'desc' }, take: 3 },
+      },
       orderBy: { createdAt: 'desc' },
       skip: (query.page - 1) * query.pageSize,
       take: query.pageSize,
@@ -451,10 +465,14 @@ export async function listAdminOrders(query: z.infer<typeof adminOrdersQuery>) {
       customerPhone: o.customerPhone,
       fulfillment: o.fulfillment,
       itemCount: o._count.items,
+      itemsPreview: o.items,
       totalCents: o.totalCents,
       status: o.status,
+      statusLabel: orderStatusLabel(o.status, o.fulfillment),
       paymentStatus: o.paymentStatus,
       whatsappOpenedAt: o.whatsappOpenedAt,
+      updatedAt: o.updatedAt,
+      allowedTransitions: allowedTransitions(o.status, o.fulfillment),
     })),
     total,
     query.page,
@@ -468,9 +486,12 @@ export async function getAdminOrder(id: string) {
     include: {
       items: { include: { product: { select: { id: true, slug: true, stockQuantity: true } } } },
       statusHistory: { include: { profile: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
+      messages: { include: MESSAGE_INCLUDE, orderBy: { openedAt: 'asc' } },
     },
   });
   if (!order) throw notFound('Pedido não encontrado.');
+  const settings = await getSettings();
+  const suggestion = buildCustomerMessage(order, readContent(settings.content).customerMessages, settings.storeName);
   const paymentEvents = await prisma.auditLog.findMany({
     where: { entityType: 'order', entityId: id, action: 'order.payment_change' },
     include: { profile: { select: { id: true, name: true } } },
@@ -488,7 +509,16 @@ export async function getAdminOrder(id: string) {
     paidAt: order.paidAt,
     stockReleasedAt: order.stockReleasedAt,
     updatedAt: order.updatedAt,
-    allowedTransitions: STATUS_TRANSITIONS[order.status],
+    allowedTransitions: allowedTransitions(order.status, order.fulfillment),
+    /** Mensagem sugerida para o status atual. Abrir o link NÃO envia nada: a loja revisa e envia no WhatsApp. */
+    customerMessage: suggestion
+      ? {
+          ...suggestion,
+          whatsappUrl: whatsappLink(order.customerPhone, suggestion.text),
+          alreadyOpened: order.messages.some((m) => m.status === suggestion.status),
+        }
+      : null,
+    messages: order.messages.map(toMessageEntry),
     items: order.items.map((i) => ({
       id: i.id,
       productId: i.productId,
@@ -503,6 +533,7 @@ export async function getAdminOrder(id: string) {
       id: h.id,
       fromStatus: h.fromStatus,
       toStatus: h.toStatus,
+      toStatusLabel: orderStatusLabel(h.toStatus, order.fulfillment),
       note: h.note,
       createdAt: h.createdAt,
       user: h.profile,
@@ -514,4 +545,128 @@ export async function getAdminOrder(id: string) {
       ...(e.metadata as { from?: string; to?: string; note?: string | null }),
     })),
   };
+}
+
+// ---------------- Comunicação com o cliente ----------------
+
+const MESSAGE_INCLUDE = {
+  lastOpenedBy: { select: { id: true, name: true } },
+  confirmedBy: { select: { id: true, name: true } },
+} satisfies Prisma.OrderMessageInclude;
+
+type MessageRow = Prisma.OrderMessageGetPayload<{ include: typeof MESSAGE_INCLUDE }>;
+
+/**
+ * Situação comprovável de cada mensagem: com link wa.me o sistema só sabe que o WhatsApp foi aberto.
+ * "CONFIRMED_BY_STAFF" é a declaração de quem enviou — não é confirmação de entrega pelo WhatsApp.
+ */
+function toMessageEntry(m: MessageRow) {
+  return {
+    id: m.id,
+    status: m.status,
+    channel: m.channel,
+    body: m.body,
+    state: m.confirmedAt ? ('CONFIRMED_BY_STAFF' as const) : ('WHATSAPP_OPENED' as const),
+    openCount: m.openCount,
+    openedAt: m.openedAt,
+    lastOpenedAt: m.lastOpenedAt,
+    lastOpenedBy: m.lastOpenedBy,
+    confirmedAt: m.confirmedAt,
+    confirmedBy: m.confirmedBy,
+  };
+}
+
+/**
+ * Registra que a loja abriu o WhatsApp com a mensagem do status atual.
+ * Uma linha por pedido e status (índice único): cliques repetidos apenas incrementam o contador.
+ */
+export async function openCustomerMessage(orderId: string, status: (typeof MESSAGE_STATUSES)[number], profileId: string) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw notFound('Pedido não encontrado.');
+  if (order.status !== status) {
+    throw conflict(
+      `O pedido está como "${orderStatusLabel(order.status, order.fulfillment)}". Atualize a tela para ver a mensagem correta.`,
+      { current: order.status },
+      'ORDER_STATE_CHANGED',
+    );
+  }
+  const settings = await getSettings();
+  const message = buildCustomerMessage(order, readContent(settings.content).customerMessages, settings.storeName);
+  if (!message) throw unprocessable('Não há mensagem de atualização para este status.', undefined, 'NO_MESSAGE_FOR_STATUS');
+
+  const now = new Date();
+  const saved = await prisma.$transaction(async (tx) => {
+    // INSERT … ON CONFLICT é atômico: cliques simultâneos não colidem no índice único (pedido, status).
+    const [upserted] = await tx.$queryRaw<{ id: string }[]>`
+      INSERT INTO order_messages (id, order_id, status, body, last_opened_by_id, opened_at, last_opened_at)
+      VALUES (gen_random_uuid(), ${orderId}::uuid, ${status}::"OrderStatus", ${message.text}, ${profileId}::uuid, ${now}, ${now})
+      ON CONFLICT (order_id, status) DO UPDATE
+        SET open_count = order_messages.open_count + 1,
+            body = EXCLUDED.body,
+            last_opened_at = EXCLUDED.last_opened_at,
+            last_opened_by_id = EXCLUDED.last_opened_by_id
+      RETURNING id`;
+    const row = await tx.orderMessage.findUniqueOrThrow({ where: { id: upserted!.id }, include: MESSAGE_INCLUDE });
+    await audit(
+      {
+        profileId,
+        action: 'order.message_opened',
+        entityType: 'order',
+        entityId: orderId,
+        metadata: { code: order.code, status, channel: row.channel, openCount: row.openCount },
+      },
+      tx,
+    );
+    return row;
+  });
+  return { message: toMessageEntry(saved), whatsappUrl: whatsappLink(order.customerPhone, message.text) };
+}
+
+/** Quem enviou declara que a mensagem foi enviada pelo WhatsApp (registro manual, feito uma única vez). */
+export async function confirmCustomerMessage(orderId: string, messageId: string, profileId: string) {
+  return prisma.$transaction(async (tx) => {
+    const row = await tx.orderMessage.findFirst({ where: { id: messageId, orderId } });
+    if (!row) throw notFound('Mensagem não encontrada.');
+    if (!row.confirmedAt) {
+      const result = await tx.orderMessage.updateMany({ where: { id: messageId, confirmedAt: null }, data: { confirmedAt: new Date(), confirmedById: profileId } });
+      if (result.count > 0) {
+        await audit({ profileId, action: 'order.message_confirmed', entityType: 'order', entityId: orderId, metadata: { status: row.status } }, tx);
+      }
+    }
+    return toMessageEntry(await tx.orderMessage.findUniqueOrThrow({ where: { id: messageId }, include: MESSAGE_INCLUDE }));
+  });
+}
+
+// ---------------- Novidades para o painel (consulta periódica) ----------------
+
+/**
+ * Janela de sobreposição: um pedido pode ficar visível alguns instantes depois do seu created_at
+ * (a transação ainda não tinha sido confirmada). O painel descarta os repetidos pelo id.
+ */
+export const LIVE_OVERLAP_MS = 2 * 60_000;
+const LIVE_MAX_LOOKBACK_MS = 24 * 3_600_000;
+const ALL_STATUSES = Object.keys(ORDER_STATUS_LABEL) as OrderStatus[];
+
+/**
+ * Resumo leve consultado a cada poucos segundos pelo painel: contagem por status, momento da última
+ * alteração e os pedidos criados desde a última consulta (com sobreposição). Sem "since", devolve os
+ * pedidos da janela de sobreposição para o painel marcá-los como já conhecidos (não tocam alerta).
+ */
+export async function ordersLive(since: Date | undefined) {
+  const now = new Date();
+  const reference = since && since.getTime() <= now.getTime() ? since : now;
+  const from = new Date(Math.max(reference.getTime() - LIVE_OVERLAP_MS, now.getTime() - LIVE_MAX_LOOKBACK_MS));
+  const [groups, latest, recent] = await Promise.all([
+    prisma.order.groupBy({ by: ['status'], _count: { _all: true } }),
+    prisma.order.findFirst({ orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
+    prisma.order.findMany({
+      where: { createdAt: { gte: from } },
+      orderBy: { createdAt: 'asc' },
+      take: 50,
+      select: { id: true, code: true, customerName: true, fulfillment: true, totalCents: true, status: true, createdAt: true },
+    }),
+  ]);
+  const counts = Object.fromEntries(ALL_STATUSES.map((st) => [st, 0])) as Record<OrderStatus, number>;
+  for (const g of groups) counts[g.status] = g._count._all;
+  return { serverTime: now, counts, lastChangeAt: latest?.updatedAt ?? null, recentOrders: recent };
 }

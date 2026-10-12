@@ -36,6 +36,8 @@ const ACTIONS: Record<string, { label: string; tone: Tone }> = {
   'inventory.min_stock': { label: 'Estoque mínimo alterado', tone: 'neutral' },
   'order.status_change': { label: 'Status do pedido alterado', tone: 'info' },
   'order.payment_change': { label: 'Pagamento do pedido alterado', tone: 'gold' },
+  'order.message_opened': { label: 'WhatsApp aberto com aviso ao cliente', tone: 'neutral' },
+  'order.message_confirmed': { label: 'Envio de aviso ao cliente informado', tone: 'ok' },
   'settings.update': { label: 'Configurações alteradas', tone: 'info' },
   'user.invite': { label: 'Administrador convidado', tone: 'ok' },
   'user.update': { label: 'Usuário alterado', tone: 'warn' },
@@ -77,7 +79,7 @@ function metaCode(metadata: unknown) {
 const hasMetadata = (m: unknown) => m !== null && m !== undefined && !(typeof m === 'object' && Object.keys(m).length === 0);
 
 export default function AuditPage() {
-  useDocumentTitle('Auditoria');
+  useDocumentTitle('Histórico de alterações');
   const [params, setParams] = useSearchParams();
   const actionInput = params.get('action') ?? '';
   const entityIdInput = params.get('entityId') ?? '';
@@ -109,7 +111,7 @@ export default function AuditPage() {
 
   return (
     <>
-      <PageHeader title="Auditoria" description={logs.data ? `${logs.data.total} registro(s) · mais recentes primeiro` : 'Histórico das ações feitas no painel.'} />
+      <PageHeader title="Histórico de alterações" description={logs.data ? `${logs.data.total} registro(s) · mais recentes primeiro` : 'Histórico das ações feitas no painel.'} />
       <p className="notice" style={{ marginBottom: 12 }}>
         Registro somente leitura das alterações feitas no painel: não pode ser editado nem apagado por aqui. Os registros nunca contêm senhas, tokens de acesso ou dados de contato de clientes.
       </p>

@@ -129,7 +129,7 @@ export default function PromotionsPage() {
                         <Link to={`/admin/promotions/${p.id}`} className="btn btn-outline btn-sm">
                           Editar
                         </Link>
-                        <button type="button" className="btn btn-outline btn-sm" onClick={() => setDeleting(p)}>
+                        <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => setDeleting(p)}>
                           Excluir
                         </button>
                       </div>

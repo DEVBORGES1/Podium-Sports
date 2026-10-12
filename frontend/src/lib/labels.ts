@@ -1,26 +1,87 @@
 import type { MovementType } from '../types/admin';
-import type { OrderStatus, PaymentStatus } from '../types/api';
+import type { Fulfillment, OrderStatus, PaymentStatus } from '../types/api';
 
 export type Tone = 'neutral' | 'ok' | 'warn' | 'danger' | 'info' | 'gold';
 
 export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone }> = {
-  PENDING: { label: 'Aguardando atendimento', tone: 'warn' },
+  PENDING: { label: 'Novo pedido', tone: 'warn' },
   ACCEPTED: { label: 'Aceito', tone: 'info' },
   PROCESSING: { label: 'Em separação', tone: 'info' },
-  READY: { label: 'Pronto p/ retirada/envio', tone: 'gold' },
+  READY: { label: 'Pronto', tone: 'gold' },
+  OUT_FOR_DELIVERY: { label: 'Saiu para entrega', tone: 'gold' },
   COMPLETED: { label: 'Concluído', tone: 'ok' },
   CANCELLED: { label: 'Cancelado', tone: 'danger' },
   EXPIRED: { label: 'Expirado', tone: 'neutral' },
 };
 
+/** Rótulo do status considerando a modalidade ("Pronto para retirada" × "Pronto para envio"). */
+export function orderStatusLabel(status: OrderStatus, fulfillment?: Fulfillment) {
+  if (status === 'READY' && fulfillment) return fulfillment === 'DELIVERY' ? 'Pronto para envio' : 'Pronto para retirada';
+  return ORDER_STATUS[status].label;
+}
+
 /** Texto do botão que leva o pedido a cada status. */
-export const ORDER_ACTION: Partial<Record<OrderStatus, string>> = {
-  ACCEPTED: 'Aceitar pedido',
-  PROCESSING: 'Iniciar separação',
-  READY: 'Marcar como pronto',
-  COMPLETED: 'Concluir pedido',
-  CANCELLED: 'Cancelar pedido',
+export function orderActionLabel(to: OrderStatus, fulfillment?: Fulfillment) {
+  switch (to) {
+    case 'ACCEPTED':
+      return 'Aceitar pedido';
+    case 'PROCESSING':
+      return 'Iniciar separação';
+    case 'READY':
+      return fulfillment === 'DELIVERY' ? 'Marcar como pronto para envio' : 'Marcar como pronto para retirada';
+    case 'OUT_FOR_DELIVERY':
+      return 'Avisar que saiu para entrega';
+    case 'COMPLETED':
+      return fulfillment === 'PICKUP' ? 'Concluir (cliente retirou)' : 'Concluir pedido';
+    case 'CANCELLED':
+      return 'Cancelar pedido';
+    default:
+      return ORDER_STATUS[to].label;
+  }
+}
+
+/** Versão curta para botões em listas. */
+export const ORDER_ACTION_SHORT: Partial<Record<OrderStatus, string>> = {
+  ACCEPTED: 'Aceitar',
+  PROCESSING: 'Separar',
+  READY: 'Pronto',
+  OUT_FOR_DELIVERY: 'Saiu p/ entrega',
+  COMPLETED: 'Concluir',
 };
+
+/** Mensagem exibida depois de cada mudança de status. */
+export function orderStatusToast(code: string, status: OrderStatus, fulfillment?: Fulfillment) {
+  switch (status) {
+    case 'ACCEPTED':
+      return `Pedido ${code} aceito.`;
+    case 'PROCESSING':
+      return `Pedido ${code} em separação.`;
+    case 'READY':
+      return `Pedido ${code} pronto para ${fulfillment === 'DELIVERY' ? 'envio' : 'retirada'}.`;
+    case 'OUT_FOR_DELIVERY':
+      return `Pedido ${code} saiu para entrega.`;
+    case 'COMPLETED':
+      return `Pedido ${code} concluído.`;
+    case 'CANCELLED':
+      return `Pedido ${code} cancelado. O estoque foi devolvido.`;
+    default:
+      return `Pedido ${code} atualizado.`;
+  }
+}
+
+/**
+ * Próxima etapa natural (botão principal). O servidor devolve as transições já na ordem do fluxo,
+ * filtradas pela modalidade; cancelar nunca é a ação principal.
+ */
+export const primaryTransition = (allowed: OrderStatus[]) => allowed.find((s) => s !== 'CANCELLED') ?? null;
+
+/** Etapas finais pedem confirmação; as intermediárias são de um clique. */
+export const needsConfirmation = (to: OrderStatus) => to === 'COMPLETED' || to === 'CANCELLED';
+
+/** Etapas exibidas no indicador de progresso, conforme a modalidade. */
+export function orderSteps(fulfillment: Fulfillment): OrderStatus[] {
+  return fulfillment === 'DELIVERY' ? ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'OUT_FOR_DELIVERY', 'COMPLETED'] : ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED'];
+}
 
 export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: Tone }> = {
   UNPAID: { label: 'Não pago', tone: 'neutral' },
@@ -34,7 +95,7 @@ export const MOVEMENT_TYPE: Record<MovementType, { label: string; tone: Tone }> 
   OUT: { label: 'Saída', tone: 'danger' },
   ADJUSTMENT: { label: 'Ajuste', tone: 'warn' },
   ORDER_RESERVATION: { label: 'Reserva de pedido', tone: 'info' },
-  ORDER_RELEASE: { label: 'Devolução (cancelado/expirado)', tone: 'gold' },
+  ORDER_RELEASE: { label: 'Devolução de pedido cancelado', tone: 'gold' },
 };
 
 export const AVAILABILITY_LABEL = { IN_STOCK: { label: 'Normal', tone: 'ok' }, LOW_STOCK: { label: 'Baixo', tone: 'warn' }, OUT_OF_STOCK: { label: 'Esgotado', tone: 'danger' } } as const;

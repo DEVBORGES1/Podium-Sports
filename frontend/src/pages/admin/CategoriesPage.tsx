@@ -156,13 +156,12 @@ export default function CategoriesPage() {
                   <td className="num">
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <span>{c.sortOrder}</span>
-                      <button type="button" className="btn btn-outline btn-sm" style={{ padding: '4px 8px' }} onClick={() => move(i, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Mover ${c.name} para cima`}>
+                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Mover ${c.name} para cima`}>
                         ↑
                       </button>
                       <button
                         type="button"
-                        className="btn btn-outline btn-sm"
-                        style={{ padding: '4px 8px' }}
+                        className="btn btn-outline btn-sm btn-icon"
                         onClick={() => move(i, 1)}
                         disabled={i === list.length - 1 || reorder.isPending}
                         aria-label={`Mover ${c.name} para baixo`}
@@ -194,7 +193,7 @@ export default function CategoriesPage() {
                       </button>
                       <button
                         type="button"
-                        className="btn btn-outline btn-sm"
+                        className="btn btn-danger-outline btn-sm"
                         onClick={() => {
                           remove.reset();
                           setDeleting(c);

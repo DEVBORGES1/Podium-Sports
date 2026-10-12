@@ -204,7 +204,7 @@ components:
       type: object
       properties:
         code: { type: string, examples: [PS-7K3M9Q] }
-        status: { type: string, enum: [PENDING, ACCEPTED, PROCESSING, READY, COMPLETED, CANCELLED, EXPIRED] }
+        status: { type: string, enum: [PENDING, ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED, EXPIRED] }
         statusLabel: { type: string }
         paymentStatus: { type: string, enum: [UNPAID, PAID, REFUNDED] }
         createdAt: { type: string, format: date-time }
@@ -581,7 +581,7 @@ paths:
       summary: Lista pedidos com filtros
       security: [{ bearer: [] }]
       parameters:
-        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACCEPTED, PROCESSING, READY, COMPLETED, CANCELLED, EXPIRED] } }
+        - { name: status, in: query, schema: { type: string, examples: ['PENDING', 'ACCEPTED,PROCESSING'] }, description: 'Um ou mais status separados por vírgula: PENDING, ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED, EXPIRED' }
         - { name: paymentStatus, in: query, schema: { type: string, enum: [UNPAID, PAID, REFUNDED] } }
         - { name: q, in: query, schema: { type: string }, description: Código, nome ou telefone }
         - { name: from, in: query, schema: { type: string, format: date-time } }
@@ -589,10 +589,22 @@ paths:
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/pageSize'
       responses: { '200': { description: OK } }
+  /admin/orders/live:
+    get:
+      tags: [Admin · Pedidos]
+      summary: Novidades para o painel (consulta periódica)
+      description: >-
+        Contagem por status, momento da última alteração e pedidos criados desde `since` (com 2 min de sobreposição;
+        o painel descarta repetidos pelo id). Sem `since`, devolve os pedidos dos últimos 2 min para serem marcados
+        como já conhecidos — assim abrir o painel nunca toca alerta para pedidos antigos.
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: since, in: query, schema: { type: string, format: date-time }, description: '`serverTime` da consulta anterior' }
+      responses: { '200': { description: OK } }
   /admin/orders/{id}:
     get:
       tags: [Admin · Pedidos]
-      summary: Detalhe com itens, histórico de status e de pagamento
+      summary: Detalhe com itens, históricos de status, pagamento e mensagens, e a mensagem sugerida ao cliente
       security: [{ bearer: [] }]
       parameters: [{ $ref: '#/components/parameters/id' }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/Error' } }
@@ -602,7 +614,8 @@ paths:
       summary: Altera o status (cancelamento devolve o estoque uma única vez)
       security: [{ bearer: [] }]
       parameters: [{ $ref: '#/components/parameters/id' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [ACCEPTED, PROCESSING, READY, COMPLETED, CANCELLED] }, note: { type: string } } } } } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED] }, expectedStatus: { type: string, description: 'Status exibido na tela; se o pedido mudou, responde 409 ORDER_STATE_CHANGED' }, note: { type: string } } } } } }
+      description: OUT_FOR_DELIVERY só é aceito para pedidos com entrega.
       responses:
         '200': { description: OK }
         '409': { $ref: '#/components/responses/Error' }
@@ -615,6 +628,26 @@ paths:
       parameters: [{ $ref: '#/components/parameters/id' }]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [paymentStatus], properties: { paymentStatus: { type: string, enum: [UNPAID, PAID, REFUNDED] }, note: { type: string } } } } } }
       responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Error' } }
+  /admin/orders/{id}/messages:
+    post:
+      tags: [Admin · Pedidos]
+      summary: Registra a abertura do WhatsApp com a mensagem de atualização do status atual
+      description: >-
+        Não envia mensagem: devolve o link wa.me com o texto e registra "WhatsApp aberto" (uma linha por pedido e status;
+        cliques repetidos incrementam o contador). `status` deve ser o status atual do pedido (senão 409).
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED] } } } } } }
+      responses: { '201': { description: Registrado }, '409': { $ref: '#/components/responses/Error' }, '422': { $ref: '#/components/responses/Error' } }
+  /admin/orders/{id}/messages/{messageId}/confirm:
+    post:
+      tags: [Admin · Pedidos]
+      summary: Registra que a pessoa enviou a mensagem no WhatsApp (declaração manual, não é confirmação de entrega)
+      security: [{ bearer: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/id' }
+        - { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/Error' } }
 
   /admin/banners:
     get:

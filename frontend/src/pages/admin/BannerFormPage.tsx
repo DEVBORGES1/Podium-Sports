@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Controller, useForm, useWatch, type Control } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
+import { LinkPicker } from '../../components/admin/LinkPicker';
 import { FormField, ImageUpload, PageHeader, Switch, Tag } from '../../components/admin/ui';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import { useAdminMutation } from '../../hooks/useAdminMutation';
@@ -216,7 +217,8 @@ export default function BannerFormPage() {
       return isNew ? adminApi.post<AdminBanner>('/banners', body) : adminApi.patch<AdminBanner>(`/banners/${id}`, body);
     },
     {
-      success: isNew ? 'Banner criado.' : 'Banner salvo.',
+      success: (b: AdminBanner) =>
+        b.state === 'LIVE' ? 'Banner publicado: já aparece na página inicial.' : b.state === 'SCHEDULED' ? 'Banner salvo e agendado.' : 'Banner salvo (fora do ar).',
       invalidate: [['admin', 'banners'], ['banners']],
       onSuccess: () => navigate('/admin/banners'),
     },
@@ -285,20 +287,28 @@ export default function BannerFormPage() {
 
             <section className="adm-card">
               <h2>
-                Botões <small>Caminho interno (ex.: /produtos?categoria=chuteiras) ou https://…</small>
+                Botões <small>Escolha para onde cada botão leva. Deixe sem texto para não exibir o botão.</small>
               </h2>
               <div className="form-cols two">
                 <FormField id="buttonLabel" label="Texto do botão principal" error={errors.buttonLabel?.message}>
                   <input id="buttonLabel" className="input" aria-invalid={!!errors.buttonLabel} {...register('buttonLabel')} />
                 </FormField>
                 <FormField id="buttonUrl" label="Destino do botão principal" error={errors.buttonUrl?.message}>
-                  <input id="buttonUrl" className="input" placeholder="/produtos" aria-invalid={!!errors.buttonUrl} {...register('buttonUrl')} />
+                  <Controller
+                    control={control}
+                    name="buttonUrl"
+                    render={({ field }) => <LinkPicker id="buttonUrl" value={field.value} onChange={field.onChange} invalid={!!errors.buttonUrl} allowEmpty />}
+                  />
                 </FormField>
                 <FormField id="secondaryButtonLabel" label="Texto do botão secundário" error={errors.secondaryButtonLabel?.message}>
                   <input id="secondaryButtonLabel" className="input" aria-invalid={!!errors.secondaryButtonLabel} {...register('secondaryButtonLabel')} />
                 </FormField>
                 <FormField id="secondaryButtonUrl" label="Destino do botão secundário" error={errors.secondaryButtonUrl?.message}>
-                  <input id="secondaryButtonUrl" className="input" placeholder="/produtos?promocao=1" aria-invalid={!!errors.secondaryButtonUrl} {...register('secondaryButtonUrl')} />
+                  <Controller
+                    control={control}
+                    name="secondaryButtonUrl"
+                    render={({ field }) => <LinkPicker id="secondaryButtonUrl" value={field.value} onChange={field.onChange} invalid={!!errors.secondaryButtonUrl} allowEmpty />}
+                  />
                 </FormField>
               </div>
             </section>
@@ -375,14 +385,6 @@ export default function BannerFormPage() {
                 <p className="notice">Sem datas, o banner fica no ar enquanto estiver ativo. Fora do período ele sai da página inicial automaticamente.</p>
               </div>
             </section>
-            <div className="adm-card" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="submit" className="btn btn-gold" disabled={save.isPending} aria-busy={save.isPending}>
-                {save.isPending ? 'Salvando…' : isNew ? 'Criar banner' : 'Salvar alterações'}
-              </button>
-              <Link to="/admin/banners" className="btn btn-outline">
-                Cancelar
-              </Link>
-            </div>
           </div>
 
           <div style={{ position: 'sticky', top: 74 }}>
@@ -396,6 +398,15 @@ export default function BannerFormPage() {
               </p>
             </section>
           </div>
+        </div>
+        <div className="form-bar">
+          <span className="notice">{formState.isDirty ? 'Há alterações não salvas.' : isNew ? 'Preencha os campos e salve.' : 'Tudo salvo.'}</span>
+          <Link to="/admin/banners" className="btn btn-quiet">
+            Cancelar
+          </Link>
+          <button type="submit" className="btn btn-gold" disabled={save.isPending} aria-busy={save.isPending}>
+            {isNew ? 'Criar banner' : 'Salvar alterações'}
+          </button>
         </div>
       </form>
     </>

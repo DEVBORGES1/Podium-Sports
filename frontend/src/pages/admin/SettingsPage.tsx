@@ -13,7 +13,7 @@ import { adminApi, ApiError } from '../../lib/api';
 import { formatDateTime } from '../../lib/format';
 import { buildOrderMessage, whatsappLink } from '../../lib/whatsapp';
 import type { AdminSettings, SettingsInput } from '../../types/admin';
-import type { InfoIcon, InfoItem, PublicOrder, StoreContent } from '../../types/api';
+import type { CustomerMessages, InfoIcon, InfoItem, PublicOrder, StoreContent } from '../../types/api';
 
 /* ------------------------------------------------------------------ */
 /* Utilitários                                                         */
@@ -207,7 +207,13 @@ export default function SettingsPage() {
       {panel('loja', <StoreSection settings={s} />)}
       {panel('recebimento', <FulfillmentSection settings={s} />)}
       {panel('redes', <SocialSection settings={s} />)}
-      {panel('mensagens', <MessagesSection settings={s} />)}
+      {panel(
+        'mensagens',
+        <div style={{ display: 'grid', gap: 16 }}>
+          <MessagesSection settings={s} />
+          <CustomerMessagesSection settings={s} />
+        </div>,
+      )}
       {panel('inicio', <HomeContentSection settings={s} />)}
       {panel('pedidos', <OperationSection settings={s} />)}
     </>
@@ -451,7 +457,7 @@ const toMessagesValues = (s: AdminSettings): MessagesValues => ({
 const SAMPLE_ORDER: PublicOrder = {
   code: 'PS-EXEMPLO',
   status: 'PENDING',
-  statusLabel: 'Aguardando atendimento',
+  statusLabel: 'Aguardando confirmação da loja',
   paymentStatus: 'UNPAID',
   createdAt: '2026-01-01T12:00:00.000Z',
   customerName: 'Cliente Exemplo',
@@ -520,6 +526,73 @@ function MessagesSection({ settings }: { settings: AdminSettings }) {
           </pre>
           <p className="notice">Pedido fictício, apenas para visualizar. Os itens e valores reais vêm sempre do pedido registrado no servidor. No WhatsApp, *asteriscos* viram negrito.</p>
         </div>
+      </div>
+    </SectionForm>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Mensagens de atualização ao cliente                                 */
+/* ------------------------------------------------------------------ */
+
+const CUSTOMER_MESSAGE_FIELDS: { key: keyof CustomerMessages; label: string; hint: string }[] = [
+  { key: 'accepted', label: 'Pedido aceito', hint: 'Sugerida ao aceitar o pedido.' },
+  { key: 'processing', label: 'Em separação', hint: 'Sugerida ao iniciar a separação.' },
+  { key: 'readyPickup', label: 'Pronto para retirada', hint: 'Somente pedidos de retirada na loja.' },
+  { key: 'readyDelivery', label: 'Pronto para envio', hint: 'Somente pedidos com entrega.' },
+  { key: 'outForDelivery', label: 'Saiu para entrega', hint: 'Somente pedidos com entrega.' },
+  { key: 'completed', label: 'Pedido concluído', hint: 'Sugerida ao concluir.' },
+  { key: 'cancelled', label: 'Pedido cancelado', hint: 'Não prometa reembolso ou prazo que ainda não foi combinado.' },
+];
+const customerMessageText = required(5, 500, 'Escreva a mensagem (5 a 500 caracteres).');
+const customerMessagesSchema = z.object(Object.fromEntries(CUSTOMER_MESSAGE_FIELDS.map((f) => [f.key, customerMessageText])) as Record<keyof CustomerMessages, typeof customerMessageText>);
+const fillSample = (template: string, storeName: string) => template.replaceAll('{nome}', 'Maria').replaceAll('{pedido}', 'PS-EXEMPLO').replaceAll('{loja}', storeName);
+
+function CustomerMessagesSection({ settings }: { settings: AdminSettings }) {
+  const initial = settings.content.customerMessages;
+  const { register, control, handleSubmit, formState, reset, setError } = useForm<CustomerMessages>({
+    resolver: zodResolver(customerMessagesSchema),
+    defaultValues: initial,
+  });
+  const errors = formState.errors;
+  useEffect(() => {
+    if (initial) reset(initial, { keepDirtyValues: true });
+  }, [initial, reset]);
+  const save = useSaveSettings();
+  const values = useWatch({ control });
+
+  const onSubmit = handleSubmit((v) =>
+    save.mutate(
+      { content: { ...settings.content, customerMessages: v } },
+      { onSuccess: (saved) => saved.content.customerMessages && reset(saved.content.customerMessages), onError: (err) => applyServerIssues(err, setError, (f) => f.replace(/^content\.customerMessages\.?/, '')) },
+    ),
+  );
+
+  if (!initial) return null;
+  return (
+    <SectionForm
+      id="sec-avisos"
+      title="Avisos de andamento ao cliente"
+      description="Sugeridos no pedido a cada mudança de status. A loja revisa e envia pelo WhatsApp — nada é enviado sozinho."
+      onSubmit={onSubmit}
+      dirty={formState.isDirty}
+      pending={save.isPending}
+      onDiscard={() => reset()}
+    >
+      <p className="notice">
+        Use <b>{'{nome}'}</b> para o primeiro nome do cliente, <b>{'{pedido}'}</b> para o código do pedido e <b>{'{loja}'}</b> para o nome da loja.
+      </p>
+      <div className="form-cols two">
+        {CUSTOMER_MESSAGE_FIELDS.map((f) => (
+          <div key={f.key} className="field">
+            <label htmlFor={`cm-${f.key}`}>{f.label}</label>
+            <textarea id={`cm-${f.key}`} className="textarea" rows={3} aria-invalid={!!errors[f.key]} {...register(f.key)} />
+            <span className="hint">
+              {f.hint} Prévia: “{fillSample(values[f.key] ?? '', settings.storeName)}”
+            </span>
+            <FieldError message={errors[f.key]?.message} />
+          </div>
+        ))}
       </div>
     </SectionForm>
   );
@@ -647,7 +720,7 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
   const save = useSaveSettings();
 
   const onSubmit = handleSubmit((v) =>
-    save.mutate({ content: toContent(v) }, { onSuccess: (s) => reset(toContentValues(s)), onError: (err) => applyServerIssues(err, setError, mapContentField) }),
+    save.mutate({ content: { ...toContent(v), customerMessages: settings.content.customerMessages } }, { onSuccess: (s) => reset(toContentValues(s)), onError: (err) => applyServerIssues(err, setError, mapContentField) }),
   );
 
   const homeSwitches = [

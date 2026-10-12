@@ -1,7 +1,7 @@
 // Tipos das respostas da API (/api/v1). Valores monetários em centavos.
 
 export type Availability = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
-export type OrderStatus = 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'READY' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
+export type OrderStatus = 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'READY' | 'OUT_FOR_DELIVERY' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
 export type PaymentStatus = 'UNPAID' | 'PAID' | 'REFUNDED';
 export type Fulfillment = 'PICKUP' | 'DELIVERY';
 export type UserRole = 'ADMIN' | 'SUPER_ADMIN';
@@ -105,6 +105,18 @@ export interface StoreContent {
   footerAbout: string;
   serviceNotes: string[];
   cartNote: string;
+  /** Somente no painel: mensagens de atualização ao cliente. Marcadores {nome}, {pedido} e {loja}. */
+  customerMessages?: CustomerMessages;
+}
+
+export interface CustomerMessages {
+  accepted: string;
+  processing: string;
+  readyPickup: string;
+  readyDelivery: string;
+  outForDelivery: string;
+  completed: string;
+  cancelled: string;
 }
 
 export interface StoreSettings {

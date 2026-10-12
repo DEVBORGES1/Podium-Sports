@@ -43,3 +43,17 @@ export function maskPhone(value: string) {
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
+
+const timeOnly = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+export const formatTime = (iso: string | Date) => timeOnly.format(new Date(iso));
+
+/** Tempo desde a data: "agora", "há 5 min", "há 2 h 10 min", "há 3 dias". */
+export function timeAgo(iso: string | Date, now = Date.now()) {
+  const minutes = Math.floor((now - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return 'agora';
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return minutes % 60 ? `há ${hours} h ${minutes % 60} min` : `há ${hours} h`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'há 1 dia' : `há ${days} dias`;
+}

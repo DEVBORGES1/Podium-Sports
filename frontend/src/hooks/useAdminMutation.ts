@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useToast } from '../contexts/ToastContext';
 import { errorMessage } from '../lib/api';
+import { refreshQueries } from '../lib/query';
 
 /** Mutação do painel com mensagens de sucesso/erro e invalidação de cache. */
 export function useAdminMutation<TVars, TResult = unknown>(
@@ -12,7 +13,7 @@ export function useAdminMutation<TVars, TResult = unknown>(
   return useMutation({
     mutationFn: fn,
     onSuccess: (result, vars) => {
-      options.invalidate?.forEach((key) => qc.invalidateQueries({ queryKey: key }));
+      if (options.invalidate) refreshQueries(qc, options.invalidate);
       if (options.success) toast.show(typeof options.success === 'function' ? options.success(result) : options.success);
       options.onSuccess?.(result, vars);
     },

@@ -54,13 +54,20 @@ export function toPublicSettings(s: StoreSettings) {
     orderMessageIntro: s.orderMessageIntro,
     orderMessageFooter: s.orderMessageFooter,
     heroIntervalSeconds: s.heroIntervalSeconds,
-    content: readContent(s.content),
+    content: publicContent(s.content),
   };
+}
+
+/** Conteúdo exibido na loja: as mensagens internas de atendimento ficam só no painel. */
+function publicContent(raw: Prisma.JsonValue) {
+  const { customerMessages: _internal, ...rest } = readContent(raw);
+  return rest;
 }
 
 export function toAdminSettings(s: StoreSettings) {
   return {
     ...toPublicSettings(s),
+    content: readContent(s.content),
     logoPath: s.logoPath,
     pendingOrderTtlHours: s.pendingOrderTtlHours,
     timezone: s.timezone,

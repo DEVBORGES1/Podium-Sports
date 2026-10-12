@@ -36,9 +36,15 @@ enum OrderStatus {
   ACCEPTED
   PROCESSING // em separação
   READY // pronto para retirada/envio
+  OUT_FOR_DELIVERY // saiu para entrega (somente pedidos com entrega)
   COMPLETED
   CANCELLED
   EXPIRED // abandonado: não houve atendimento dentro do prazo
+}
+
+/// Como a mensagem de atualização chegou (ou foi preparada) para o cliente.
+enum MessageChannel {
+  WHATSAPP_LINK // link wa.me aberto pelo painel: o envio é feito por uma pessoa e não pode ser confirmado pelo sistema
 }
 
 enum PaymentStatus {
@@ -71,6 +77,8 @@ model Profile {
   inventoryMovements InventoryMovement[]
   statusChanges      OrderStatusHistory[]
   auditLogs          AuditLog[]
+  messagesOpened     OrderMessage[]       @relation("OrderMessageOpenedBy")
+  messagesConfirmed  OrderMessage[]       @relation("OrderMessageConfirmedBy")
 
   @@map("profiles")
 }
@@ -255,9 +263,11 @@ model Order {
   items              OrderItem[]
   statusHistory      OrderStatusHistory[]
   inventoryMovements InventoryMovement[]
+  messages           OrderMessage[]
 
   @@index([status, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
   @@index([paymentStatus, paidAt])
   @@map("orders")
 }
@@ -294,6 +304,30 @@ model OrderStatusHistory {
 
   @@index([orderId, createdAt])
   @@map("order_status_history")
+}
+
+/// Mensagem de atualização preparada para o cliente (uma por pedido e status).
+/// Com WHATSAPP_LINK o sistema só sabe que o WhatsApp foi aberto; "confirmedAt" é a declaração
+/// manual de quem enviou — não é confirmação de entrega pelo WhatsApp.
+model OrderMessage {
+  id             String         @id @default(uuid()) @db.Uuid
+  orderId        String         @map("order_id") @db.Uuid
+  status         OrderStatus
+  channel        MessageChannel @default(WHATSAPP_LINK)
+  body           String         @db.VarChar(1000)
+  openCount      Int            @default(1) @map("open_count")
+  openedAt       DateTime       @default(now()) @map("opened_at") @db.Timestamptz(3)
+  lastOpenedAt   DateTime       @default(now()) @map("last_opened_at") @db.Timestamptz(3)
+  lastOpenedById String?        @map("last_opened_by_id") @db.Uuid
+  confirmedAt    DateTime?      @map("confirmed_at") @db.Timestamptz(3)
+  confirmedById  String?        @map("confirmed_by_id") @db.Uuid
+
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lastOpenedBy Profile? @relation("OrderMessageOpenedBy", fields: [lastOpenedById], references: [id], onDelete: SetNull)
+  confirmedBy  Profile? @relation("OrderMessageConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, status])
+  @@map("order_messages")
 }
 
 model StoreSettings {

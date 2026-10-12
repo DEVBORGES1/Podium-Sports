@@ -125,13 +125,12 @@ export default function BannersPage() {
                     <Switch label="Ativo" checked={b.isActive} disabled={toggle.isPending} onChange={(v) => toggle.mutate({ id: b.id, isActive: v })} />
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                       <span className="notice">Ordem {b.sortOrder}</span>
-                      <button type="button" className="btn btn-outline btn-sm" style={{ padding: '4px 8px' }} onClick={() => move(i, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Mover banner ${b.title} para cima`}>
+                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Mover banner ${b.title} para cima`}>
                         ↑
                       </button>
                       <button
                         type="button"
-                        className="btn btn-outline btn-sm"
-                        style={{ padding: '4px 8px' }}
+                        className="btn btn-outline btn-sm btn-icon"
                         onClick={() => move(i, 1)}
                         disabled={i === list.length - 1 || reorder.isPending}
                         aria-label={`Mover banner ${b.title} para baixo`}
@@ -144,7 +143,7 @@ export default function BannersPage() {
                     <Link to={`/admin/banners/${b.id}`} className="btn btn-outline btn-sm">
                       Editar
                     </Link>
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => setDeleting(b)}>
+                    <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => setDeleting(b)}>
                       Excluir
                     </button>
                   </div>

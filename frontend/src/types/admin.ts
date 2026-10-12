@@ -78,10 +78,29 @@ export interface AdminOrderRow {
   customerPhone: string;
   fulfillment: Fulfillment;
   itemCount: number;
+  itemsPreview: { productName: string; quantity: number }[];
   totalCents: number;
   status: OrderStatus;
+  statusLabel: string;
   paymentStatus: PaymentStatus;
   whatsappOpenedAt: string | null;
+  updatedAt: string;
+  allowedTransitions: OrderStatus[];
+}
+
+/** Mensagem de atualização registrada: só se sabe que o WhatsApp foi aberto, ou que alguém declarou ter enviado. */
+export interface OrderMessageEntry {
+  id: string;
+  status: OrderStatus;
+  channel: 'WHATSAPP_LINK';
+  body: string;
+  state: 'WHATSAPP_OPENED' | 'CONFIRMED_BY_STAFF';
+  openCount: number;
+  openedAt: string;
+  lastOpenedAt: string;
+  lastOpenedBy: { id: string; name: string } | null;
+  confirmedAt: string | null;
+  confirmedBy: { id: string; name: string } | null;
 }
 
 export interface AdminOrder {
@@ -109,6 +128,8 @@ export interface AdminOrder {
   stockReleasedAt: string | null;
   updatedAt: string;
   allowedTransitions: OrderStatus[];
+  customerMessage: { status: OrderStatus; text: string; whatsappUrl: string; alreadyOpened: boolean } | null;
+  messages: OrderMessageEntry[];
   items: {
     id: string;
     productId: string | null;
@@ -119,7 +140,15 @@ export interface AdminOrder {
     originalUnitPriceCents: number;
     subtotalCents: number;
   }[];
-  statusHistory: { id: string; fromStatus: OrderStatus | null; toStatus: OrderStatus; note: string | null; createdAt: string; user: { id: string; name: string } | null }[];
+  statusHistory: {
+    id: string;
+    fromStatus: OrderStatus | null;
+    toStatus: OrderStatus;
+    toStatusLabel: string;
+    note: string | null;
+    createdAt: string;
+    user: { id: string; name: string } | null;
+  }[];
   paymentHistory: { id: string; createdAt: string; user: { id: string; name: string } | null; from?: PaymentStatus; to?: PaymentStatus; note?: string | null }[];
 }
 
@@ -199,11 +228,25 @@ export interface AuditEntry {
 
 export interface DashboardSummary {
   period: { from: string; to: string; timezone: string };
-  orders: { total: number; valid: number; today: number; pending: number; inProgress: number; completed: number; cancelled: number; expired: number; whatsappOpened: number };
+  orders: {
+    total: number;
+    valid: number;
+    today: number;
+    pending: number;
+    /** Aceitos ou em separação. */
+    inProgress: number;
+    ready: number;
+    outForDelivery: number;
+    completed: number;
+    completedInPeriod: number;
+    cancelled: number;
+    expired: number;
+    whatsappOpened: number;
+  };
   revenue: { confirmedCents: number; paidOrders: number; averageTicketCents: number; registeredValueCents: number };
   products: { total: number; active: number; lowStock: number; outOfStock: number };
   lowStockProducts: { id: string; name: string; stockQuantity: number; minStock: number }[];
-  recentOrders: { id: string; code: string; customerName: string; totalCents: number; status: OrderStatus; paymentStatus: PaymentStatus; createdAt: string }[];
+  recentOrders: { id: string; code: string; customerName: string; totalCents: number; status: OrderStatus; paymentStatus: PaymentStatus; fulfillment: Fulfillment; createdAt: string }[];
 }
 
 export interface SalesSeries {

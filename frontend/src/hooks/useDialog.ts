@@ -2,6 +2,9 @@ import { useEffect, useRef, type RefObject } from 'react';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/** Diálogos abertos, do mais antigo ao mais recente: só o do topo responde a Esc e Tab (ex.: confirmação dentro do painel lateral). */
+const stack: object[] = [];
+
 /** Comportamento acessível de diálogo: foco inicial, Tab preso dentro, Esc fecha e foco devolvido. */
 export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTMLElement | null>) {
   const previous = useRef<HTMLElement | null>(null);
@@ -12,6 +15,8 @@ export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTM
 
   useEffect(() => {
     if (!open) return;
+    const token = {};
+    stack.push(token);
     previous.current = document.activeElement as HTMLElement | null;
     const node = ref.current;
     const first = node?.querySelector<HTMLElement>(FOCUSABLE);
@@ -20,6 +25,7 @@ export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTM
     document.body.style.overflow = 'hidden';
 
     const onKey = (e: KeyboardEvent) => {
+      if (stack[stack.length - 1] !== token) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         closeRef.current();
@@ -40,6 +46,8 @@ export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTM
     };
     document.addEventListener('keydown', onKey);
     return () => {
+      const i = stack.indexOf(token);
+      if (i >= 0) stack.splice(i, 1);
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
       previous.current?.focus?.();

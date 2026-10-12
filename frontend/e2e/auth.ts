@@ -51,4 +51,8 @@ export async function login(page: Page, email: string, password = 'senha-correta
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill(password);
   await page.getByRole('button', { name: 'Entrar' }).click();
+  // Login que deve dar certo: espera o painel abrir antes de o teste navegar
+  // (navegar cedo demais abortava a requisição do token e deixava o teste instável).
+  const expectsPanel = password === 'senha-correta' && email !== USERS.stranger.email;
+  if (expectsPanel) await page.getByRole('complementary', { name: 'Menu do painel' }).waitFor();
 }

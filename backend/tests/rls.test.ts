@@ -17,6 +17,7 @@ const TABLES = [
   'orders',
   'order_items',
   'order_status_history',
+  'order_messages',
   'store_settings',
   'audit_logs',
   '_prisma_migrations',

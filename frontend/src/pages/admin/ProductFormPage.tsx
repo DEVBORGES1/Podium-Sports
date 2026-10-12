@@ -4,8 +4,10 @@ import { useEffect, useState, type DragEvent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
+import { CloseIcon, ExternalIcon, ImageIcon } from '../../components/admin/AdminIcons';
 import { ConfirmDialog, FormField, MoneyInput, PageHeader, Switch, Tag } from '../../components/admin/ui';
 import { ErrorState, LoadingState } from '../../components/ui/States';
+import { useToast } from '../../contexts/ToastContext';
 import { useAdminMutation } from '../../hooks/useAdminMutation';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { adminApi, ApiError, request } from '../../lib/api';
@@ -44,7 +46,7 @@ export default function ProductFormPage() {
   const isNew = !id;
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  useDocumentTitle(isNew ? 'Novo produto' : 'Editar produto');
+  useDocumentTitle(isNew ? 'Cadastrar produto' : 'Editar produto');
 
   const categories = useQuery({ queryKey: ['admin', 'categories'], queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items) });
   const product = useQuery({ queryKey: ['admin', 'product', id], queryFn: () => adminApi.get<AdminProduct>(`/products/${id}`), enabled: !isNew });
@@ -96,7 +98,7 @@ export default function ProductFormPage() {
         : adminApi.patch<AdminProduct>(`/products/${id}`, body);
     },
     {
-      success: isNew ? 'Produto criado.' : 'Produto salvo.',
+      success: isNew ? 'Produto cadastrado com sucesso. Agora envie as fotos.' : 'Alterações salvas.',
       invalidate: [['admin', 'products'], ['admin', 'product', id], ['products']],
       onSuccess: (p) => {
         if (isNew) navigate(`/admin/products/${p.id}`, { replace: true });
@@ -110,12 +112,15 @@ export default function ProductFormPage() {
     onSuccess: () => navigate('/admin/products', { replace: true }),
   });
 
-  const onSubmit = handleSubmit((v) =>
-    save.mutate(v, {
-      onError: (err) => {
-        if (err instanceof ApiError) for (const issue of err.fieldIssues) setError(issue.field as keyof FormValues, { message: issue.message });
-      },
-    }),
+  const toast = useToast();
+  const onSubmit = handleSubmit(
+    (v) =>
+      save.mutate(v, {
+        onError: (err) => {
+          if (err instanceof ApiError) for (const issue of err.fieldIssues) setError(issue.field as keyof FormValues, { message: issue.message });
+        },
+      }),
+    () => toast.show('Não foi possível salvar. Verifique os campos destacados e tente novamente.', { tone: 'error' }),
   );
 
   if (!isNew && product.isPending) return <LoadingState />;
@@ -125,20 +130,22 @@ export default function ProductFormPage() {
   return (
     <>
       <PageHeader
-        title={isNew ? 'Novo produto' : (p?.name ?? 'Produto')}
+        title={isNew ? 'Cadastrar produto' : (p?.name ?? 'Produto')}
         description={
           p ? (
             <>
               Estoque atual: <b>{p.stockQuantity}</b> · Preço na loja: <b>{brl(p.effectivePriceCents)}</b>{' '}
-              {p.isActive ? <Tag tone="ok">Publicado</Tag> : <Tag>Inativo</Tag>}
+              {p.isActive ? <Tag tone="ok">Publicado</Tag> : <Tag>Oculto da loja</Tag>}
             </>
-          ) : undefined
+          ) : (
+            'Preencha as informações principais e o preço. As fotos são enviadas logo depois de salvar.'
+          )
         }
         actions={
           <>
             {p && p.isActive && (
               <a href={`/produto/${p.slug}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
-                Ver na loja ↗
+                <ExternalIcon /> Ver na loja
               </a>
             )}
             <Link to="/admin/products" className="btn btn-outline btn-sm">
@@ -151,9 +158,9 @@ export default function ProductFormPage() {
         <div className="adm-grid main-side">
           <div>
             <section className="adm-card">
-              <h2>Informações</h2>
+              <h2>1. Informações principais</h2>
               <div className="form-cols two">
-                <FormField id="name" label="Nome" error={errors.name?.message} className="full">
+                <FormField id="name" label="Nome do produto" error={errors.name?.message} className="full" hint="Como aparece na loja. Ex.: Chuteira Nike Tiempo Futsal">
                   <input id="name" className="input" aria-invalid={!!errors.name} {...register('name')} />
                 </FormField>
                 <FormField id="categoryId" label="Categoria" error={errors.categoryId?.message}>
@@ -162,36 +169,33 @@ export default function ProductFormPage() {
                     {categories.data?.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
-                        {!c.isActive ? ' (inativa)' : ''}
+                        {!c.isActive ? ' (oculta na loja)' : ''}
                       </option>
                     ))}
                   </select>
                 </FormField>
-                <FormField id="brand" label="Marca" error={errors.brand?.message}>
+                <FormField id="brand" label="Marca (opcional)" error={errors.brand?.message} hint="Ex.: Nike, Adidas, Max Titanium">
                   <input id="brand" className="input" {...register('brand')} />
                 </FormField>
-                <FormField id="description" label="Descrição" error={errors.description?.message} className="full" hint="Tamanhos, sabores, material, indicações…">
-                  <textarea id="description" className="textarea" rows={6} {...register('description')} />
-                </FormField>
-                <FormField id="slug" label="Endereço (slug)" error={errors.slug?.message} className="full" hint={isNew ? 'Deixe em branco para gerar a partir do nome.' : `/produto/${p?.slug ?? ''}`}>
-                  <input id="slug" className="input" {...register('slug')} />
+                <FormField id="description" label="Descrição (opcional)" error={errors.description?.message} className="full" hint="Tamanhos, sabores, material, indicações…">
+                  <textarea id="description" className="textarea" rows={5} {...register('description')} />
                 </FormField>
               </div>
             </section>
 
             <section className="adm-card">
               <h2>
-                Preço <small>O preço cobrado é sempre recalculado pelo servidor.</small>
+                2. Preço e promoção <small>O valor cobrado é sempre recalculado pelo servidor.</small>
               </h2>
               <div className="form-cols two">
-                <FormField id="priceCents" label="Preço" error={errors.priceCents?.message}>
+                <FormField id="priceCents" label="Preço" error={errors.priceCents?.message} hint="Ex.: 399,90">
                   <Controller
                     control={control}
                     name="priceCents"
                     render={({ field }) => <MoneyInput id="priceCents" value={field.value || null} onChange={(c) => field.onChange(c ?? 0)} invalid={!!errors.priceCents} />}
                   />
                 </FormField>
-                <FormField id="salePriceCents" label="Preço promocional (opcional)" error={errors.salePriceCents?.message} hint="Fica valendo até ser removido. Para ofertas com prazo, use Promoções.">
+                <FormField id="salePriceCents" label="Preço promocional (opcional)" error={errors.salePriceCents?.message} hint="Vale até ser apagado. Para ofertas com data de início e fim, use Promoções.">
                   <Controller
                     control={control}
                     name="salePriceCents"
@@ -201,59 +205,78 @@ export default function ProductFormPage() {
               </div>
             </section>
 
-            {!isNew && p && <ProductImages product={p} />}
+            {!isNew && p ? (
+              <ProductImages product={p} />
+            ) : (
+              <section className="adm-card">
+                <h2>3. Imagens</h2>
+                <p className="notice">Salve o produto para enviar as fotos — a área de envio aparece aqui logo depois.</p>
+              </section>
+            )}
           </div>
 
-          <div>
+          <div className="form-side">
             <section className="adm-card">
-              <h2>Publicação</h2>
+              <h2>4. Publicação e destaque</h2>
               <div style={{ display: 'grid', gap: 12 }}>
                 <Controller control={control} name="isActive" render={({ field }) => <Switch label="Publicado na loja" checked={field.value} onChange={field.onChange} />} />
                 <Controller control={control} name="isFeatured" render={({ field }) => <Switch label="Destaque na página inicial" checked={field.value} onChange={field.onChange} />} />
-                <FormField id="sortOrder" label="Ordem de exibição" hint="Menor número aparece primeiro.">
-                  <input id="sortOrder" className="input" type="number" min={0} {...register('sortOrder', { setValueAs: toNumber })} />
-                </FormField>
               </div>
             </section>
             <section className="adm-card">
-              <h2>Estoque</h2>
+              <h2>5. Estoque</h2>
               <div style={{ display: 'grid', gap: 12 }}>
                 {isNew ? (
-                  <FormField id="initialStock" label="Estoque inicial" hint="Gera uma movimentação de carga inicial.">
-                    <input id="initialStock" className="input" type="number" min={0} {...register('initialStock', { setValueAs: toNumber })} />
+                  <FormField id="initialStock" label="Quantidade em estoque" hint="Quantas unidades a loja tem agora. Fica registrado como carga inicial.">
+                    <input id="initialStock" className="input" type="number" inputMode="numeric" min={0} {...register('initialStock', { setValueAs: toNumber })} />
                   </FormField>
                 ) : (
                   <p className="notice">
-                    Saldo atual: <b>{p?.stockQuantity}</b>. Entradas, saídas e ajustes são feitos em{' '}
+                    Saldo atual: <b>{p?.stockQuantity}</b>. Para adicionar ou retirar unidades use{' '}
                     <Link to={`/admin/inventory?q=${encodeURIComponent(p?.name ?? '')}`} className="link-btn">
                       Estoque
                     </Link>{' '}
-                    para manter o histórico.
+                    — assim cada mudança fica no histórico.
                   </p>
                 )}
-                <FormField id="minStock" label="Estoque mínimo" error={errors.minStock?.message} hint="Abaixo disso o produto aparece como estoque baixo.">
-                  <input id="minStock" className="input" type="number" min={0} {...register('minStock', { setValueAs: toNumber })} />
+                <FormField id="minStock" label="Avisar quando chegar a" error={errors.minStock?.message} hint="Abaixo dessa quantidade o produto aparece como estoque baixo.">
+                  <input id="minStock" className="input" type="number" inputMode="numeric" min={0} {...register('minStock', { setValueAs: toNumber })} />
                 </FormField>
               </div>
             </section>
-            <div className="adm-card" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="submit" className="btn btn-gold" disabled={save.isPending}>
-                {save.isPending ? 'Salvando…' : isNew ? 'Criar produto' : 'Salvar alterações'}
-              </button>
-            </div>
+            <details className="adm-card advanced">
+              <summary>Configurações avançadas</summary>
+              <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+                <FormField id="slug" label="Endereço da página" error={errors.slug?.message} hint={isNew ? 'Deixe em branco: é gerado a partir do nome.' : `loja/produto/${p?.slug ?? ''}`}>
+                  <input id="slug" className="input" {...register('slug')} />
+                </FormField>
+                <FormField id="sortOrder" label="Ordem de exibição" hint="Menor número aparece primeiro.">
+                  <input id="sortOrder" className="input" type="number" inputMode="numeric" min={0} {...register('sortOrder', { setValueAs: toNumber })} />
+                </FormField>
+              </div>
+            </details>
             {!isNew && p && (
               <section className="adm-card danger-zone">
                 <h2>Excluir produto</h2>
                 {p.canDelete ? (
-                  <button type="button" className="btn btn-outline btn-sm" onClick={() => setConfirmDelete(true)}>
+                  <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => setConfirmDelete(true)}>
                     Excluir definitivamente
                   </button>
                 ) : (
-                  <p className="notice">Este produto aparece em {p.orderCount} pedido(s) e não pode ser excluído (o histórico é preservado). Desative a publicação para tirá-lo da loja.</p>
+                  <p className="notice">Este produto aparece em {p.orderCount} pedido(s) e não pode ser excluído (o histórico é preservado). Desligue “Publicado na loja” para tirá-lo da vitrine.</p>
                 )}
               </section>
             )}
           </div>
+        </div>
+        <div className="form-bar">
+          <span className="notice">{formState.isDirty ? 'Há alterações não salvas.' : isNew ? 'Campos obrigatórios: nome, categoria e preço.' : 'Tudo salvo.'}</span>
+          <Link to="/admin/products" className="btn btn-quiet">
+            Cancelar
+          </Link>
+          <button type="submit" className="btn btn-gold" disabled={save.isPending} aria-busy={save.isPending}>
+            {isNew ? 'Cadastrar produto' : 'Salvar alterações'}
+          </button>
         </div>
       </form>
       {confirmDelete && (
@@ -273,8 +296,10 @@ export default function ProductFormPage() {
 
 /** Gerenciamento de imagens: envio múltiplo, principal, texto alternativo, ordem e exclusão. */
 function ProductImages({ product }: { product: AdminProduct }) {
+  const toast = useToast();
   const [over, setOver] = useState(false);
   const [alt, setAlt] = useState<Record<string, string>>({});
+  const [removing, setRemoving] = useState<string | null>(null);
   const invalidate = [['admin', 'product', product.id], ['admin', 'products'], ['products']];
 
   const upload = useAdminMutation(
@@ -283,21 +308,35 @@ function ProductImages({ product }: { product: AdminProduct }) {
       files.forEach((f) => fd.append('images', f));
       return request<AdminProduct>(`/admin/products/${product.id}/images`, { method: 'POST', body: fd, auth: true });
     },
-    { success: 'Imagens enviadas.', invalidate },
+    { success: (r) => `Imagens enviadas. O produto tem ${r.images.length} foto(s).`, invalidate },
   );
   const update = useAdminMutation((v: { imageId: string; body: object }) => adminApi.patch(`/products/${product.id}/images/${v.imageId}`, v.body), {
     success: 'Imagem atualizada.',
     invalidate,
   });
   const reorder = useAdminMutation((imageIds: string[]) => adminApi.put(`/products/${product.id}/images/order`, { imageIds }), { invalidate });
-  const del = useAdminMutation((imageId: string) => adminApi.delete(`/products/${product.id}/images/${imageId}`), { success: 'Imagem removida.', invalidate });
+  const del = useAdminMutation((imageId: string) => adminApi.delete(`/products/${product.id}/images/${imageId}`), {
+    success: 'Imagem removida.',
+    invalidate,
+    onSuccess: () => setRemoving(null),
+  });
 
   const images = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder);
   const remaining = 10 - images.length;
   const pick = (list: FileList | null) => {
     if (!list) return;
-    const files = Array.from(list).filter((f) => ['image/jpeg', 'image/png', 'image/webp'].includes(f.type) && f.size <= 5 * 1024 * 1024);
-    if (files.length) upload.mutate(files.slice(0, Math.min(8, remaining)));
+    const all = Array.from(list);
+    const valid = all.filter((f) => ['image/jpeg', 'image/png', 'image/webp'].includes(f.type) && f.size <= 5 * 1024 * 1024);
+    const rejected = all.length - valid.length;
+    const accepted = valid.slice(0, Math.min(8, remaining));
+    const skipped = valid.length - accepted.length;
+    if (rejected || skipped) {
+      const parts = [];
+      if (rejected) parts.push(`${rejected} arquivo(s) ignorado(s): use JPG, PNG ou WEBP de até 5 MB`);
+      if (skipped) parts.push(`${skipped} além do limite (8 por envio, 10 por produto)`);
+      toast.show(`${parts.join('; ')}.`, { tone: 'error' });
+    }
+    if (accepted.length) upload.mutate(accepted);
   };
   const move = (index: number, dir: -1 | 1) => {
     const ids = images.map((i) => i.id);
@@ -310,7 +349,7 @@ function ProductImages({ product }: { product: AdminProduct }) {
   return (
     <section className="adm-card">
       <h2>
-        Imagens <small>{images.length}/10 · JPG, PNG ou WEBP até 5 MB</small>
+        3. Imagens <small>{images.length}/10 · JPG, PNG ou WEBP até 5 MB · a primeira é a principal</small>
       </h2>
       {remaining > 0 && (
         <label
@@ -327,7 +366,9 @@ function ProductImages({ product }: { product: AdminProduct }) {
           }}
           aria-busy={upload.isPending}
         >
-          {upload.isPending ? 'Enviando…' : 'Arraste imagens aqui ou clique para escolher'}
+          <ImageIcon className="dz-icon" />
+          <b>{upload.isPending ? 'Enviando…' : 'Arraste as fotos aqui ou clique para escolher'}</b>
+          <span>Até 8 por vez</span>
           <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => pick(e.target.files)} disabled={upload.isPending} />
         </label>
       )}
@@ -339,12 +380,12 @@ function ProductImages({ product }: { product: AdminProduct }) {
               <div className="meta">
                 {img.isPrimary && <Tag tone="gold">Principal</Tag>}
                 <label className="sr-only" htmlFor={`alt-${img.id}`}>
-                  Texto alternativo
+                  Descrição da imagem
                 </label>
                 <input
                   id={`alt-${img.id}`}
                   className="input"
-                  placeholder="Texto alternativo"
+                  placeholder="Descrição (acessibilidade)"
                   value={alt[img.id] ?? img.altText ?? ''}
                   onChange={(e) => setAlt((a) => ({ ...a, [img.id]: e.target.value }))}
                   onBlur={() => {
@@ -354,24 +395,35 @@ function ProductImages({ product }: { product: AdminProduct }) {
                 />
                 <div className="tools">
                   {!img.isPrimary && (
-                    <button type="button" onClick={() => update.mutate({ imageId: img.id, body: { isPrimary: true } })}>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => update.mutate({ imageId: img.id, body: { isPrimary: true } })}>
                       Tornar principal
                     </button>
                   )}
-                  <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Mover para a esquerda">
+                  <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || reorder.isPending} aria-label="Mover para a esquerda">
                     ←
                   </button>
-                  <button type="button" onClick={() => move(i, 1)} disabled={i === images.length - 1} aria-label="Mover para a direita">
+                  <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, 1)} disabled={i === images.length - 1 || reorder.isPending} aria-label="Mover para a direita">
                     →
                   </button>
-                  <button type="button" onClick={() => window.confirm('Remover esta imagem?') && del.mutate(img.id)} aria-label="Remover imagem">
-                    Remover
+                  <button type="button" className="btn btn-danger-outline btn-sm btn-icon" onClick={() => setRemoving(img.id)} aria-label="Remover imagem">
+                    <CloseIcon />
                   </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
+      )}
+      {removing && (
+        <ConfirmDialog
+          title="Remover esta imagem?"
+          message="A foto sai do produto e da loja. Esta ação não pode ser desfeita."
+          confirmLabel="Remover"
+          danger
+          busy={del.isPending}
+          onConfirm={() => del.mutate(removing)}
+          onCancel={() => setRemoving(null)}
+        />
       )}
     </section>
   );

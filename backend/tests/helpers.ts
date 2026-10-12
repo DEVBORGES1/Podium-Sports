@@ -21,6 +21,7 @@ export const api = (app = makeApp()) => request(app);
 
 const TABLES = [
   'audit_logs',
+  'order_messages',
   'order_status_history',
   'inventory_movements',
   'order_items',

@@ -9,6 +9,8 @@ const infoItem = z.object({
   text: z.string().trim().max(60).default(''),
 });
 
+const messageTemplate = z.string().trim().min(5, 'Escreva a mensagem.').max(500, 'Máximo de 500 caracteres.');
+
 /** Conteúdo editável da página inicial (seções comerciais). Valores padrão = textos do site original. */
 export const contentSchema = z.object({
   topbarMessages: z
@@ -75,6 +77,21 @@ export const contentSchema = z.object({
     .max(6)
     .default(['Como comprar: monte a sacola e envie pelo WhatsApp', 'Trocas: combine com a loja']),
   cartNote: z.string().trim().max(160).default('Tamanho, cor e sabor a gente confirma no WhatsApp.'),
+  /**
+   * Mensagens de atualização enviadas ao cliente pelo painel (link do WhatsApp aberto pela loja).
+   * Marcadores: {nome} (primeiro nome do cliente), {pedido} (código) e {loja}. Não são exibidas na loja.
+   */
+  customerMessages: z
+    .object({
+      accepted: messageTemplate.default('Olá, {nome}! Seu pedido {pedido} foi aceito e já estamos separando tudo. Obrigado pela preferência!'),
+      processing: messageTemplate.default('Olá, {nome}! Seu pedido {pedido} está em separação. Avisaremos assim que estiver pronto.'),
+      readyPickup: messageTemplate.default('Olá, {nome}! Seu pedido {pedido} está pronto para retirada. Aguardamos você na loja!'),
+      readyDelivery: messageTemplate.default('Olá, {nome}! Seu pedido {pedido} está pronto e logo sairá para entrega.'),
+      outForDelivery: messageTemplate.default('Olá, {nome}! Seu pedido {pedido} saiu para entrega. Em breve ele chegará até você.'),
+      completed: messageTemplate.default('Olá, {nome}! Seu pedido {pedido} foi concluído. Obrigado pela preferência!'),
+      cancelled: messageTemplate.default('Olá, {nome}. Houve um cancelamento no pedido {pedido}. Entre em contato conosco caso precise de ajuda.'),
+    })
+    .prefault({}),
 });
 
 export type StoreContent = z.infer<typeof contentSchema>;

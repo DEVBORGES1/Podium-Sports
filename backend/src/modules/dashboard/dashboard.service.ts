@@ -9,7 +9,7 @@ export const periodQuery = z.object({ from: isoDate.optional(), to: isoDate.opti
 
 /** Pedidos que contam como venda em andamento ou concluída (excluem cancelados/expirados). */
 const VALID = Prisma.sql`status NOT IN ('CANCELLED', 'EXPIRED')`;
-const ACCEPTED_OR_LATER = Prisma.sql`o.status IN ('ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED')`;
+const ACCEPTED_OR_LATER = Prisma.sql`o.status IN ('ACCEPTED', 'PROCESSING', 'READY', 'OUT_FOR_DELIVERY', 'COMPLETED')`;
 
 function todayIn(timezone: string) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -40,7 +40,7 @@ export async function summary(query: z.infer<typeof periodQuery>) {
   const p = await resolvePeriod(query);
   const todayStart = Prisma.sql`(${p.today}::date::timestamp AT TIME ZONE ${p.timezone})`;
 
-  const [orders, paid, current, products, today] = await Promise.all([
+  const [orders, paid, current, products, today, completedInPeriod] = await Promise.all([
     prisma.$queryRaw<
       { total: bigint; valid: bigint; completed: bigint; cancelled: bigint; expired: bigint; whatsapp: bigint; registered: bigint }[]
     >`
@@ -55,10 +55,12 @@ export async function summary(query: z.infer<typeof periodQuery>) {
     prisma.$queryRaw<{ count: bigint; revenue: bigint }[]>`
       SELECT count(*) AS count, COALESCE(sum(total_cents), 0)::bigint AS revenue
         FROM orders WHERE payment_status = 'PAID' AND paid_at >= ${p.start} AND paid_at < ${p.end}`,
-    prisma.$queryRaw<{ pending: bigint; in_progress: bigint }[]>`
+    prisma.$queryRaw<{ pending: bigint; in_progress: bigint; ready: bigint; out_for_delivery: bigint }[]>`
       SELECT count(*) FILTER (WHERE status = 'PENDING') AS pending,
-             count(*) FILTER (WHERE status IN ('ACCEPTED', 'PROCESSING', 'READY')) AS in_progress
-        FROM orders WHERE status IN ('PENDING', 'ACCEPTED', 'PROCESSING', 'READY')`,
+             count(*) FILTER (WHERE status IN ('ACCEPTED', 'PROCESSING')) AS in_progress,
+             count(*) FILTER (WHERE status = 'READY') AS ready,
+             count(*) FILTER (WHERE status = 'OUT_FOR_DELIVERY') AS out_for_delivery
+        FROM orders WHERE status IN ('PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'OUT_FOR_DELIVERY')`,
     prisma.$queryRaw<{ total: bigint; active: bigint; low: bigint; out: bigint }[]>`
       SELECT count(*) AS total,
              count(*) FILTER (WHERE is_active) AS active,
@@ -66,6 +68,8 @@ export async function summary(query: z.infer<typeof periodQuery>) {
              count(*) FILTER (WHERE is_active AND stock_quantity = 0) AS out
         FROM products`,
     prisma.$queryRaw<{ count: bigint }[]>`SELECT count(*) AS count FROM orders WHERE created_at >= ${todayStart}`,
+    prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) AS count FROM orders WHERE status = 'COMPLETED' AND completed_at >= ${p.start} AND completed_at < ${p.end}`,
   ]);
 
   const o = orders[0]!;
@@ -77,7 +81,7 @@ export async function summary(query: z.infer<typeof periodQuery>) {
   const recentOrders = await prisma.order.findMany({
     orderBy: { createdAt: 'desc' },
     take: 6,
-    select: { id: true, code: true, customerName: true, totalCents: true, status: true, paymentStatus: true, createdAt: true },
+    select: { id: true, code: true, customerName: true, totalCents: true, status: true, paymentStatus: true, fulfillment: true, createdAt: true },
   });
 
   return {
@@ -87,7 +91,12 @@ export async function summary(query: z.infer<typeof periodQuery>) {
       valid: n(o.valid),
       today: n(today[0]?.count),
       pending: n(current[0]?.pending),
+      /** Aceitos ou em separação. */
       inProgress: n(current[0]?.in_progress),
+      ready: n(current[0]?.ready),
+      outForDelivery: n(current[0]?.out_for_delivery),
+      /** Concluídos com data de conclusão dentro do período. */
+      completedInPeriod: n(completedInPeriod[0]?.count),
       completed: n(o.completed),
       cancelled: n(o.cancelled),
       expired: n(o.expired),

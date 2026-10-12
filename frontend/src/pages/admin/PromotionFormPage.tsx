@@ -297,15 +297,16 @@ export default function PromotionFormPage() {
                 <p className="notice">A promoção só vale entre o início e o fim e enquanto estiver ativa. Depois do fim ela deixa de ser aplicada automaticamente.</p>
               </div>
             </section>
-            <div className="adm-card" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="submit" className="btn btn-gold" disabled={save.isPending} aria-busy={save.isPending}>
-                {save.isPending ? 'Salvando…' : isNew ? 'Criar promoção' : 'Salvar alterações'}
-              </button>
-              <Link to="/admin/promotions" className="btn btn-outline">
-                Cancelar
-              </Link>
-            </div>
           </div>
+        </div>
+        <div className="form-bar">
+          <span className="notice">{formState.isDirty ? 'Há alterações não salvas.' : isNew ? 'Preencha os campos e salve.' : 'Tudo salvo.'}</span>
+          <Link to="/admin/promotions" className="btn btn-quiet">
+            Cancelar
+          </Link>
+          <button type="submit" className="btn btn-gold" disabled={save.isPending} aria-busy={save.isPending}>
+            {isNew ? 'Criar promoção' : 'Salvar alterações'}
+          </button>
         </div>
       </form>
     </>

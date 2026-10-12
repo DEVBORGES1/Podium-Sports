@@ -53,6 +53,8 @@ npm run db:seed               # opcional: catálogo, categorias, banners e texto
 Novas alterações de schema: edite `prisma/schema.prisma`, rode `npm run db:migrate:dev -- --name descricao` localmente, revise o SQL gerado e **acrescente** `ENABLE ROW LEVEL SECURITY` + `REVOKE ALL … FROM anon, authenticated` para tabelas novas (o teste `tests/rls.test.ts` falha se esquecer).
 
 > **Sem terminal?** Cole `backend/supabase/01-instalacao.sql` no *SQL Editor* do Supabase: ele faz o mesmo que `db:migrate` + `db:seed` em uma única transação (ver `backend/supabase/LEIA-ME.md`).
+>
+> As migrations criadas depois do `01-instalacao.sql` (ex.: `20261012120000_out_for_delivery_customer_messages`, que adiciona o status “Saiu para entrega” e a tabela `order_messages`) são aplicadas **automaticamente** pelo `prisma migrate deploy` do deploy da API, porque o arquivo de instalação registra no `_prisma_migrations` apenas as anteriores. São migrations aditivas: não alteram nem apagam dados existentes.
 
 ## 3. Primeiro administrador
 
@@ -169,7 +171,8 @@ O workflow `.github/workflows/ci.yml` roda lint, typecheck, testes, build e E2E 
 
 ## 9. Operação do dia a dia
 
-- **Pedidos**: chegam como *Aguardando atendimento*. Confirme pelo WhatsApp, avance o status no painel e marque **Pago** somente quando o pagamento for confirmado. O faturamento do dashboard conta só pedidos pagos.
+- **Pedidos**: chegam como *Novo pedido* (o cliente vê “Aguardando confirmação da loja”). Com o painel aberto, um pedido novo aparece sozinho em até 15 s, com faixa de aviso, contador no menu e no título da aba e, se ativado, aviso sonoro (botão **Ativar som** no topo do painel). Aceite, separe, marque como pronto, saiu para entrega (só entregas) e conclua; depois de cada etapa o pedido sugere a mensagem para o cliente — o botão abre o WhatsApp com o texto pronto e **a pessoa revisa e envia**. Marque **Pago** somente quando o pagamento for confirmado; o valor “Recebido” da visão geral conta só pedidos pagos.
+- **Avisos ao cliente**: os textos ficam em `Configurações → Mensagens do WhatsApp → Avisos de andamento ao cliente` (marcadores `{nome}`, `{pedido}` e `{loja}`).
 - **Pedidos abandonados**: pendentes sem atendimento expiram após `Configurações → Pedidos e vitrine` (padrão 48 h) e o estoque reservado volta automaticamente.
 - **Estoque**: o saldo só muda por movimentações (entrada, saída, ajuste com justificativa) e pelos pedidos. Tudo fica no histórico e na auditoria.
 - **Produtos com pedidos** não podem ser excluídos (o histórico é preservado): desative a publicação.
@@ -190,5 +193,9 @@ O workflow `.github/workflows/ci.yml` roda lint, typecheck, testes, build e E2E 
 | Upload responde `503 STORAGE_NOT_CONFIGURED` | `SUPABASE_SERVICE_ROLE_KEY` ausente | configure a chave secreta na API |
 | Convite não chega | SMTP padrão do Supabase limitado | configure SMTP próprio (seção 1) |
 | `429` em pedidos | rate limit por IP | se todos os clientes aparecem com o mesmo IP, ajuste `TRUST_PROXY` |
+| Painel mostra **“Som bloqueado”** | o navegador só libera áudio depois de um clique na página (regra dos navegadores, não é erro) | clique em qualquer lugar do painel ou em **Som bloqueado → Liberar e testar som** |
+| Som ativado, mas não se ouve nada | volume do computador, aba silenciada (ícone de alto-falante na aba) ou saída de áudio errada | use **Testar som**; confira o volume e se a aba não está silenciada |
+| Indicador **“Sem conexão — tentando novamente”** | API fora do ar ou “dormindo” (Render Free), internet caiu | o painel tenta de novo sozinho (até a cada 1 min); pedidos que chegarem nesse intervalo são avisados quando a conexão voltar |
+| Pedido novo não tocou com o painel fechado ou o computador suspenso | o aviso só existe com o painel aberto e conectado | deixe o painel aberto numa aba; opcionalmente ative “Notificar também com a aba em segundo plano” |
 
 Cada resposta da API traz `X-Request-Id`; o mesmo ID aparece nos logs estruturados (JSON) e no corpo dos erros (`requestId`), facilitando localizar a falha. Os logs não registram tokens, cabeçalhos de autenticação, corpo das requisições nem IPs.

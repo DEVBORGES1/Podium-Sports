@@ -13,6 +13,7 @@
   --line: #d9d2c3;
   --wa: #1fa855;
   --danger: #b42318;
+  --danger-solid: #b42318;
   --danger-bg: #fdecea;
   --ok: #157f3b;
   --ok-bg: #e6f4ea;
@@ -66,11 +67,17 @@ img { max-width: 100%; }
 .skip-link { position: absolute; left: 8px; top: -60px; z-index: 100; background: var(--gold); color: #111; padding: 10px 14px; font-weight: 700; border-radius: 4px; }
 .skip-link:focus { top: 8px; }
 
-/* Botões */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 22px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border: 2px solid transparent; cursor: pointer; border-radius: 4px; transition: transform 0.15s, box-shadow 0.2s, background 0.2s, color 0.2s, opacity 0.2s; }
+/* Botões — um único componente com variantes (principal, secundário, destrutivo, discreto, ícone).
+   Altura mínima fixa, texto em uma linha e ícone alinhado: o layout não muda ao carregar ou ao passar o mouse. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 22px; font-weight: 700; font-size: 13px; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; white-space: nowrap; vertical-align: middle; border: 2px solid transparent; cursor: pointer; border-radius: 4px; user-select: none; -webkit-tap-highlight-color: transparent; transition: transform 0.15s, box-shadow 0.2s, background 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s; }
+.btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .btn:hover { transform: translateY(-2px); }
 .btn:active { transform: scale(0.96); }
+.btn:focus-visible { box-shadow: var(--focus); border-radius: 4px; }
 .btn:disabled, .btn[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+/* Carregando: mantém a largura e mostra um indicador ao lado do texto. */
+.btn[aria-busy='true'] { cursor: progress; }
+.btn[aria-busy='true']::before { content: ''; width: 14px; height: 14px; flex: 0 0 auto; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin 0.7s linear infinite; }
 .btn-gold { background: var(--gold); color: #111; }
 .btn-gold:hover { box-shadow: 0 8px 22px rgba(247, 170, 24, 0.4); }
 .btn-ghost { border-color: #fff; color: #fff; background: transparent; }
@@ -79,7 +86,18 @@ img { max-width: 100%; }
 .btn-wa { background: var(--wa); color: #fff; }
 .btn-outline { border-color: var(--line); background: var(--card); color: var(--ink); }
 .btn-outline:hover { border-color: var(--gold); }
-.btn-sm { padding: 8px 14px; font-size: 11px; }
+/* Ação destrutiva: sólida (confirmação) ou contornada (botão que abre a confirmação). */
+.btn-danger { background: var(--danger-solid); color: #fff; }
+.btn-danger:hover { box-shadow: 0 8px 22px color-mix(in srgb, var(--danger-solid) 35%, transparent); }
+.btn-danger-outline { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); background: var(--card); color: var(--danger); }
+.btn-danger-outline:hover { border-color: var(--danger); background: var(--danger-bg); }
+/* Discreto: ação secundária sem moldura (ex.: "Cancelar" em formulários). */
+.btn-quiet { background: transparent; color: var(--ink); border-color: transparent; }
+.btn-quiet:hover { background: var(--soft); }
+.btn-sm { min-height: 38px; padding: 6px 14px; font-size: 12px; gap: 6px; }
+.btn-sm svg { width: 16px; height: 16px; }
+/* Botão só com ícone (setas, fechar): quadrado, com área de toque confortável. */
+.btn-icon { min-width: 38px; padding: 6px; }
 .btn-block { width: 100%; }
 
 /* Estados */
@@ -96,11 +114,11 @@ img { max-width: 100%; }
 .alert-warn { background: var(--warn-bg); color: var(--warn); }
 
 /* Formulários */
-.field { display: grid; gap: 6px; }
+.field { display: grid; gap: 6px; align-content: start; grid-template-columns: minmax(0, 1fr); } /* start: campos lado a lado ficam alinhados mesmo quando só um tem dica; minmax: nunca mais largo que a coluna */
 .field > label, .field > .label { font-size: 13px; font-weight: 600; }
 .field .hint { font-size: 12px; color: var(--muted); }
 .field .err { font-size: 12px; color: var(--danger); font-weight: 600; }
-.input, .select, .textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--line); background: var(--soft); color: var(--ink); border-radius: 4px; transition: border-color 0.2s, box-shadow 0.2s; }
+.input, .select, .textarea { width: 100%; min-width: 0; min-height: 48px; line-height: 1.5; padding: 11px 12px; border: 1px solid var(--line); background: var(--soft); color: var(--ink); border-radius: 4px; transition: border-color 0.2s, box-shadow 0.2s; }
 .input:focus, .select:focus, .textarea:focus { outline: 0; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(247, 170, 24, 0.2); }
 .input[aria-invalid='true'], .select[aria-invalid='true'], .textarea[aria-invalid='true'] { border-color: var(--danger); }
 .textarea { min-height: 90px; resize: vertical; }

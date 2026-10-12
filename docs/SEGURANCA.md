@@ -49,7 +49,16 @@ Ocultar botões no frontend é apenas conveniência: **todas** as rotas `/api/v1
 - **Cancelamento/expiração devolvem o estoque uma única vez**: `UPDATE … WHERE stock_released_at IS NULL` + transação. Teste com 6 cancelamentos simultâneos.
 - Itens do pedido guardam nome e preço do momento da compra; produtos com pedidos não podem ser excluídos.
 - Pagamento nunca é marcado automaticamente; abrir o WhatsApp é registrado apenas como “WhatsApp aberto”.
+- **Concorrência entre administradores**: o painel envia o status que estava na tela (`expectedStatus`); se outra pessoa já mudou o pedido, a API responde `409 ORDER_STATE_CHANGED` e a tela recarrega o estado real. O `UPDATE … WHERE status = <anterior>` continua como última barreira (teste com duas aceitações simultâneas: só uma é registrada).
+- **Transições por modalidade**: “Saiu para entrega” só é aceito para pedidos com entrega; pedidos concluídos, cancelados ou expirados não mudam mais. Validado no servidor — a interface apenas esconde os botões inválidos.
 - Consulta pública do pedido exige token HMAC-SHA256 (comparação em tempo constante); token errado e pedido inexistente dão a mesma resposta (não revela códigos válidos).
+
+## Avisos de novos pedidos e mensagens ao cliente
+
+- **Sem Supabase Realtime, por decisão de segurança**: o Realtime (postgres_changes) obedece à RLS, e para o painel receber pedidos pela chave pública seria preciso criar uma política de leitura em `orders` — que contém nome, telefone e endereço de clientes. O painel consulta `GET /api/v1/admin/orders/live` a cada 15 s, com o mesmo JWT + perfil de qualquer rota `/admin`. A resposta traz só contagens e o resumo mínimo dos pedidos recentes (código, primeiro nome usado no aviso, total, modalidade), com `Cache-Control: no-store`.
+- Notificação do sistema operacional (opcional) não mostra nome nem telefone do cliente — pode aparecer na tela bloqueada.
+- `order_messages` segue o padrão das demais tabelas: RLS ativa sem políticas e privilégios revogados de `anon`/`authenticated` (coberto por `tests/rls.test.ts`). Os textos-modelo das mensagens ficam no conteúdo das configurações, mas **não** são devolvidos pela rota pública `/store/settings`.
+- O envio pelo WhatsApp é feito por uma pessoa (link `wa.me`). O sistema registra “WhatsApp aberto” e, se a pessoa informar, “envio informado” com autor e horário — nunca “entregue”, porque sem a API oficial do WhatsApp Business não há como comprovar entrega. Nenhum token de WhatsApp existe no projeto.
 
 ## Uploads
 
@@ -78,4 +87,5 @@ Ocultar botões no frontend é apenas conveniência: **todas** as rotas `/api/v1
 | CSP com `style-src 'unsafe-inline'` | exigido por estilos inline do React/Recharts | não afeta scripts (`script-src 'self'`) |
 | Advisory `deepmerge-ts` (via `prisma` CLI) | ferramenta de build/migrations; não processa entrada de usuários; a correção exige versão do Prisma ainda não publicada | atualizar o Prisma quando houver versão corrigida |
 | Arquivos órfãos no Storage | uploads avulsos não usados (ex.: imagem trocada antes de salvar) podem permanecer | limpeza periódica comparando o bucket com os caminhos gravados no banco |
+| Avisos dependem do painel aberto | sem push: com a aba fechada ou o computador suspenso, nada toca | manter o painel aberto no balcão; se precisar de aviso com tudo fechado, avaliar Web Push (service worker + chaves VAPID) ou a API oficial do WhatsApp Business |
 | Busca e ordenação por preço efetivo em memória | adequado até alguns milhares de produtos (limite de 2.000 por consulta) | para catálogos maiores, materializar o preço efetivo e indexar busca com `pg_trgm` |

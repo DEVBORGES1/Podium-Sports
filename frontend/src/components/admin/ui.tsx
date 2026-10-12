@@ -131,15 +131,8 @@ export function ConfirmDialog({
           <button type="button" className="btn btn-outline btn-sm" onClick={onCancel} disabled={busy}>
             Voltar
           </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${danger ? 'btn-dark' : 'btn-gold'}`}
-            style={danger ? { background: 'var(--danger)' } : undefined}
-            onClick={onConfirm}
-            disabled={busy}
-            aria-busy={busy}
-          >
-            {busy ? 'Aguarde…' : confirmLabel}
+          <button type="button" className={`btn btn-sm ${danger ? 'btn-danger' : 'btn-gold'}`} onClick={onConfirm} disabled={busy} aria-busy={busy}>
+            {confirmLabel}
           </button>
         </>
       }

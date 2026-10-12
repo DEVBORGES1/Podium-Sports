@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { optionalText, pagination } from '../../lib/validation.js';
 import { MAX_QUANTITY_PER_ITEM } from '../products/products.schemas.js';
+import { MESSAGE_STATUSES } from './orders.messages.js';
 
 export const MAX_ITEMS_PER_ORDER = 30;
 
@@ -58,10 +59,18 @@ export const idempotencyKeySchema = z
 export const orderCodeParam = z.object({ code: z.string().regex(/^PS-[A-Z0-9]{6}$/, 'Código de pedido inválido.') });
 export const orderTokenSchema = z.string({ error: 'Token do pedido ausente.' }).min(20).max(100);
 
-export const ORDER_STATUSES = ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED', 'EXPIRED'] as const;
+export const ORDER_STATUSES = ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED', 'EXPIRED'] as const;
+
+/** Um ou mais status separados por vírgula (ex.: "ACCEPTED,PROCESSING"). */
+const statusList = z
+  .string()
+  .trim()
+  .max(200)
+  .transform((v) => [...new Set(v.split(',').map((s) => s.trim()).filter(Boolean))])
+  .pipe(z.array(z.enum(ORDER_STATUSES, 'Status inválido.')).min(1).max(ORDER_STATUSES.length));
 
 export const adminOrdersQuery = z.object({
-  status: z.enum(ORDER_STATUSES).optional(),
+  status: statusList.optional(),
   paymentStatus: z.enum(['UNPAID', 'PAID', 'REFUNDED']).optional(),
   q: z.string().trim().max(80).optional(),
   from: z.coerce.date().optional(),
@@ -70,9 +79,21 @@ export const adminOrdersQuery = z.object({
 });
 
 export const updateStatusSchema = z.object({
-  status: z.enum(['ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED']),
+  status: z.enum(['ACCEPTED', 'PROCESSING', 'READY', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED']),
+  /** Status que o painel exibia ao clicar: se o pedido mudou nesse meio-tempo, a alteração é recusada (409). */
+  expectedStatus: z.enum(ORDER_STATUSES).optional(),
   note: optionalText(300),
 });
+
+export const ordersLiveQuery = z.object({
+  since: z.coerce.date('Data inválida.').optional(),
+});
+
+export const openMessageSchema = z.object({
+  status: z.enum(MESSAGE_STATUSES),
+});
+
+export const messageParams = z.object({ id: z.uuid('Identificador inválido.'), messageId: z.uuid('Identificador inválido.') });
 
 export const updatePaymentSchema = z.object({
   paymentStatus: z.enum(['UNPAID', 'PAID', 'REFUNDED']),

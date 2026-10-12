@@ -5,7 +5,10 @@ import {
   adminOrdersQuery,
   createOrderSchema,
   idempotencyKeySchema,
+  messageParams,
+  openMessageSchema,
   orderCodeParam,
+  ordersLiveQuery,
   orderTokenSchema,
   quoteSchema,
   updatePaymentSchema,
@@ -46,14 +49,28 @@ export const adminOrdersRouter = Router();
 adminOrdersRouter.get('/orders', async (req, res) => {
   res.json(await service.listAdminOrders(parse(adminOrdersQuery, req.query)));
 });
+// Declarada antes de /orders/:id. Consultada periodicamente pelo painel (novos pedidos e alterações).
+adminOrdersRouter.get('/orders/live', async (req, res) => {
+  const { since } = parse(ordersLiveQuery, req.query);
+  res.set('Cache-Control', 'no-store');
+  res.json(await service.ordersLive(since));
+});
 adminOrdersRouter.get('/orders/:id', async (req, res) => {
   const { id } = parse(uuidParam, req.params);
   res.json(await service.getAdminOrder(id));
 });
 adminOrdersRouter.patch('/orders/:id/status', async (req, res) => {
   const { id } = parse(uuidParam, req.params);
-  const { status, note } = parse(updateStatusSchema, req.body);
-  res.json(await service.updateOrderStatus(id, status, note, currentProfile(req).id));
+  res.json(await service.updateOrderStatus(id, parse(updateStatusSchema, req.body), currentProfile(req).id));
+});
+adminOrdersRouter.post('/orders/:id/messages', async (req, res) => {
+  const { id } = parse(uuidParam, req.params);
+  const { status } = parse(openMessageSchema, req.body);
+  res.status(201).json(await service.openCustomerMessage(id, status, currentProfile(req).id));
+});
+adminOrdersRouter.post('/orders/:id/messages/:messageId/confirm', async (req, res) => {
+  const { id, messageId } = parse(messageParams, req.params);
+  res.json(await service.confirmCustomerMessage(id, messageId, currentProfile(req).id));
 });
 adminOrdersRouter.patch('/orders/:id/payment', async (req, res) => {
   const { id } = parse(uuidParam, req.params);

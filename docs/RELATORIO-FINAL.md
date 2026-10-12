@@ -1,5 +1,7 @@
 # Relatório final
 
+> **Atualização (outubro de 2026):** auditoria de UX/UI, painel e pedidos — status “Saiu para entrega”, aviso de novos pedidos (visual e sonoro), mensagens de andamento ao cliente pelo WhatsApp e revisão visual completa. Ver [AUDITORIA-UX-PEDIDOS.md](AUDITORIA-UX-PEDIDOS.md) e [PEDIDOS-E-AVISOS.md](PEDIDOS-E-AVISOS.md). Testes atuais: API 170, frontend 37, E2E 21.
+
 ## Resumo
 
 O site de página única (HTML/CSS/JS com 66 produtos fixos no código) virou uma aplicação com:

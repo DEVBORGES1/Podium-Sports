@@ -66,6 +66,8 @@ npm run dev:web                            # http://localhost:5173  (painel em /
 - [Implantação, configuração e operação](docs/IMPLANTACAO.md) — Supabase, variáveis, migrations, primeiro admin, deploy, CORS, backups, diagnóstico
 - [Segurança](docs/SEGURANCA.md) — controles implementados, RLS, riscos conhecidos
 - [Relatório final](docs/RELATORIO-FINAL.md) — o que foi entregue, testes executados e pendências
+- [Pedidos, avisos sonoros e mensagens ao cliente](docs/PEDIDOS-E-AVISOS.md) — como funcionam e como testar
+- [Auditoria de UX/UI, painel e pedidos (out/2026)](docs/AUDITORIA-UX-PEDIDOS.md) — problemas encontrados, causas, correções e testes
 - API: `GET /api/docs` (Swagger) ou [`backend/openapi.yaml`](backend/openapi.yaml)
 
 ## Como funciona um pedido
@@ -74,4 +76,6 @@ npm run dev:web                            # http://localhost:5173  (painel em /
 2. No checkout, o frontend envia **apenas IDs e quantidades** + dados de contato, com `Idempotency-Key`.
 3. A API recalcula os preços (preço promocional e promoções vigentes), valida estoque, **reserva o estoque atomicamente** e grava o pedido (`Aguardando atendimento`, `Não pago`).
 4. A página de confirmação monta a mensagem a partir do pedido gravado e abre `wa.me` com o número configurado no painel. O clique é registrado como "WhatsApp aberto" — isso **não** significa mensagem enviada, pedido aceito ou pagamento.
-5. No painel, a loja aceita, separa, conclui ou cancela o pedido (cancelar devolve o estoque uma única vez) e marca o pagamento manualmente. Pedidos pendentes sem atendimento expiram após o prazo configurado e liberam o estoque.
+5. Com o painel aberto, o pedido aparece sozinho em até 15 s (faixa de aviso, contador e som opcional — ver [docs/PEDIDOS-E-AVISOS.md](docs/PEDIDOS-E-AVISOS.md)).
+6. A loja aceita, separa, marca como pronto, informa a saída para entrega (só entregas), conclui ou cancela o pedido (cancelar devolve o estoque uma única vez) e marca o pagamento manualmente. Cada mudança é validada no servidor e registrada no histórico. Pedidos pendentes sem atendimento expiram após o prazo configurado e liberam o estoque.
+7. A cada etapa o painel sugere a mensagem para o cliente; o botão abre o WhatsApp com o texto pronto e **a pessoa revisa e envia** — o sistema registra “WhatsApp aberto”, nunca “entregue”.
