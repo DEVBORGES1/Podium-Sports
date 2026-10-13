@@ -6,7 +6,7 @@ A versão original em HTML único está preservada em [`legacy/podium-sports.htm
 
 | | |
 | --- | --- |
-| **Frontend** | React 19, Vite, TypeScript, React Router, TanStack Query, React Hook Form + Zod, Recharts |
+| **Frontend** | React 19, Vite, TypeScript, React Router, TanStack Query, React Hook Form + Zod |
 | **Backend** | Node.js 22, Express 5, TypeScript, Zod, Prisma, pino — API REST em `/api/v1` |
 | **Dados** | Supabase PostgreSQL (RLS ativa) e Supabase Storage (imagens) |
 | **Autenticação** | Supabase Auth; a API valida o JWT e a função (ADMIN / SUPER_ADMIN) em toda rota `/admin` |

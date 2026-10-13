@@ -31,7 +31,7 @@ test.describe('acesso ao painel', () => {
 
   test('administrador comum não vê usuários nem auditoria', async ({ page }) => {
     await login(page, USERS.staff.email);
-    await expect(page.getByRole('heading', { name: 'Visão geral' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^(Bom dia|Boa tarde|Boa noite), Atendente\.$/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Usuários/ })).toHaveCount(0);
     await expect(page.getByRole('link', { name: /Histórico de alterações/ })).toHaveCount(0);
     await page.goto('/admin/users');
@@ -61,7 +61,7 @@ test.describe('operação da loja', () => {
     const code = await placeOrder(page, 'umbro-pro-5-shark');
     await login(page, USERS.owner.email);
     await page.getByRole('link', { name: /Pedidos/ }).first().click();
-    // Pedido novo aparece na aba "Em aberto"; abre no painel lateral.
+    // Pedido novo aparece na coluna "Novos" do quadro; abre no painel lateral.
     await page.getByRole('button', { name: new RegExp(`Abrir pedido ${code}`) }).click();
     const drawer = page.getByRole('dialog', { name: 'Detalhes do pedido' });
     await expect(drawer.getByText(code).first()).toBeVisible();
@@ -112,7 +112,7 @@ test.describe('operação da loja', () => {
 
     await expect(page.locator('.new-order-banner')).toContainText(`Novo pedido ${code}`, { timeout: 25_000 });
     await expect(page.getByRole('button', { name: new RegExp(`Abrir pedido ${code}`) })).toBeVisible();
-    await expect(page.locator('.order-row.is-new')).toContainText(code);
+    await expect(page.locator('.order-card.is-new')).toContainText(code);
     await expect(page).toHaveTitle(/^\(\d+\) Pedidos/);
     await page.locator('.new-order-banner').getByRole('link', { name: 'Abrir pedido' }).click();
     await expect(page.getByRole('dialog', { name: 'Detalhes do pedido' }).getByText(`Pedido ${code}`)).toBeVisible();

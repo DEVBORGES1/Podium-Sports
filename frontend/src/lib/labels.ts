@@ -107,3 +107,20 @@ export const CONTENT_STATE: Record<string, { label: string; tone: Tone }> = {
   EXPIRED: { label: 'Encerrado', tone: 'neutral' },
   INACTIVE: { label: 'Inativo', tone: 'neutral' },
 };
+
+/** Etapas do fluxo da loja (quadro de pedidos e "Fluxo de hoje" da visão geral). */
+export const ORDER_STAGES = [
+  { id: 'new', label: 'Novos', statuses: ['PENDING'], hint: 'Aguardando aceite', tone: 'danger' },
+  { id: 'progress', label: 'Em separação', statuses: ['ACCEPTED', 'PROCESSING'], hint: 'Aceitos ou sendo separados', tone: 'info' },
+  { id: 'ready', label: 'Prontos', statuses: ['READY'], hint: 'Para retirada ou envio', tone: 'gold' },
+  { id: 'delivery', label: 'Saiu para entrega', statuses: ['OUT_FOR_DELIVERY'], hint: 'A caminho do cliente', tone: 'gold' },
+  { id: 'done', label: 'Concluídos hoje', statuses: ['COMPLETED'], hint: 'Finalizados hoje', tone: 'ok' },
+] as const satisfies readonly { id: string; label: string; statuses: readonly OrderStatus[]; hint: string; tone: Tone }[];
+
+export type OrderStageId = (typeof ORDER_STAGES)[number]['id'];
+
+/** Início do dia de hoje (horário local) em ISO — filtro de "concluídos hoje". */
+export function startOfTodayIso(now = Date.now()) {
+  const d = new Date(now);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
+}

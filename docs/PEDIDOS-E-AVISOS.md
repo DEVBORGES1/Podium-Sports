@@ -34,7 +34,9 @@ Como funciona o atendimento no painel (**Pedidos**) e como testar cada parte.
 5. Sem conexão, o indicador do topo fica vermelho e as consultas continuam, com intervalo crescente até 1 min. Ao voltar, pedidos que chegaram durante a queda são avisados **uma vez, em grupo** (“3 pedidos novos — chegaram enquanto o painel estava sem conexão”). O histórico antigo não é repetido.
 6. Voltar para a aba ou recuperar a internet dispara uma consulta imediata. Os navegadores atrasam timers em abas de segundo plano, até cerca de 1 min.
 
-**O que acontece com um pedido novo:** faixa no topo (“Novo pedido PS-…” + **Abrir pedido**), destaque dourado na lista, contador no menu **Pedidos**, nas abas e no título da aba do navegador (“(2) Pedidos · …”), e o som, se ativado.
+**O que acontece com um pedido novo:** faixa no topo (“Novo pedido PS-…” + **Abrir pedido**), cartão com destaque dourado na coluna **Novos** do quadro de pedidos, contador no menu **Pedidos**, no “Fluxo de hoje” da visão geral e no título da aba do navegador (“(2) Pedidos · …”), e o som, se ativado.
+
+**Quadro de pedidos:** `/admin/orders` abre em **Quadro**, com uma coluna por etapa (Novos → Em separação → Prontos → Saiu para entrega) e os concluídos de hoje ao lado. O botão de cada cartão leva o pedido à próxima etapa (concluir pede confirmação) e o cartão abre os detalhes no painel lateral. **Lista** mantém as abas por situação, a paginação e os filtros de pagamento e período para consultar pedidos antigos, concluídos e cancelados. **Ctrl+K** (⌘K no Mac) abre a busca rápida de pedidos, produtos e páginas em qualquer tela.
 
 **Som** (Web Audio, gerado no navegador; não há arquivo de áudio):
 

@@ -16,9 +16,7 @@ export function LiveIndicator() {
       ? 'Sem conexão — tentando novamente'
       : connection === 'connecting'
         ? 'Conectando…'
-        : seconds !== null && seconds < 30
-          ? 'Pedidos atualizados'
-          : `Atualizado há ${seconds !== null && seconds < 120 ? `${seconds} s` : `${Math.round((seconds ?? 0) / 60)} min`}`;
+        : `Ao vivo · conferido há ${seconds === null || seconds < 120 ? `${seconds ?? 0} s` : `${Math.round(seconds / 60)} min`}`;
   return (
     <button
       type="button"
@@ -97,9 +95,7 @@ export function SoundControl() {
       </button>
       {open && (
         <div className="sound-menu" role="menu" aria-label="Aviso de novos pedidos">
-          {sound === 'blocked' && (
-            <p className="alert alert-warn">O navegador bloqueou o som até você interagir com a página. Clique em “Liberar e testar”.</p>
-          )}
+          {sound === 'blocked' && <p className="alert alert-warn">O navegador bloqueou o som até você interagir com a página. Clique em “Liberar e testar”.</p>}
           <button type="button" role="menuitem" className="btn btn-outline btn-sm btn-block" onClick={() => void (sound === 'blocked' ? activate() : test())}>
             {sound === 'blocked' ? 'Liberar e testar som' : 'Testar som'}
           </button>

@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type SVGProps } from 'react';
+import { useCallback, useState, type ComponentType, type SVGProps } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import logo from '../assets/logo.png';
 import {
@@ -7,6 +7,7 @@ import {
   HistoryIcon,
   HomeIcon,
   ImageIcon,
+  LogoutIcon,
   OrdersIcon,
   PercentIcon,
   ProductIcon,
@@ -15,9 +16,11 @@ import {
   UsersIcon,
 } from '../components/admin/AdminIcons';
 import { LiveIndicator, NewOrderBanner, SoundControl } from '../components/admin/OrderAlertsUI';
+import { QuickSearchButton, QuickSearchDialog } from '../components/admin/QuickSearch';
 import { MenuIcon } from '../components/ui/Icons';
 import { useAuth } from '../contexts/AuthContext';
 import { OrderAlertsProvider, useOrderAlerts } from '../contexts/OrderAlertsContext';
+import { useQuickSearchShortcut } from '../hooks/useQuickSearchShortcut';
 import '../styles/admin.css';
 
 type NavItem = { to: string; label: string; icon: ComponentType<SVGProps<SVGSVGElement>>; end?: boolean; badge?: 'pending' };
@@ -56,6 +59,21 @@ const GROUPS: { title?: string; items: NavItem[]; superOnly?: boolean }[] = [
   },
 ];
 
+/** Trilha do cabeçalho ("PAINEL / PEDIDOS"): a primeira rota do menu que corresponde ao endereço atual. */
+const ALL_ITEMS = GROUPS.flatMap((g) => g.items);
+function sectionLabel(pathname: string) {
+  const match = ALL_ITEMS.filter((n) => (n.end ? pathname === n.to || pathname === `${n.to}/` : pathname.startsWith(n.to))).sort((a, b) => b.to.length - a.to.length)[0];
+  return match?.label ?? 'Painel';
+}
+
+const initials = (name?: string) =>
+  (name ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join('') || '·';
+
 function PendingBadge() {
   const { counts } = useOrderAlerts();
   const n = counts?.PENDING ?? 0;
@@ -75,6 +93,15 @@ function Shell() {
   const open = openKey === location.key;
   const setOpen = (v: boolean) => setOpenKey(v ? location.key : null);
 
+  const [searching, setSearching] = useState(false);
+  const openSearch = useCallback(() => {
+    setOpenKey(null);
+    setSearching(true);
+  }, []);
+  useQuickSearchShortcut(openSearch);
+  const groups = GROUPS.filter((g) => !g.superOnly || me?.role === 'SUPER_ADMIN');
+  const roleLabel = me?.role === 'SUPER_ADMIN' ? 'Superadministrador' : 'Administrador';
+
   return (
     <div className="adm">
       <aside className={`adm-side ${open ? 'open' : ''}`} aria-label="Menu do painel">
@@ -82,8 +109,9 @@ function Shell() {
           <img src={logo} alt="Podium Sports" />
           <small>Painel</small>
         </div>
+        <QuickSearchButton onOpen={openSearch} />
         <nav className="adm-nav">
-          {GROUPS.filter((g) => !g.superOnly || me?.role === 'SUPER_ADMIN').map((g, i) => (
+          {groups.map((g, i) => (
             <div key={g.title ?? i} className="nav-group" role="group" aria-label={g.title}>
               {g.title && <span className="sep">{g.title}</span>}
               {g.items.map((n) => (
@@ -97,9 +125,19 @@ function Shell() {
           ))}
         </nav>
         <div className="adm-side-foot">
-          <Link to="/" target="_blank" rel="noopener">
-            Ver loja <ExternalIcon />
+          <span className="avatar" aria-hidden>
+            {initials(me?.name)}
+          </span>
+          <div className="who">
+            <b>{me?.name}</b>
+            <small>{roleLabel}</small>
+          </div>
+          <Link to="/" target="_blank" rel="noopener" className="side-icon-btn" title="Ver loja (nova aba)" aria-label="Ver loja (nova aba)">
+            <ExternalIcon />
           </Link>
+          <button type="button" className="side-icon-btn" title="Sair do painel" aria-label="Sair do painel" onClick={() => void signOut()}>
+            <LogoutIcon />
+          </button>
         </div>
       </aside>
       <div className={`overlay ${open ? 'open' : ''}`} onClick={() => setOpen(false)} aria-hidden />
@@ -108,20 +146,15 @@ function Shell() {
           <button type="button" className="menu btn btn-outline btn-sm btn-icon" aria-label="Abrir menu" aria-expanded={open} onClick={() => setOpen(true)}>
             <MenuIcon />
           </button>
-          <LiveIndicator />
+          <span className="adm-crumb">
+            Painel <span aria-hidden>/</span> {sectionLabel(location.pathname)}
+          </span>
           <div className="adm-top-actions">
+            <LiveIndicator />
             <SoundControl />
-            <div className="adm-user">
-              <div className="who">
-                <b>{me?.name}</b>
-                <small>{me?.role === 'SUPER_ADMIN' ? 'Superadministrador' : 'Administrador'}</small>
-              </div>
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => void signOut()}>
-                Sair
-              </button>
-            </div>
           </div>
         </header>
+        {searching && <QuickSearchDialog pages={groups.flatMap((g) => g.items)} onClose={() => setSearching(false)} />}
         <NewOrderBanner />
         <main className="adm-content" id="conteudo">
           <Outlet />
