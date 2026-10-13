@@ -597,8 +597,9 @@ input[type='range'] { width: 100%; accent-color: var(--gold); }
 .foot-trust b { color: var(--inv-ink); font-weight: 650; font-size: 13px; }
 .foot-trust span { font-size: 12px; }
 @media (min-width: 900px) { .foot-trust { grid-template-columns: repeat(4, minmax(0, 1fr)); } .foot-trust li { padding: 26px 0; gap: 14px; } .foot-trust b { font-size: 14px; } .foot-trust span { font-size: 13px; } }
-.foot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; padding-top: 40px; padding-bottom: 32px; }
-@media (min-width: 900px) { .foot { grid-template-columns: 1.5fr 1fr 1.2fr 1fr; gap: 40px; padding-top: 56px; padding-bottom: 40px; } }
+/* .site-footer na frente: base.css carrega depois e o padding do .wrap zeraria o respiro vertical */
+.site-footer .foot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; padding-top: 40px; padding-bottom: 32px; }
+@media (min-width: 900px) { .site-footer .foot { grid-template-columns: 1.5fr 1fr 1.2fr 1fr; gap: 40px; padding-top: 56px; padding-bottom: 40px; } }
 .foot h2 { color: var(--inv-ink); font-stretch: 115%; font-weight: 700; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 12px; }
 .foot li { list-style: none; margin-bottom: 8px; }
 .foot a:hover { color: var(--gold) !important; }
@@ -610,9 +611,11 @@ input[type='range'] { width: 100%; accent-color: var(--gold); }
 .social { display: flex; gap: 10px; }
 .social a { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--inv-line); display: grid; place-items: center; }
 .social a:hover { border-color: var(--gold); }
-.foot-slogan { overflow: hidden; max-width: 1440px; margin: 0 auto; padding: 0 16px; }
-@media (min-width: 1200px) { .foot-slogan { padding: 0 40px; } }
-.foot-slogan span { display: block; font-stretch: 62%; font-weight: 900; font-size: clamp(64px, 16vw, 232px); line-height: 0.8; text-transform: uppercase; color: transparent; -webkit-text-stroke: 1.5px var(--inv-line); white-space: nowrap; letter-spacing: -0.01em; margin-bottom: -0.12em; }
+.foot-slogan { container-type: inline-size; overflow: hidden; max-width: 1440px; margin: 0 auto; padding: 8px 16px 20px; }
+@media (min-width: 760px) { .foot-slogan { padding-inline: 24px; } }
+@media (min-width: 1200px) { .foot-slogan { padding: 16px 40px 32px; } }
+/* A frase ocupa ~7,9× o tamanho da fonte: 12.4cqi faz ela caber inteira na largura da coluna */
+.foot-slogan span { display: block; font-stretch: 62%; font-weight: 900; font-size: 12.4cqi; line-height: 0.9; text-transform: uppercase; color: transparent; -webkit-text-stroke: 1.5px var(--inv-line); white-space: nowrap; letter-spacing: -0.01em; }
 .copy { border-top: 1px solid var(--inv-line); font-family: var(--font-mono); font-size: 12px; }
 .copy .wrap { display: flex; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; padding-top: 18px; padding-bottom: 18px; }
 .store:has(.bagbar) .copy { padding-bottom: 76px; }
