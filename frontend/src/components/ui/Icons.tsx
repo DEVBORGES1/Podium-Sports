@@ -117,6 +117,16 @@ export const SearchIcon = (p: P) => (
     <path d="M20 20l-4-4" />
   </svg>
 );
+export const PlusIcon = (p: P) => (
+  <svg width="18" height="18" {...base(2.2)} {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+export const FilterIcon = (p: P) => (
+  <svg width="18" height="18" {...base(2)} {...p}>
+    <path d="M4 7h16M7 12h10M10 17h4" />
+  </svg>
+);
 export const MenuIcon = (p: P) => (
   <svg width="24" height="24" {...base(2)} {...p}>
     <path d="M4 7h16M4 12h16M4 17h16" />

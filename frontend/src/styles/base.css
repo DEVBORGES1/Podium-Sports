@@ -5,12 +5,12 @@
   --dark: #0b0b0c;
   --dark2: #161618;
   --dark3: #202024;
-  --bg: #f0ede5;
-  --soft: #e7e2d6;
-  --card: #faf8f3;
-  --ink: #15130f;
-  --muted: #625c50;
-  --line: #d9d2c3;
+  --bg: #f3f1ec;
+  --soft: #e9e6df;
+  --card: #fbfaf7;
+  --ink: #141311;
+  --muted: #5f5a50;
+  --line: #dbd6cb;
   --wa: #1fa855;
   --danger: #b42318;
   --danger-solid: #b42318;
@@ -21,36 +21,63 @@
   --warn-bg: #fff3dc;
   --radius: 6px;
   --focus: 0 0 0 3px rgba(247, 170, 24, 0.55);
+  /* Direção "Pódio" da loja: Archivo variável (condensada nos títulos, expandida nos rótulos) + IBM Plex Mono em preços e contagens. */
+  --font-sans: Archivo, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --gold-text: #8a5a00;
+  --step: #141311;
+  --step-ink: #f3f1ec;
+  --stripe: rgba(20, 19, 17, 0.055);
+  --inv: #0e0e0f;
+  --inv-surface: #19191b;
+  --inv-line: #2b2b2f;
+  --inv-ink: #f3f1ec;
+  --inv-mute: #a6a39c;
+  --wa-btn: #117a3e;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0f0f11;
-    --soft: #17171a;
-    --card: #141416;
-    --ink: #f2f2f4;
-    --muted: #a1a1aa;
-    --line: #2a2a2f;
+    --bg: #0c0c0d;
+    --soft: #1d1d20;
+    --card: #151517;
+    --ink: #f2f1ee;
+    --muted: #a3a09a;
+    --line: #2a2a2e;
     --danger-bg: #3a1513;
     --danger: #ff8a80;
     --ok-bg: #12301d;
     --ok: #6fdc8c;
     --warn-bg: #3a2a0c;
     --warn: #ffc66b;
+    --gold-text: #f7aa18;
+    --step: #26262a;
+    --step-ink: #f2f1ee;
+    --stripe: rgba(255, 255, 255, 0.04);
+    --inv: #050506;
+    --inv-surface: #121214;
+    --inv-line: #222226;
   }
 }
 :root[data-theme='dark'] {
-  --bg: #0f0f11;
-  --soft: #17171a;
-  --card: #141416;
-  --ink: #f2f2f4;
-  --muted: #a1a1aa;
-  --line: #2a2a2f;
+  --bg: #0c0c0d;
+  --soft: #1d1d20;
+  --card: #151517;
+  --ink: #f2f1ee;
+  --muted: #a3a09a;
+  --line: #2a2a2e;
   --danger-bg: #3a1513;
   --danger: #ff8a80;
   --ok-bg: #12301d;
   --ok: #6fdc8c;
   --warn-bg: #3a2a0c;
   --warn: #ffc66b;
+  --gold-text: #f7aa18;
+  --step: #26262a;
+  --step-ink: #f2f1ee;
+  --stripe: rgba(255, 255, 255, 0.04);
+  --inv: #050506;
+  --inv-surface: #121214;
+  --inv-line: #222226;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import logo from '../../assets/logo.png';
 import { useCart } from '../../contexts/CartContext';
 import { useDialog } from '../../hooks/useDialog';
+import { estimatedTotal } from '../../lib/cart';
+import { brl } from '../../lib/format';
 import type { Category } from '../../types/api';
 import { BagIcon, MenuIcon, SearchIcon } from '../ui/Icons';
 
@@ -27,7 +29,7 @@ function useNavItems(categories: Category[]): NavItem[] {
   ];
 }
 
-function SearchForm({ id, autoFocus, onDone }: { id: string; autoFocus?: boolean; onDone?: () => void }) {
+function SearchForm({ id, autoFocus, onDone, shortcut }: { id: string; autoFocus?: boolean; onDone?: () => void; shortcut?: boolean }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [q, setQ] = useState(params.get('q') ?? '');
@@ -43,13 +45,18 @@ function SearchForm({ id, autoFocus, onDone }: { id: string; autoFocus?: boolean
         Buscar produtos
       </label>
       <SearchIcon />
-      <input id={id} type="search" placeholder="Buscar produto, marca..." value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} maxLength={80} />
+      <input id={id} type="search" placeholder="Buscar produto, marca…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} maxLength={80} />
+      {shortcut && (
+        <kbd aria-hidden title="Atalho: tecla /">
+          /
+        </kbd>
+      )}
     </form>
   );
 }
 
 export function SiteHeader({ categories, logoUrl, storeName }: { categories: Category[]; logoUrl: string | null; storeName: string }) {
-  const { count, open: openCart, cartButtonRef } = useCart();
+  const { count, items: cartItems, open: openCart, cartButtonRef } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   // Abertos apenas para a navegação atual: mudar de página fecha menu e busca.
@@ -69,6 +76,21 @@ export function SiteHeader({ categories, logoUrl, storeName }: { categories: Cat
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Tecla "/" leva à busca do cabeçalho (quando não se está digitando em outro campo).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      const input = document.getElementById('header-search') as HTMLInputElement | null;
+      if (!input || input.offsetParent === null) return;
+      e.preventDefault();
+      input.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   useDialog(menuOpen, () => setMenuOpen(false), menuRef);
 
   return (
@@ -83,21 +105,30 @@ export function SiteHeader({ categories, logoUrl, storeName }: { categories: Cat
           </Link>
           <nav className="main-nav" aria-label="Categorias">
             {items.map((item) => (
-              <NavLink key={item.to} to={item.to} className={`${item.sale ? 'sale' : ''} ${item.active ? 'active' : ''}`} aria-current={item.active ? 'page' : undefined}>
+              // Link (não NavLink): o NavLink compara só o caminho e marcaria todas as categorias em /produtos.
+              <Link key={item.to} to={item.to} className={`${item.sale ? 'sale' : ''} ${item.active ? 'active' : ''}`} aria-current={item.active ? 'page' : undefined}>
                 {item.label}
-              </NavLink>
+              </Link>
             ))}
           </nav>
           <div className="header-actions">
             <div className="header-search">
-              <SearchForm id="header-search" />
+              <SearchForm id="header-search" shortcut />
             </div>
             <button type="button" className="icon-btn search-toggle" aria-label="Buscar" aria-expanded={searchOpen} onClick={() => setSearchOpen(!searchOpen)}>
               <SearchIcon width={22} height={22} />
             </button>
-            <button type="button" className="icon-btn cart-btn" ref={cartButtonRef} onClick={openCart} aria-label={`Sacola, ${count} ${count === 1 ? 'item' : 'itens'}`}>
-              <BagIcon />
+            <button type="button" className="cart-btn" ref={cartButtonRef} onClick={openCart} aria-label={`Sacola, ${count} ${count === 1 ? 'item' : 'itens'}`}>
+              <BagIcon width={20} height={20} />
+              <span className="cart-label" aria-hidden>
+                Sacola
+              </span>
               <b aria-hidden>{count}</b>
+              {count > 0 && (
+                <span className="cart-total" aria-hidden>
+                  {brl(estimatedTotal(cartItems))}
+                </span>
+              )}
             </button>
           </div>
         </div>

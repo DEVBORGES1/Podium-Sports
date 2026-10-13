@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { SlideData } from '../../lib/banner';
 import type { Banner } from '../../types/api';
-import { ChevronLeft, ChevronRight } from '../ui/Icons';
 import { BannerSlide } from './BannerSlide';
 
 /** Slide institucional exibido enquanto não há banners ativos. */
@@ -36,8 +35,8 @@ const fallbackSlide = (storeName: string): SlideData => ({
 });
 
 /**
- * Carrossel do hero (mesmo comportamento do original): avanço automático com barra de progresso,
- * setas, indicadores, swipe, teclado e pausa ao passar o mouse/focar/ocultar a aba. Botão de pausa (WCAG 2.2.2).
+ * Carrossel do hero: avanço automático com capítulos (número, título e barra de progresso), swipe, teclado
+ * e pausa ao passar o mouse/focar/ocultar a aba. Botão de pausa (WCAG 2.2.2).
  */
 export function HeroCarousel({ banners, intervalSeconds, storeName }: { banners: Banner[]; intervalSeconds: number; storeName: string }) {
   const [rawIndex, setIndex] = useState(0);
@@ -118,45 +117,54 @@ export function HeroCarousel({ banners, intervalSeconds, storeName }: { banners:
               data={b as SlideData}
               active={active}
               heading={i === 0 ? 'h1' : 'h2'}
+              position={count > 1 ? { index: i, total: count } : undefined}
               slideProps={{ role: 'group', 'aria-roledescription': 'slide', 'aria-label': `${i + 1} de ${count}`, 'aria-hidden': !active, inert: !active }}
             />
           );
         })}
       </div>
       {count > 1 && (
-        <>
-          <button type="button" className="hnav prev" aria-label="Slide anterior" onClick={() => go(index - 1)}>
-            <ChevronLeft />
-          </button>
-          <button type="button" className="hnav next" aria-label="Próximo slide" onClick={() => go(index + 1)}>
-            <ChevronRight />
-          </button>
-          <div className="dots" style={{ '--dur': `${intervalSeconds}s` } as CSSProperties}>
-            {banners.map((b, i) => (
+        // Capítulos: cada banner vira um botão com número, título e a barra de progresso do tempo na tela.
+        <div className="chapters" style={{ '--dur': `${intervalSeconds}s`, '--count': count } as CSSProperties}>
+          {banners.map((b, i) => {
+            const label = [b.title, b.highlight].filter(Boolean).join(' ');
+            const state = i === index ? 'on' : i < index ? 'done' : '';
+            return (
               <button
                 key={`${b.id}-${i === index ? cycle : 'idle'}`}
                 type="button"
-                className={i === index ? 'on' : ''}
-                aria-label={`Ir para o slide ${i + 1}`}
+                className={`chapter ${state}`}
+                aria-label={`Slide ${i + 1}: ${label}`}
                 aria-current={i === index ? 'true' : undefined}
                 onClick={() => go(i)}
-                onAnimationEnd={() => {
-                  if (i === index && !paused) go(index + 1);
+                onAnimationEnd={(e) => {
+                  if (e.target === e.currentTarget.firstElementChild && i === index && !paused) go(index + 1);
                 }}
-              />
-            ))}
-          </div>
+              >
+                <span className="chapter-bar" aria-hidden />
+                <span className="chapter-num" aria-hidden>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="chapter-label" aria-hidden>
+                  {label}
+                </span>
+              </button>
+            );
+          })}
           {!reduced && (
             <button
               type="button"
-              className="hero-pause"
+              className="chapter-pause"
               aria-label={userPaused ? 'Retomar rotação dos slides' : 'Pausar rotação dos slides'}
               onClick={() => setUserPaused((v) => !v)}
             >
-              {userPaused ? '▶' : '❚❚'}
+              <span aria-hidden>{userPaused ? '▶' : '❚❚'}</span>
+              <span className="chapter-pause-text" aria-hidden>
+                {userPaused ? 'Retomar' : 'Pausar'}
+              </span>
             </button>
           )}
-        </>
+        </div>
       )}
     </section>
   );

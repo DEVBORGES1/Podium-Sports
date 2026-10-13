@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router';
+import { BagBar } from '../components/store/BagBar';
 import { CartDrawer } from '../components/store/CartDrawer';
 import { SiteFooter } from '../components/store/SiteFooter';
 import { SiteHeader } from '../components/store/SiteHeader';
@@ -56,20 +57,23 @@ export default function StoreLayout() {
   const s = settings.data;
   const cats = categories.data ?? [];
 
+  // No checkout e na confirmação o WhatsApp e a sacola já são a ação principal da página.
+  const ordering = /^\/(checkout|pedido\/)/.test(pathname);
+
   return (
-    <>
+    <div className="store">
       <a href="#conteudo" className="skip-link">
         Pular para o conteúdo
       </a>
-      <TopBar messages={s.content.topbarMessages} />
+      <TopBar messages={s.content.topbarMessages} city={s.city} phone={s.phoneDisplay} />
       <SiteHeader categories={cats} logoUrl={s.logoUrl} storeName={s.storeName} />
       <main id="conteudo" tabIndex={-1}>
         <Outlet />
       </main>
       <SiteFooter settings={s} categories={cats} />
-      {/* No checkout e na confirmação o WhatsApp já é a ação principal da página. */}
-      {!/^\/(checkout|pedido\/)/.test(pathname) && <WhatsAppFab number={s.whatsappNumber} greeting={s.whatsappGreeting} />}
+      {!ordering && <WhatsAppFab number={s.whatsappNumber} greeting={s.whatsappGreeting} />}
+      {!ordering && <BagBar />}
       <CartDrawer note={s.content.cartNote} />
-    </>
+    </div>
   );
 }

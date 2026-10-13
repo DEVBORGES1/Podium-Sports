@@ -8,16 +8,21 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-export function TopBar({ messages }: { messages: string[] }) {
-  if (messages.length === 0) return null;
+/** Cidade à esquerda, mensagens no centro e telefone à direita (no celular, só as mensagens correndo). */
+export function TopBar({ messages, city, phone }: { messages: string[]; city: string | null; phone: string | null }) {
+  if (messages.length === 0 && !city && !phone) return null;
   return (
     <div className="topbar">
       <div className="wrap">
-        {messages.map((m, i) => (
-          <span key={i}>
-            <Rich text={m} />
-          </span>
-        ))}
+        {city && <span className="topbar-city">{city}</span>}
+        <span className="topbar-msgs">
+          {messages.map((m, i) => (
+            <span key={i}>
+              <Rich text={m} />
+            </span>
+          ))}
+        </span>
+        {phone && <span className="topbar-phone">{phone}</span>}
       </div>
     </div>
   );

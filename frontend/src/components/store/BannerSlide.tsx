@@ -12,13 +12,26 @@ function SlideArt({ data }: { data: SlideData }) {
   if (!data.icon) return null;
   return (
     <div className="hero-art" aria-hidden>
-      <div className="ring">{data.icon === 'trophy' ? <img src={trophy} alt="" /> : <CategoryGlyph icon={data.icon} className="big" strokeWidth={1.1} />}</div>
+      <div className="art-glow" />
+      {data.icon === 'trophy' ? (
+        <img className="art-trophy" src={trophy} alt="" />
+      ) : (
+        // Pódio: o ícone da categoria fica sobre o degrau dourado.
+        <div className="art-podium">
+          <div className="art-step s2">2</div>
+          <div className="art-step s1">
+            1
+            <CategoryGlyph icon={data.icon} className="art-glyph" strokeWidth={1.1} />
+          </div>
+          <div className="art-step s3">3</div>
+        </div>
+      )}
       {data.badgeMain && (
         <div className="badge">
           <div>
             {data.badgeTop && <small>{data.badgeTop}</small>}
             <strong>{data.badgeMain}</strong>
-            {data.badgeBottom && <small>{data.badgeBottom}</small>}
+            {data.badgeBottom && <small className="badge-foot">{data.badgeBottom}</small>}
           </div>
         </div>
       )}
@@ -65,6 +78,7 @@ export function BannerSlide({
   mediaRef,
   mediaProps,
   device,
+  position,
   children,
 }: {
   data: SlideData;
@@ -78,6 +92,8 @@ export function BannerSlide({
   mediaProps?: HTMLAttributes<HTMLDivElement>;
   /** Prévia do painel: mostra a foto e o formato do dispositivo escolhido. Na loja fica vazio e a escolha é pela tela. */
   device?: 'desktop' | 'mobile';
+  /** Posição no carrossel ("01 / 04" ao lado do selo). */
+  position?: { index: number; total: number };
   /** Elementos extras sobre a imagem (guias do editor). */
   children?: ReactNode;
 }) {
@@ -121,7 +137,17 @@ export function BannerSlide({
       {!split && media}
       <div className="wrap slide-inner">
         <div className="slide-copy">
-          {data.kicker && <span className="slide-tag">{data.kicker}</span>}
+          {(data.kicker || position) && (
+            <span className="slide-eyebrow">
+              {position && (
+                <span className="slide-num" aria-hidden>
+                  {String(position.index + 1).padStart(2, '0')} / {String(position.total).padStart(2, '0')}
+                </span>
+              )}
+              {position && data.kicker && <span className="slide-rule" aria-hidden />}
+              {data.kicker && <span className="slide-tag">{data.kicker}</span>}
+            </span>
+          )}
           <Heading className="h1">
             <span className="l1">{data.title || placeholderTitle}</span>
             {data.highlight && <span className="hl">{data.highlight}</span>}
