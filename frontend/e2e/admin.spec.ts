@@ -192,6 +192,43 @@ test.describe('operação da loja', () => {
     await expect(slide.locator('.btns a')).toHaveCount(1);
   });
 
+  test('banner: formato independente no computador e no celular, mantido após salvar e reabrir', async ({ page }) => {
+    await login(page, USERS.owner.email);
+    await page.goto('/admin/banners/new');
+    await page.getByLabel('Título', { exact: true }).fill('Formato por aparelho');
+    await page.getByRole('tab', { name: 'Imagem' }).click();
+    const panel = page.locator('#panel-image');
+    const preview = page.locator('.banner-editor-preview .slide');
+    const configure = (device: 'Computador' | 'Celular') => panel.getByRole('radiogroup', { name: 'Configurando' }).getByText(device, { exact: true }).click();
+
+    // Computador: foto de fundo. Celular: produto ao lado do texto.
+    await configure('Computador');
+    await panel.getByRole('radiogroup', { name: 'Como a foto aparece no computador' }).getByText('Foto de fundo').click();
+    await expect(preview).toHaveClass(/layout-full/);
+    await configure('Celular');
+    await expect(preview).toHaveClass(/layout-split/); // o celular não foi alterado
+    await panel.getByRole('radiogroup', { name: 'Como a foto aparece no celular' }).getByText('Produto ao lado do texto').click();
+    await expect(panel.getByText('O computador continua com “Foto de fundo”.')).toBeVisible();
+    // A prévia segue o dispositivo escolhido (o seletor da prévia é o mesmo estado).
+    await page.getByRole('group', { name: 'Dispositivo da prévia' }).getByRole('button', { name: 'Computador' }).click();
+    await expect(preview).toHaveClass(/layout-full/);
+    await expect(panel.getByRole('radiogroup', { name: 'Como a foto aparece no computador' }).getByLabel('Foto de fundo')).toBeChecked();
+
+    await page.getByRole('button', { name: 'Criar banner' }).click();
+    await expect(page).toHaveURL(/\/admin\/banners$/);
+
+    // Sai do editor e volta: cada dispositivo mantém o próprio formato.
+    await page.locator('article', { hasText: 'Formato por aparelho' }).getByRole('link', { name: 'Editar' }).click();
+    await page.reload(); // dados vindos do servidor, não do cache da lista
+    await page.getByRole('tab', { name: 'Imagem' }).click();
+    await configure('Computador');
+    await expect(panel.getByRole('radiogroup', { name: 'Como a foto aparece no computador' }).getByLabel('Foto de fundo')).toBeChecked();
+    await expect(preview).toHaveClass(/layout-full/);
+    await configure('Celular');
+    await expect(panel.getByRole('radiogroup', { name: 'Como a foto aparece no celular' }).getByLabel('Produto ao lado do texto')).toBeChecked();
+    await expect(preview).toHaveClass(/layout-split/);
+  });
+
   test('configurações: novo número do WhatsApp é usado pela loja', async ({ page }) => {
     await login(page, USERS.owner.email);
     await page.getByRole('link', { name: 'Configurações' }).click();

@@ -228,3 +228,34 @@ describe('banners: foto exclusiva do celular', () => {
     expect((await patch(body.id, { imagePath: null, mobileImagePath: null })).status).toBe(200);
   });
 });
+
+describe('banners: formato e escurecimento independentes por dispositivo', () => {
+  it('foto de fundo no computador e produto ao lado do texto no celular, mantidos após editar o computador', async () => {
+    const res = await create({ layout: 'full', overlay: 55, mobileLayout: 'split', mobileOverlay: 0 });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ layout: 'full', overlay: 55, mobileLayout: 'split', mobileOverlay: 0 });
+    expect((await publicBanners())[0]).toMatchObject({ layout: 'full', overlay: 55, mobileLayout: 'split', mobileOverlay: 0 });
+
+    // Mudar o computador não mexe no celular (e vice-versa).
+    const desktopOnly = await patch(res.body.id, { layout: 'split', overlay: 10 });
+    expect(desktopOnly.body).toMatchObject({ layout: 'split', overlay: 10, mobileLayout: 'split', mobileOverlay: 0 });
+    const mobileOnly = await patch(res.body.id, { mobileLayout: 'full', mobileOverlay: 40 });
+    expect(mobileOnly.body).toMatchObject({ layout: 'split', overlay: 10, mobileLayout: 'full', mobileOverlay: 40 });
+    const saved = await prisma.banner.findUniqueOrThrow({ where: { id: res.body.id } });
+    expect(saved).toMatchObject({ layout: 'split', overlay: 10, mobileLayout: 'full', mobileOverlay: 40 });
+  });
+
+  it('banners antigos (sem configuração do celular) repetem o formato e o escurecimento do computador', async () => {
+    const { body } = await create({ layout: 'full', overlay: 70 });
+    expect(await prisma.banner.findUniqueOrThrow({ where: { id: body.id } })).toMatchObject({ mobileLayout: null, mobileOverlay: null });
+    expect(body).toMatchObject({ mobileLayout: 'full', mobileOverlay: 70 });
+    expect((await publicBanners())[0]).toMatchObject({ layout: 'full', mobileLayout: 'full', mobileOverlay: 70 });
+  });
+
+  it('rejeita formato ou escurecimento inválido para o celular', async () => {
+    const { body } = await create({});
+    for (const input of [{ mobileLayout: 'grid' }, { mobileOverlay: 95 }, { mobileOverlay: -1 }, { mobileOverlay: 12.5 }]) {
+      expect((await patch(body.id, input)).status, JSON.stringify(input)).toBe(400);
+    }
+  });
+});

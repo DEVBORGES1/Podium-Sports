@@ -23,6 +23,8 @@ export type SlideData = Pick<
   | 'layout'
   | 'contentAlign'
   | 'overlay'
+  | 'mobileLayout'
+  | 'mobileOverlay'
   | 'colorFrom'
   | 'colorTo'
   | 'buttonLabel'
@@ -57,15 +59,27 @@ export function clampFrame(f: BannerFrame): BannerFrame {
   return { mode: f.mode, x: round(clamp(f.x, 0, 100)), y: round(clamp(f.y, 0, 100)), zoom: round(clamp(f.zoom, MIN_ZOOM, MAX_ZOOM)) };
 }
 
+type FrameSource = Pick<SlideData, 'imageFrame'> & Partial<Pick<SlideData, 'mobileImageUrl' | 'layout' | 'mobileLayout'>>;
+
 /**
- * Enquadramento de cada dispositivo. Sem ajuste próprio, o celular repete o do computador — exceto quando há
- * uma foto exclusiva do celular: aí o ajuste do computador (feito para outra imagem) não serve e vale o padrão.
+ * O ajuste do computador não serve para o celular quando o celular mostra outra foto (foto exclusiva) ou usa
+ * outro formato (ex.: foto de fundo no computador e produto ao lado do texto no celular).
  */
-export function framesOf(d: Pick<SlideData, 'imageFrame'> & Partial<Pick<SlideData, 'mobileImageUrl' | 'layout'>>) {
+export const mobileFrameIsOwn = (d: Omit<FrameSource, 'imageFrame'>) => !!d.mobileImageUrl || (!!d.mobileLayout && !!d.layout && d.mobileLayout !== d.layout);
+
+/**
+ * Enquadramento de cada dispositivo. Sem ajuste próprio, o celular repete o do computador — exceto quando o
+ * ajuste do computador não serve para ele (outra foto ou outro formato): aí vale o padrão do formato do celular.
+ */
+export function framesOf(d: FrameSource) {
   const desktop = d.imageFrame?.desktop ?? CENTER_FRAME;
-  const mobile = d.imageFrame?.mobile ?? (d.mobileImageUrl ? defaultFrame(d.layout ?? 'full') : desktop);
+  const mobile = d.imageFrame?.mobile ?? (mobileFrameIsOwn(d) ? defaultFrame(d.mobileLayout ?? d.layout ?? 'full') : desktop);
   return { desktop, mobile };
 }
+
+/** Formato e escurecimento do dispositivo: computador e celular são configurados de forma independente. */
+export const deviceLook = (d: Pick<SlideData, 'layout' | 'overlay' | 'mobileLayout' | 'mobileOverlay'>, mobile: boolean) =>
+  mobile ? { layout: d.mobileLayout, overlay: d.mobileOverlay } : { layout: d.layout, overlay: d.overlay };
 
 /**
  * Proporção da área da imagem no celular (a imagem fica acima do texto). Serve de orientação para quem
@@ -94,15 +108,15 @@ const frameVars = (f: BannerFrame, prefix: string) => ({
   [`--${prefix}fit`]: f.mode === 'fit' ? 'contain' : 'cover',
 });
 
-/** Variáveis CSS do slide (cores, escurecimento e enquadramento por dispositivo). */
-export function slideStyle(d: SlideData): CSSProperties {
+/** Variáveis CSS do slide (cores, escurecimento do dispositivo e enquadramento por dispositivo). */
+export function slideStyle(d: SlideData, onMobile = false): CSSProperties {
   const from = HEX.test(d.colorFrom) ? d.colorFrom : '#2a2a2e';
   const to = HEX.test(d.colorTo) ? d.colorTo : '#0b0b0c';
   const { desktop, mobile } = framesOf(d);
   return {
     '--sbg': `radial-gradient(circle at 75% 40%,${from} 0,${to} 58%)`,
     '--bgc': to,
-    '--ov': String(clamp(d.overlay, 0, 90) / 100),
+    '--ov': String(clamp(deviceLook(d, onMobile).overlay, 0, 90) / 100),
     '--imgbg': d.imageBg && HEX.test(d.imageBg) ? d.imageBg : 'transparent',
     // Cor atrás da foto no celular: a da foto exclusiva, se houver; senão a mesma do computador.
     '--imgbg-m': d.mobileImageUrl ? (d.mobileImageBg && HEX.test(d.mobileImageBg) ? d.mobileImageBg : 'transparent') : d.imageBg && HEX.test(d.imageBg) ? d.imageBg : 'transparent',

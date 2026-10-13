@@ -1,7 +1,7 @@
 import type { HTMLAttributes, ReactNode, Ref } from 'react';
 import trophy from '../../assets/trophy.png';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { discountPercent, slideStyle, type SlideData } from '../../lib/banner';
+import { deviceLook, discountPercent, slideStyle, type SlideData } from '../../lib/banner';
 import { brl } from '../../lib/format';
 import { CategoryGlyph } from '../ui/Icons';
 import { SmartLink } from '../ui/SmartLink';
@@ -76,13 +76,19 @@ export function BannerSlide({
   slideProps?: HTMLAttributes<HTMLDivElement> & { inert?: boolean };
   mediaRef?: Ref<HTMLDivElement>;
   mediaProps?: HTMLAttributes<HTMLDivElement>;
-  /** Prévia do painel: mostra a foto do dispositivo escolhido. Na loja fica vazio e o navegador escolhe pela tela. */
+  /** Prévia do painel: mostra a foto e o formato do dispositivo escolhido. Na loja fica vazio e a escolha é pela tela. */
   device?: 'desktop' | 'mobile';
   /** Elementos extras sobre a imagem (guias do editor). */
   children?: ReactNode;
 }) {
+  // Celular ou computador. Na loja a escolha é feita pela largura da tela (760 px = mesmo limite do layout de
+  // celular do banner, que ocupa toda a largura); na prévia, pelo dispositivo escolhido no painel.
+  const narrowScreen = useMediaQuery(MOBILE_QUERY);
+  const mobile = device ? device === 'mobile' : narrowScreen;
+  // Cada dispositivo tem o próprio formato (ex.: foto de fundo no computador, produto ao lado do texto no celular).
+  const { layout } = deviceLook(data, mobile);
   const hasImage = !!data.imageUrl;
-  const split = data.layout === 'split';
+  const split = layout === 'split';
   const button = (label: string | null, url: string | null, className: string) => {
     if (!label || (links && !url)) return null;
     return links ? (
@@ -95,11 +101,9 @@ export function BannerSlide({
   };
   const primary = button(data.buttonLabel, data.buttonUrl, 'btn btn-gold');
   const secondary = button(data.secondaryButtonLabel, data.secondaryButtonUrl, 'btn btn-ghost');
-  // Foto exclusiva do celular. Na loja a escolha é feita pela largura da tela (760 px = mesmo limite do layout
-  // de celular do banner, que ocupa toda a largura) e só a foto escolhida é baixada. Não usamos <picture>:
-  // o React define o src do <img> antes de colocá-lo no <picture>, e o navegador baixaria as duas fotos.
-  const narrowScreen = useMediaQuery(MOBILE_QUERY);
-  const showMobilePhoto = !!data.mobileImageUrl && (device ? device === 'mobile' : narrowScreen);
+  // Foto exclusiva do celular: só a foto do dispositivo é baixada. Não usamos <picture>: o React define o src
+  // do <img> antes de colocá-lo no <picture>, e o navegador baixaria as duas fotos.
+  const showMobilePhoto = !!data.mobileImageUrl && mobile;
   const img = <img className="slide-img" src={showMobilePhoto ? data.mobileImageUrl! : data.imageUrl!} alt="" draggable={false} decoding="async" />;
   const media = hasImage ? (
     <div ref={mediaRef} className="slide-media" {...mediaProps}>
@@ -110,10 +114,10 @@ export function BannerSlide({
   ) : null;
   const art = !hasImage ? <SlideArt data={data} /> : null;
   const aside = split ? media ?? art : art;
-  const classes = ['slide', `layout-${data.layout}`, `align-${data.contentAlign}`, active && 'active', hasImage && 'has-photo', !aside && 'no-aside'];
+  const classes = ['slide', `layout-${layout}`, `align-${data.contentAlign}`, active && 'active', hasImage && 'has-photo', !aside && 'no-aside'];
 
   return (
-    <div className={classes.filter(Boolean).join(' ')} style={slideStyle(data)} {...slideProps}>
+    <div className={classes.filter(Boolean).join(' ')} style={slideStyle(data, mobile)} {...slideProps}>
       {!split && media}
       <div className="wrap slide-inner">
         <div className="slide-copy">

@@ -59,6 +59,18 @@ const fields = {
   layout: z.enum(['split', 'full']),
   contentAlign: z.enum(['left', 'right']),
   overlay: z.number().int().min(0).max(90),
+  /** Formato e escurecimento só do celular; nulos = o celular usa os do computador. */
+  mobileLayout: z
+    .enum(['split', 'full'])
+    .nullish()
+    .transform((v) => v ?? null),
+  mobileOverlay: z
+    .number()
+    .int()
+    .min(0)
+    .max(90)
+    .nullish()
+    .transform((v) => v ?? null),
   icon: z
     .enum([...CATEGORY_ICONS, 'trophy'])
     .nullish()

@@ -51,6 +51,9 @@ export function toBannerDto(b: Banner, refs: TargetRefs) {
     layout: b.layout,
     contentAlign: b.contentAlign,
     overlay: b.overlay,
+    // Banners antigos (colunas nulas): o celular repete o formato e o escurecimento do computador.
+    mobileLayout: b.mobileLayout ?? b.layout,
+    mobileOverlay: b.mobileOverlay ?? b.overlay,
     icon: b.icon,
     colorFrom: b.colorFrom,
     colorTo: b.colorTo,

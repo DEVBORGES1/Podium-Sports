@@ -83,6 +83,9 @@ export interface Banner {
   layout: BannerLayout;
   contentAlign: 'left' | 'right';
   overlay: number;
+  /** Formato e escurecimento no celular, independentes do computador (banners antigos repetem layout/overlay). */
+  mobileLayout: BannerLayout;
+  mobileOverlay: number;
   imageFrame: BannerImageFrame | null;
   imageBg: string | null;
   /** Foto exclusiva do celular; null = o celular usa imageUrl. */

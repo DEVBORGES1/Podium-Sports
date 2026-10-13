@@ -21,6 +21,8 @@ const fallbackSlide = (storeName: string): SlideData => ({
   layout: 'full',
   contentAlign: 'left',
   overlay: 0,
+  mobileLayout: 'full',
+  mobileOverlay: 0,
   icon: 'trophy',
   colorFrom: '#2a2a2e',
   colorTo: '#0b0b0c',

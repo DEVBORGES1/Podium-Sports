@@ -19,8 +19,10 @@ import {
   defaultFrame,
   defaultOverlay,
   discountPercent,
+  framesOf,
   MAX_ZOOM,
   MIN_ZOOM,
+  mobileFrameIsOwn,
   mobileImageSize,
   sampleEdgeColor,
   type BannerIcon,
@@ -84,6 +86,8 @@ const schema = z
     layout: z.enum(['split', 'full']),
     contentAlign: z.enum(['left', 'right']),
     overlay: z.number().int().min(0).max(90),
+    mobileLayout: z.enum(['split', 'full']),
+    mobileOverlay: z.number().int().min(0).max(90),
     icon: z.enum(['', ...BANNER_ICONS]),
     colorFrom: z.string().regex(HEX, 'Use uma cor no formato #RRGGBB.'),
     colorTo: z.string().regex(HEX, 'Use uma cor no formato #RRGGBB.'),
@@ -144,6 +148,8 @@ const DEFAULTS: FormValues = {
   layout: 'split',
   contentAlign: 'left',
   overlay: defaultOverlay('split'),
+  mobileLayout: 'split',
+  mobileOverlay: defaultOverlay('split'),
   icon: '',
   colorFrom: '#2a2a2e',
   colorTo: '#0b0b0c',
@@ -184,6 +190,9 @@ function fromBanner(b: AdminBanner): FormValues {
     layout: b.layout,
     contentAlign: b.contentAlign,
     overlay: b.overlay,
+    // A API já devolve o formato/escurecimento do celular (banners antigos repetem os do computador).
+    mobileLayout: b.mobileLayout ?? b.layout,
+    mobileOverlay: b.mobileOverlay ?? b.overlay,
     icon: b.icon ?? '',
     colorFrom: b.colorFrom,
     colorTo: b.colorTo,
@@ -226,6 +235,8 @@ function toBody(v: FormValues) {
     layout: v.layout,
     contentAlign: v.contentAlign,
     overlay: v.overlay,
+    mobileLayout: v.mobileLayout,
+    mobileOverlay: v.mobileOverlay,
     icon: v.icon || null,
     colorFrom: v.colorFrom,
     colorTo: v.colorTo,
@@ -258,6 +269,8 @@ function toSlide(v: FormValues): SlideData {
     layout: v.layout,
     contentAlign: v.contentAlign,
     overlay: v.overlay,
+    mobileLayout: v.mobileLayout,
+    mobileOverlay: v.mobileOverlay,
     icon: v.icon || null,
     colorFrom: v.colorFrom,
     colorTo: v.colorTo,
@@ -298,8 +311,8 @@ type TabId = 'content' | 'buttons' | 'image' | 'look' | 'publish';
 const TABS: { id: TabId; label: string; fields: (keyof FormValues)[] }[] = [
   { id: 'content', label: 'Conteúdo', fields: ['kicker', 'title', 'highlight', 'subtitle', 'footnote', 'priceOriginalCents', 'priceSaleCents'] },
   { id: 'buttons', label: 'Botões', fields: ['buttonLabel', 'buttonTarget', 'secondaryButtonLabel', 'secondaryButtonTarget'] },
-  { id: 'image', label: 'Imagem', fields: ['imagePath', 'mobileImagePath', 'frameDesktop', 'frameMobile'] },
-  { id: 'look', label: 'Aparência', fields: ['colorFrom', 'colorTo', 'overlay', 'imageBg', 'mobileImageBg', 'icon', 'badgeTop', 'badgeMain', 'badgeBottom', 'contentAlign'] },
+  { id: 'image', label: 'Imagem', fields: ['imagePath', 'mobileImagePath', 'layout', 'mobileLayout', 'frameDesktop', 'frameMobile'] },
+  { id: 'look', label: 'Aparência', fields: ['colorFrom', 'colorTo', 'overlay', 'mobileOverlay', 'imageBg', 'mobileImageBg', 'icon', 'badgeTop', 'badgeMain', 'badgeBottom', 'contentAlign'] },
   { id: 'publish', label: 'Publicação', fields: ['isActive', 'sortOrder', 'startsAt', 'endsAt'] },
 ];
 const tabWithError = (errors: FieldErrors<FormValues>) => TABS.find((t) => t.fields.some((f) => errors[f]))?.id;
@@ -337,6 +350,25 @@ function ColorField({ id, label, name, control, error, hint }: { id: string; lab
         )}
       />
     </FormField>
+  );
+}
+
+const DEVICE_NAME: Record<PreviewDevice, string> = { desktop: 'computador', mobile: 'celular' };
+const LAYOUT_LABEL: Record<BannerLayout, string> = { split: 'Produto ao lado do texto', full: 'Foto de fundo' };
+
+/** Escolhe o dispositivo configurado. É o mesmo estado da prévia: trocar aqui troca lá, e vice-versa. */
+function DeviceSwitch({ name, device, setDevice }: { name: string; device: PreviewDevice; setDevice: (d: PreviewDevice) => void }) {
+  return (
+    <Segmented
+      label="Configurando"
+      name={name}
+      value={device}
+      onChange={setDevice}
+      options={[
+        { value: 'desktop', label: 'Computador' },
+        { value: 'mobile', label: 'Celular' },
+      ]}
+    />
   );
 }
 
@@ -486,28 +518,43 @@ function ButtonsTab({ form, onProduct }: { form: Form; onProduct: (p: AdminProdu
 
 function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevice; setDevice: (d: PreviewDevice) => void }) {
   const { control, setValue, getValues, getFieldState, formState } = form;
-  const [imageUrl, layout, frameDesktop, frameMobile, mobileImageUrl] = useWatch({ control, name: ['imageUrl', 'layout', 'frameDesktop', 'frameMobile', 'mobileImageUrl'] });
+  const [imageUrl, layout, mobileLayout, frameDesktop, frameMobile, mobileImageUrl] = useWatch({
+    control,
+    name: ['imageUrl', 'layout', 'mobileLayout', 'frameDesktop', 'frameMobile', 'mobileImageUrl'],
+  });
   const [detecting, setDetecting] = useState(false);
   const dirty = { shouldDirty: true };
-  // Com foto exclusiva do celular, o celular sempre tem enquadramento próprio (a foto é outra).
+  const isMobile = device === 'mobile';
+  const deviceName = DEVICE_NAME[device];
+  // Formato do dispositivo escolhido: computador e celular são independentes.
+  const deviceLayout = isMobile ? mobileLayout : layout;
+  // Com foto exclusiva ou formato diferente do computador, o celular sempre tem enquadramento próprio.
   const ownMobilePhoto = !!mobileImageUrl;
-  const current = device === 'mobile' ? (frameMobile ?? (ownMobilePhoto ? defaultFrame(layout) : frameDesktop)) : frameDesktop;
-  const mobileSize = mobileImageSize(layout);
+  const ownMobileFrame = mobileFrameIsOwn({ mobileImageUrl, layout, mobileLayout });
+  const current = framesOf({ imageFrame: { desktop: frameDesktop, mobile: frameMobile }, mobileImageUrl, layout, mobileLayout })[device];
+  const mobileSize = mobileImageSize(mobileLayout);
   const setFrame = (f: BannerFrame) => {
     const next = clampFrame(f);
-    if (device === 'mobile') setValue('frameMobile', next, dirty);
+    if (isMobile) setValue('frameMobile', next, dirty);
     else setValue('frameDesktop', next, dirty);
   };
+  /** Troca o formato só do dispositivo escolhido; o do outro dispositivo não muda. */
   const changeLayout = (next: BannerLayout) => {
-    const prev = getValues('layout');
+    const layoutField = isMobile ? 'mobileLayout' : 'layout';
+    const overlayField = isMobile ? 'mobileOverlay' : 'overlay';
+    const prev = getValues(layoutField);
     if (prev === next) return;
-    setValue('layout', next, dirty);
+    setValue(layoutField, next, dirty);
     // Ajustes ainda no padrão acompanham o novo formato; ajustes feitos à mão são mantidos.
     const isDefault = (f: BannerFrame | null) => !f || JSON.stringify(f) === JSON.stringify(defaultFrame(prev)) || JSON.stringify(f) === JSON.stringify(CENTER_FRAME);
-    if (isDefault(getValues('frameDesktop'))) setValue('frameDesktop', defaultFrame(next), dirty);
-    if (getValues('frameMobile') && isDefault(getValues('frameMobile'))) setValue('frameMobile', getValues('mobileImageUrl') ? defaultFrame(next) : null, dirty);
+    if (isMobile) {
+      // Sem ajuste salvo, o celular usa o padrão do próprio formato (ou o do computador, quando foto e formato são os mesmos).
+      if (getValues('frameMobile') && isDefault(getValues('frameMobile'))) setValue('frameMobile', null, dirty);
+    } else if (isDefault(getValues('frameDesktop'))) {
+      setValue('frameDesktop', defaultFrame(next), dirty);
+    }
     // Escurecimento ainda não ajustado nesta edição acompanha o formato (foto de produto ao lado do texto não escurece).
-    if (!getFieldState('overlay').isDirty || getValues('overlay') === defaultOverlay(prev)) setValue('overlay', defaultOverlay(next), dirty);
+    if (!getFieldState(overlayField).isDirty || getValues(overlayField) === defaultOverlay(prev)) setValue(overlayField, defaultOverlay(next), dirty);
   };
   const detect = async (url: string, target: 'imageBg' | 'mobileImageBg' = 'imageBg') => {
     setDetecting(true);
@@ -567,7 +614,7 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
                 onUploaded={(path, url) => {
                   setValue('mobileImagePath', path, dirty);
                   setValue('mobileImageUrl', url, dirty);
-                  setValue('frameMobile', defaultFrame(getValues('layout')), dirty);
+                  setValue('frameMobile', defaultFrame(getValues('mobileLayout')), dirty);
                   setDevice('mobile');
                   void detect(url, 'mobileImageBg');
                 }}
@@ -589,44 +636,59 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
         </Section>
       )}
 
-      <Section title="Formato do banner">
+      <Section
+        title="Ajustes por dispositivo"
+        hint="Computador e celular têm formato, enquadramento e escurecimento próprios. Escolha o dispositivo: os controles abaixo e a prévia mostram a configuração dele, sem mexer na do outro."
+      >
+        <DeviceSwitch name="config-device-image" device={device} setDevice={setDevice} />
+      </Section>
+
+      <Section title={`Formato no ${deviceName}`}>
         <Segmented
-          label="Como a foto aparece"
-          name="layout"
-          value={layout}
+          label={`Como a foto aparece no ${deviceName}`}
+          name={`layout-${device}`}
+          value={deviceLayout}
           onChange={changeLayout}
-          options={[
-            { value: 'split', label: 'Produto ao lado do texto', hint: 'Ideal para fotos de produto. O texto nunca fica sobre a imagem.' },
-            { value: 'full', label: 'Foto de fundo', hint: 'A foto ocupa todo o banner, com escurecimento atrás do texto.' },
-          ]}
+          options={
+            isMobile
+              ? [
+                  { value: 'split', label: LAYOUT_LABEL.split, hint: 'O produto aparece em destaque acima do texto, num quadro 4:3.' },
+                  { value: 'full', label: LAYOUT_LABEL.full, hint: 'A foto ocupa toda a largura acima do texto (16:10) e se funde ao fundo.' },
+                ]
+              : [
+                  { value: 'split', label: LAYOUT_LABEL.split, hint: 'Ideal para fotos de produto. O texto nunca fica sobre a imagem.' },
+                  { value: 'full', label: LAYOUT_LABEL.full, hint: 'A foto ocupa todo o banner, com escurecimento atrás do texto.' },
+                ]
+          }
         />
+        <span className="hint" style={{ display: 'block', marginTop: 6 }}>
+          {isMobile ? `O computador continua com “${LAYOUT_LABEL[layout]}”.` : `O celular continua com “${LAYOUT_LABEL[mobileLayout]}”.`}
+        </span>
       </Section>
 
       {imageUrl ? (
         <Section
-          title="Enquadramento"
+          title={`Enquadramento no ${deviceName}`}
           hint={
-            layout === 'full'
+            !isMobile && layout === 'full'
               ? 'Arraste a imagem na prévia para posicionar. Na foto de fundo, deixe o produto do lado oposto ao texto (a área do texto aparece tracejada ao passar o mouse).'
-              : 'Arraste a imagem na prévia para posicionar. Os ajustes valem para o dispositivo escolhido.'
+              : `Arraste a imagem na prévia para posicionar. Os ajustes valem só para o ${deviceName}.`
           }
         >
-          <Segmented
-            label="Ajustando para"
-            name="frame-device"
-            value={device}
-            onChange={setDevice}
-            options={[
-              { value: 'desktop', label: 'Computador' },
-              { value: 'mobile', label: 'Celular' },
-            ]}
-          />
-          {device === 'mobile' && ownMobilePhoto && (
+          {isMobile && ownMobileFrame && (
             <p className="notice" style={{ margin: '10px 0' }}>
-              Ajustando a <b>foto do celular</b>. O enquadramento do computador não é afetado.
+              {ownMobilePhoto ? (
+                <>
+                  Ajustando a <b>foto do celular</b>. O enquadramento do computador não é afetado.
+                </>
+              ) : (
+                <>
+                  O celular usa um <b>formato diferente</b> do computador, então tem enquadramento próprio. O do computador não é afetado.
+                </>
+              )}
             </p>
           )}
-          {device === 'mobile' && !ownMobilePhoto && (
+          {isMobile && !ownMobileFrame && (
             <div style={{ margin: '10px 0' }}>
               <Switch
                 label="Ajuste próprio para o celular"
@@ -640,7 +702,7 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
           )}
           <Segmented
             label="Exibição da imagem"
-            name="frame-mode"
+            name={`frame-mode-${device}`}
             value={current.mode}
             onChange={(mode) => setFrame({ ...current, mode })}
             options={[
@@ -685,13 +747,13 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
             <button type="button" className="btn btn-outline btn-sm" onClick={() => setFrame({ ...current, x: 50, y: 50 })}>
               Centralizar
             </button>
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => setFrame(defaultFrame(layout))}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setFrame(defaultFrame(deviceLayout))}>
               Restaurar enquadramento
             </button>
             <button
               type="button"
               className="btn btn-quiet btn-sm"
-              onClick={() => (device === 'mobile' && mobileImageUrl ? detect(mobileImageUrl, 'mobileImageBg') : imageUrl && detect(imageUrl))}
+              onClick={() => (isMobile && mobileImageUrl ? detect(mobileImageUrl, 'mobileImageBg') : imageUrl && detect(imageUrl))}
               disabled={detecting}
               aria-busy={detecting}
             >
@@ -708,10 +770,18 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
 
 /* ---------------------------- D · Aparência ---------------------------- */
 
-function LookTab({ form }: { form: Form }) {
+function LookTab({ form, device, setDevice }: { form: Form; device: PreviewDevice; setDevice: (d: PreviewDevice) => void }) {
   const { register, control, formState } = form;
   const errors = formState.errors;
-  const [imageUrl, layout, colorTo, overlay, contentAlign, mobileImageUrl] = useWatch({ control, name: ['imageUrl', 'layout', 'colorTo', 'overlay', 'contentAlign', 'mobileImageUrl'] });
+  const [imageUrl, desktopLayout, mobileLayout, colorTo, desktopOverlay, mobileOverlay, contentAlign, mobileImageUrl] = useWatch({
+    control,
+    name: ['imageUrl', 'layout', 'mobileLayout', 'colorTo', 'overlay', 'mobileOverlay', 'contentAlign', 'mobileImageUrl'],
+  });
+  // Escurecimento e formato do dispositivo escolhido (o texto à esquerda/direita só existe no computador).
+  const isMobile = device === 'mobile';
+  const layout = isMobile ? mobileLayout : desktopLayout;
+  const overlay = isMobile ? mobileOverlay : desktopOverlay;
+  const overlayField = isMobile ? 'mobileOverlay' : 'overlay';
   const lowContrast = contrastWithWhite(colorTo) < 4.5;
   return (
     <>
@@ -743,8 +813,8 @@ function LookTab({ form }: { form: Form }) {
               value={field.value}
               onChange={field.onChange}
               options={[
-                { value: 'left', label: 'Texto à esquerda', hint: layout === 'split' ? 'Imagem à direita' : undefined },
-                { value: 'right', label: 'Texto à direita', hint: layout === 'split' ? 'Imagem à esquerda' : undefined },
+                { value: 'left', label: 'Texto à esquerda', hint: desktopLayout === 'split' ? 'Imagem à direita' : undefined },
+                { value: 'right', label: 'Texto à direita', hint: desktopLayout === 'split' ? 'Imagem à esquerda' : undefined },
               ]}
             />
           )}
@@ -754,16 +824,21 @@ function LookTab({ form }: { form: Form }) {
         </p>
       </Section>
       {imageUrl && (
-        <Section title="Escurecimento da foto" hint={layout === 'full' ? 'Escurece a foto atrás do texto para manter a leitura.' : 'Normalmente desnecessário com o produto ao lado do texto.'}>
+        <Section
+          title={`Escurecimento da foto no ${DEVICE_NAME[device]}`}
+          hint={`${layout === 'full' ? 'Escurece a foto para manter o texto legível.' : 'Normalmente desnecessário com o produto ao lado do texto.'} Computador e celular têm intensidades próprias.`}
+        >
+          <DeviceSwitch name="config-device-look" device={device} setDevice={setDevice} />
           <div className="field">
             <label htmlFor="overlay">Intensidade: {overlay}%</label>
             <Controller
+              key={overlayField}
               control={control}
-              name="overlay"
+              name={overlayField}
               render={({ field }) => <input id="overlay" type="range" min={0} max={90} step={5} value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />}
             />
           </div>
-          {layout === 'full' && overlay < 40 && (
+          {!isMobile && layout === 'full' && overlay < 40 && (
             <p className="alert alert-warn" role="status" style={{ marginTop: 8 }}>
               Pouco escurecimento: confira na prévia se o texto {contentAlign === 'left' ? 'à esquerda' : 'à direita'} continua legível sobre a foto.
             </p>
@@ -962,7 +1037,7 @@ export default function BannerFormPage() {
     content: <ContentTab form={form} product={product} />,
     buttons: <ButtonsTab form={form} onProduct={setProduct} />,
     image: <ImageTab form={form} device={device} setDevice={setDevice} />,
-    look: <LookTab form={form} />,
+    look: <LookTab form={form} device={device} setDevice={setDevice} />,
     publish: <PublishTab form={form} />,
   };
 

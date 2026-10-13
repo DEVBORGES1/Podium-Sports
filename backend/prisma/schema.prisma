@@ -213,6 +213,9 @@ model Banner {
   /// Foto opcional só para o celular (ex.: versão vertical/recortada). Nula = usa a foto principal.
   mobileImagePath        String?   @map("mobile_image_path") @db.VarChar(300)
   mobileImageBg          String?   @map("mobile_image_bg") @db.VarChar(7)
+  /// Formato e escurecimento só do celular. Nulos = o celular usa layout/overlay do computador.
+  mobileLayout           String?   @map("mobile_layout") @db.VarChar(10)
+  mobileOverlay          Int?      @map("mobile_overlay")
   sortOrder              Int       @default(0) @map("sort_order")
   isActive               Boolean   @default(true) @map("is_active")
   startsAt               DateTime? @map("starts_at") @db.Timestamptz(3)
