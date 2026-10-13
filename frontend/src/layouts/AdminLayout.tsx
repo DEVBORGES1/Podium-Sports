@@ -44,7 +44,7 @@ const GROUPS: { title?: string; items: NavItem[]; superOnly?: boolean }[] = [
   {
     title: 'Vitrine',
     items: [
-      { to: '/admin/banners', label: 'Banners da página inicial', icon: ImageIcon },
+      { to: '/admin/banners', label: 'Banners', icon: ImageIcon },
       { to: '/admin/promotions', label: 'Promoções', icon: PercentIcon },
     ],
   },
@@ -54,7 +54,7 @@ const GROUPS: { title?: string; items: NavItem[]; superOnly?: boolean }[] = [
     superOnly: true,
     items: [
       { to: '/admin/users', label: 'Usuários do painel', icon: UsersIcon },
-      { to: '/admin/audit', label: 'Histórico de alterações', icon: HistoryIcon },
+      { to: '/admin/audit', label: 'Histórico', icon: HistoryIcon },
     ],
   },
 ];

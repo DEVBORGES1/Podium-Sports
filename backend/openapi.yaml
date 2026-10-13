@@ -614,6 +614,29 @@ paths:
       responses:
         '201': { description: Movimentação registrada }
         '409': { description: Estoque insuficiente, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /admin/inventory/movements/batch:
+    post:
+      tags: [Admin · Estoque]
+      summary: Grava vários ajustes de uma vez (+ / − na tabela); tudo ou nada, nunca deixa saldo negativo
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                reason: { type: string, description: 'Obrigatória (mínimo 3 caracteres) se houver alguma saída.' }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { type: object, required: [productId, delta], properties: { productId: { type: string, format: uuid }, delta: { type: integer, description: 'Positivo entra, negativo sai; diferente de zero.' } } }
+      responses:
+        '201': { description: Movimentações registradas }
+        '409': { description: Estoque insuficiente em algum item (nenhum ajuste é aplicado), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422': { description: Dados inválidos }
   /admin/inventory/{productId}:
     patch:
       tags: [Admin · Estoque]

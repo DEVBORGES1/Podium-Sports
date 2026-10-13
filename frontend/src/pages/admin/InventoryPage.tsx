@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Link, useSearchParams } from 'react-router';
 import { z } from 'zod';
@@ -63,7 +63,7 @@ export default function InventoryPage() {
 
   return (
     <>
-      <PageHeader title="Estoque" description="Quanto há de cada produto. Use “Adicionar” quando chegar mercadoria e “Saída” para perdas ou uso interno." />
+      <PageHeader title="Estoque" description="Quanto há de cada produto. Use + e − na tabela e salve os ajustes de uma vez, ou “Lançar” para entrada, saída ou ajuste com motivo." />
       <p className="notice" style={{ marginBottom: 14 }}>
         Pedidos reservam as unidades automaticamente e devolvem se forem cancelados. Toda alteração fica no histórico com data, responsável e motivo.
       </p>
@@ -97,10 +97,19 @@ export default function InventoryPage() {
 
 // ---------------- Saldos ----------------
 
+/** Ajuste pendente de um produto (+ / − na tabela), guardado até "Salvar ajustes". */
+interface PendingAdjust {
+  delta: number;
+  name: string;
+  /** Saldo exibido quando o ajuste começou (para o resumo, mesmo com o produto fora da página atual). */
+  base: number;
+}
+
 function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set: SetParam; onHistory: (productId: string) => void }) {
   const [search, setSearch] = useState(params.get('q') ?? '');
   const q = useDebouncedValue(search.trim(), 300);
-  const [moving, setMoving] = useState<{ row: InventoryRow; type: MovementForm['type'] } | null>(null);
+  const [moving, setMoving] = useState<InventoryRow | null>(null);
+  const [adjust, setAdjust] = useState<Record<string, PendingAdjust>>({});
   const stockParam = params.get('stock') ?? '';
   const filters = {
     q,
@@ -116,6 +125,16 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
     queryFn: () => adminApi.get<Page<InventoryRow>>('/inventory', filters),
     placeholderData: keepPreviousData,
   });
+
+  const step = (r: InventoryRow, d: number) =>
+    setAdjust((cur) => {
+      const prev = cur[r.productId];
+      const delta = Math.max(-r.stockQuantity, Math.min(100_000, (prev?.delta ?? 0) + d));
+      const next = { ...cur };
+      if (delta === 0) delete next[r.productId];
+      else next[r.productId] = { delta, name: r.name, base: prev?.base ?? r.stockQuantity };
+      return next;
+    });
 
   return (
     <>
@@ -157,12 +176,11 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
       </div>
 
       <div className="table-wrap">
-        <table className="adm-table">
+        <table className="adm-table stock-table">
           <thead>
             <tr>
               <th>Produto</th>
-              <th>Categoria</th>
-              <th className="num">Saldo</th>
+              <th>Saldo</th>
               <th className="num" title="Quantidade em pedidos ainda abertos (já descontada do saldo)">
                 Reservado
               </th>
@@ -178,25 +196,46 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
           </thead>
           <tbody>
             {rows.isPending || rows.isError || rows.data.items.length === 0 ? (
-              <TableState colSpan={8} loading={rows.isPending} error={rows.error} empty="Nenhum produto encontrado." onRetry={() => rows.refetch()} />
+              <TableState colSpan={7} loading={rows.isPending} error={rows.error} empty="Nenhum produto encontrado." onRetry={() => rows.refetch()} />
             ) : (
               rows.data.items.map((r) => {
-                const st = AVAILABILITY_LABEL[r.status];
+                const delta = adjust[r.productId]?.delta ?? 0;
+                const n = r.stockQuantity + delta;
+                const status = n === 0 ? 'OUT_OF_STOCK' : n <= r.minStock ? 'LOW_STOCK' : 'IN_STOCK';
+                const st = AVAILABILITY_LABEL[delta ? status : r.status];
+                const pct = Math.min(100, (n / Math.max(1, r.minStock * 4)) * 100);
                 return (
-                  <tr key={r.productId}>
+                  <tr key={r.productId} className={delta ? 'changed' : undefined}>
                     <td>
                       <Link to={`/admin/products/${r.productId}`}>
                         <b>{r.name}</b>
                       </Link>
-                      {!r.isActive && (
-                        <div className="muted">
-                          <Tag>Inativo</Tag>
-                        </div>
-                      )}
+                      <div className="muted">
+                        {r.categoryName}
+                        {!r.isActive && (
+                          <>
+                            {' '}
+                            <Tag>Inativo</Tag>
+                          </>
+                        )}
+                      </div>
                     </td>
-                    <td>{r.categoryName}</td>
-                    <td className="num">
-                      <b>{r.stockQuantity}</b>
+                    <td>
+                      <div className="stepper" role="group" aria-label={`Saldo de ${r.name}`}>
+                        <button type="button" onClick={() => step(r, -1)} disabled={n <= 0} aria-label={`Diminuir estoque de ${r.name}`}>
+                          −
+                        </button>
+                        <output aria-live="polite" className={status === 'OUT_OF_STOCK' ? 'out' : status === 'LOW_STOCK' ? 'low' : ''}>
+                          {n}
+                        </output>
+                        <button type="button" onClick={() => step(r, 1)} aria-label={`Aumentar estoque de ${r.name}`}>
+                          +
+                        </button>
+                        {delta !== 0 && <span className="delta">{delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}</span>}
+                      </div>
+                      <span className="meter stock-meter" aria-hidden>
+                        <span style={{ width: `${pct}%` }} className={status === 'OUT_OF_STOCK' ? 'out' : status === 'LOW_STOCK' ? 'low' : 'ok'} />
+                      </span>
                     </td>
                     <td className="num">{r.reservedInOpenOrders}</td>
                     <td className="num">
@@ -208,14 +247,14 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
                     <td style={{ whiteSpace: 'nowrap' }}>{r.lastMovementAt ? formatDateTime(r.lastMovementAt) : <span className="muted">—</span>}</td>
                     <td>
                       <div className="row-actions nowrap">
-                        <button type="button" className="btn btn-gold btn-sm" onClick={() => setMoving({ row: r, type: 'IN' })} aria-label={`Adicionar estoque de ${r.name}`}>
-                          + Adicionar
-                        </button>
-                        <button type="button" className="btn btn-outline btn-sm" onClick={() => setMoving({ row: r, type: 'OUT' })} aria-label={`Registrar saída de ${r.name}`}>
-                          − Saída
-                        </button>
-                        <button type="button" className="btn btn-outline btn-sm" onClick={() => setMoving({ row: r, type: 'ADJUSTMENT' })} aria-label={`Ajustar a quantidade de ${r.name}`}>
-                          Ajustar
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setMoving(r)}
+                          aria-label={`Lançar movimentação de ${r.name}`}
+                          title="Entrada, saída ou ajuste com motivo"
+                        >
+                          Lançar…
                         </button>
                         <button type="button" className="btn btn-quiet btn-sm" onClick={() => onHistory(r.productId)} aria-label={`Histórico de ${r.name}`}>
                           Histórico
@@ -233,8 +272,103 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
       <p className="notice" style={{ marginTop: 12 }}>
         "Reservado" mostra as unidades em pedidos abertos — elas já foram descontadas do saldo e voltam automaticamente se o pedido for cancelado ou expirar.
       </p>
-      {moving && <MovementModal row={moving.row} initialType={moving.type} onClose={() => setMoving(null)} />}
+      <AdjustBar adjust={adjust} onDone={() => setAdjust({})} />
+      {moving && <MovementModal row={moving} initialType="IN" onClose={() => setMoving(null)} />}
     </>
+  );
+}
+
+/** Barra fixa com os ajustes pendentes: grava todos de uma vez (tudo ou nada) ou descarta. */
+function AdjustBar({ adjust, onDone }: { adjust: Record<string, PendingAdjust>; onDone: () => void }) {
+  const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState<string | null>(null);
+  const ids = Object.keys(adjust);
+  const hasOut = ids.some((id) => adjust[id]!.delta < 0);
+
+  // Ajustes não salvos: o navegador pergunta antes de fechar ou recarregar a página.
+  useEffect(() => {
+    if (ids.length === 0) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [ids.length]);
+
+  const save = useAdminMutation(
+    () =>
+      adminApi.post<{ items: CreatedMovement[] }>('/inventory/movements/batch', {
+        ...(reason.trim() ? { reason: reason.trim() } : {}),
+        items: ids.map((productId) => ({ productId, delta: adjust[productId]!.delta })),
+      }),
+    {
+      success: (r) => {
+        const only = r.items.length === 1 ? r.items[0]! : null;
+        return only
+          ? `Estoque atualizado: ${adjust[ids[0]!]!.name} passou de ${only.balanceBefore} para ${only.balanceAfter}.`
+          : `Estoque atualizado em ${r.items.length} produtos.`;
+      },
+      invalidate: STOCK_KEYS,
+      onSuccess: () => {
+        setReason('');
+        onDone();
+      },
+    },
+  );
+
+  if (ids.length === 0) return null;
+  const summary = ids
+    .slice(0, 3)
+    .map((id) => {
+      const a = adjust[id]!;
+      return `${a.name}: ${a.base} → ${a.base + a.delta}`;
+    })
+    .join(' · ');
+
+  const submit = () => {
+    if (save.isPending) return;
+    if (hasOut && reason.trim().length < 3) return setReasonError('Informe o motivo das saídas (mínimo 3 caracteres).');
+    setReasonError(null);
+    save.mutate(undefined);
+  };
+
+  return (
+    <div className="form-bar adjust-bar" role="region" aria-label="Ajustes de estoque não salvos">
+      <div className="adjust-info">
+        <b>
+          {ids.length} ajuste{ids.length > 1 ? 's' : ''} de estoque não salvo{ids.length > 1 ? 's' : ''}
+        </b>
+        <span>
+          {summary}
+          {ids.length > 3 && ` · +${ids.length - 3}`}
+        </span>
+      </div>
+      <div className="adjust-reason">
+        <label htmlFor="adjust-reason" className="sr-only">
+          Motivo dos ajustes
+        </label>
+        <input
+          id="adjust-reason"
+          className="input"
+          maxLength={300}
+          placeholder={hasOut ? 'Motivo (obrigatório para saídas)' : 'Motivo (opcional), ex.: NF 4471'}
+          value={reason}
+          aria-invalid={!!reasonError}
+          aria-describedby={reasonError ? 'adjust-reason-err' : undefined}
+          onChange={(e) => setReason(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+        />
+        {reasonError && (
+          <span className="err" id="adjust-reason-err" role="alert">
+            {reasonError}
+          </span>
+        )}
+      </div>
+      <button type="button" className="btn btn-quiet btn-sm" onClick={onDone} disabled={save.isPending}>
+        Descartar
+      </button>
+      <button type="button" className="btn btn-gold btn-sm" onClick={submit} disabled={save.isPending} aria-busy={save.isPending}>
+        Salvar ajustes
+      </button>
+    </div>
   );
 }
 

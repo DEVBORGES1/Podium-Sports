@@ -33,7 +33,7 @@ test.describe('acesso ao painel', () => {
     await login(page, USERS.staff.email);
     await expect(page.getByRole('heading', { level: 1, name: /^(Bom dia|Boa tarde|Boa noite), Atendente\.$/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Usuários/ })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: /Histórico de alterações/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Histórico', exact: true })).toHaveCount(0);
     await page.goto('/admin/users');
     await expect(page).toHaveURL(/\/admin$/);
   });
@@ -82,7 +82,7 @@ test.describe('operação da loja', () => {
 
     const second = await placeOrder(page, 'nike-quest-6', 'Cancelamento');
     await page.goto('/admin/inventory?q=nike quest 6');
-    await expect(page.getByRole('cell', { name: '9', exact: true }).first()).toBeVisible();
+    await expect(page.locator('.stepper output').first()).toHaveText('9');
     await page.goto('/admin/orders');
     await page.getByRole('button', { name: new RegExp(`Abrir pedido ${second}`) }).click();
     await page.getByRole('dialog', { name: 'Detalhes do pedido' }).getByRole('button', { name: 'Cancelar pedido' }).click();
@@ -91,7 +91,7 @@ test.describe('operação da loja', () => {
     await dialog.getByRole('button', { name: 'Cancelar pedido' }).click();
     await expect(page.getByText(`Pedido ${second} cancelado. O estoque foi devolvido.`)).toBeVisible();
     await page.goto('/admin/inventory?q=nike quest 6');
-    await expect(page.getByRole('cell', { name: '10', exact: true }).first()).toBeVisible();
+    await expect(page.locator('.stepper output').first()).toHaveText('10');
   });
 
   test('pedido novo aparece sozinho no painel aberto, com aviso e contador', async ({ page, request }) => {
@@ -121,15 +121,40 @@ test.describe('operação da loja', () => {
   test('entrada de estoque fica registrada no histórico', async ({ page }) => {
     await login(page, USERS.staff.email);
     await page.goto('/admin/inventory?q=luva training infantil');
-    await page.getByRole('button', { name: /Adicionar estoque de/ }).first().click();
+    await page.getByRole('button', { name: /Lançar movimentação de/ }).first().click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel(/Quantidade/).fill('5');
     await dialog.getByLabel(/Motivo|Justificativa/).fill('NF 1234');
     await dialog.getByRole('button', { name: 'Adicionar estoque' }).click();
     await expect(page.getByText(/Estoque atualizado: .* passou de 10 para 15/)).toBeVisible();
-    await expect(page.getByRole('cell', { name: '15', exact: true }).first()).toBeVisible();
+    await expect(page.locator('.stepper output').first()).toHaveText('15');
     await page.getByRole('tab', { name: 'Histórico de movimentações' }).click();
     await expect(page.getByRole('cell', { name: 'NF 1234' })).toBeVisible();
+  });
+
+  test('ajustes com + e − na tabela são salvos de uma vez, com motivo nas saídas', async ({ page }) => {
+    await login(page, USERS.staff.email);
+    await page.goto('/admin/inventory?q=umbro attack campo');
+    const plus = page.getByRole('button', { name: /^Aumentar estoque de/ }).first();
+    await plus.click();
+    await plus.click();
+    await expect(page.locator('.stepper output').first()).toHaveText('12');
+    const bar = page.getByRole('region', { name: 'Ajustes de estoque não salvos' });
+    await expect(bar).toContainText('1 ajuste de estoque não salvo');
+    await expect(bar).toContainText('10 → 12');
+    await bar.getByRole('button', { name: 'Salvar ajustes' }).click();
+    await expect(page.getByText(/Estoque atualizado: .* passou de 10 para 12/)).toBeVisible();
+    await expect(bar).toHaveCount(0);
+
+    // Saída pelo − exige motivo antes de salvar.
+    await page.getByRole('button', { name: /^Diminuir estoque de/ }).first().click();
+    await bar.getByRole('button', { name: 'Salvar ajustes' }).click();
+    await expect(bar.getByRole('alert')).toContainText('Informe o motivo das saídas');
+    await bar.getByLabel('Motivo dos ajustes').fill('Avaria na vitrine');
+    await bar.getByRole('button', { name: 'Salvar ajustes' }).click();
+    await expect(page.getByText(/passou de 12 para 11/)).toBeVisible();
+    await page.getByRole('tab', { name: 'Histórico de movimentações' }).click();
+    await expect(page.getByRole('cell', { name: 'Avaria na vitrine' })).toBeVisible();
   });
 
   test('promoção vigente altera o preço da loja', async ({ page }) => {

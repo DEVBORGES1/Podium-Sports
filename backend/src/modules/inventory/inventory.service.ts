@@ -8,7 +8,7 @@ import { normalizeSearch } from '../../lib/text.js';
 import { paged } from '../../lib/validation.js';
 import { OPEN_ORDER_STATUSES } from '../orders/orders.labels.js';
 import { availabilityOf } from '../products/products.service.js';
-import type { createMovementSchema, inventoryListQuery, movementsQuery } from './inventory.schemas.js';
+import type { batchMovementsSchema, createMovementSchema, inventoryListQuery, movementsQuery } from './inventory.schemas.js';
 
 export async function listInventory(query: z.infer<typeof inventoryListQuery>) {
   const conditions: Prisma.Sql[] = [Prisma.sql`TRUE`];
@@ -133,6 +133,37 @@ export async function createMovement(input: z.infer<typeof createMovementSchema>
       tx,
     );
     return movement;
+  });
+}
+
+/** Grava vários ajustes de uma vez (tabela de estoque). Se um falhar (ex.: saldo insuficiente), nenhum é aplicado. */
+export async function createMovementsBatch(input: z.infer<typeof batchMovementsSchema>, profileId: string) {
+  // Ordem fixa de travamento das linhas: dois lotes simultâneos nunca se bloqueiam mutuamente.
+  const items = [...input.items].sort((a, b) => a.productId.localeCompare(b.productId));
+  return prisma.$transaction(async (tx) => {
+    const movements = [];
+    for (const item of items) {
+      const type = item.delta > 0 ? 'IN' : 'OUT';
+      const movement = await applyStockChange(tx, {
+        productId: item.productId,
+        delta: item.delta,
+        type,
+        reason: input.reason || (type === 'IN' ? 'Entrada de mercadoria' : null),
+        profileId,
+      });
+      await audit(
+        {
+          profileId,
+          action: `inventory.${type.toLowerCase()}`,
+          entityType: 'product',
+          entityId: item.productId,
+          metadata: { movementId: movement.id, delta: item.delta, balanceBefore: movement.balanceBefore, balanceAfter: movement.balanceAfter, reason: movement.reason, batch: true },
+        },
+        tx,
+      );
+      movements.push(movement);
+    }
+    return { items: movements };
   });
 }
 

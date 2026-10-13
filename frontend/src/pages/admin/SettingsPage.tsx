@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, type FormEventHandler, type ReactNode } from 'react';
+import { useEffect, useState, type FormEventHandler, type ReactNode } from 'react';
 import { Controller, useFieldArray, useForm, useWatch, type Control, type FieldErrors, type FieldValues, type Path, type UseFormRegister, type UseFormSetError } from 'react-hook-form';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
@@ -548,9 +548,27 @@ const customerMessageText = required(5, 500, 'Escreva a mensagem (5 a 500 caract
 const customerMessagesSchema = z.object(Object.fromEntries(CUSTOMER_MESSAGE_FIELDS.map((f) => [f.key, customerMessageText])) as Record<keyof CustomerMessages, typeof customerMessageText>);
 const fillSample = (template: string, storeName: string) => template.replaceAll('{nome}', 'Maria').replaceAll('{pedido}', 'PS-EXEMPLO').replaceAll('{loja}', storeName);
 
+/** Textos padrão (os mesmos de backend/src/modules/settings/settings.schemas.ts), para "Restaurar texto padrão". */
+const DEFAULT_CUSTOMER_MESSAGES: CustomerMessages = {
+  accepted: 'Olá, {nome}! Seu pedido {pedido} foi aceito e já estamos separando tudo. Obrigado pela preferência!',
+  processing: 'Olá, {nome}! Seu pedido {pedido} está em separação. Avisaremos assim que estiver pronto.',
+  readyPickup: 'Olá, {nome}! Seu pedido {pedido} está pronto para retirada. Aguardamos você na loja!',
+  readyDelivery: 'Olá, {nome}! Seu pedido {pedido} está pronto e logo sairá para entrega.',
+  outForDelivery: 'Olá, {nome}! Seu pedido {pedido} saiu para entrega. Em breve ele chegará até você.',
+  completed: 'Olá, {nome}! Seu pedido {pedido} foi concluído. Obrigado pela preferência!',
+  cancelled: 'Olá, {nome}. Houve um cancelamento no pedido {pedido}. Entre em contato conosco caso precise de ajuda.',
+};
+const MESSAGE_TOKENS = [
+  { token: '{nome}', hint: 'primeiro nome' },
+  { token: '{pedido}', hint: 'código' },
+  { token: '{loja}', hint: 'nome da loja' },
+];
+
+/** Uma mensagem por vez: lista à esquerda, editor com prévia em balão do WhatsApp à direita. */
 function CustomerMessagesSection({ settings }: { settings: AdminSettings }) {
   const initial = settings.content.customerMessages;
-  const { register, control, handleSubmit, formState, reset, setError } = useForm<CustomerMessages>({
+  const [selected, setSelected] = useState<keyof CustomerMessages>('accepted');
+  const { register, control, handleSubmit, formState, reset, setError, setValue } = useForm<CustomerMessages>({
     resolver: zodResolver(customerMessagesSchema),
     defaultValues: initial,
   });
@@ -561,14 +579,43 @@ function CustomerMessagesSection({ settings }: { settings: AdminSettings }) {
   const save = useSaveSettings();
   const values = useWatch({ control });
 
-  const onSubmit = handleSubmit((v) =>
-    save.mutate(
-      { content: { ...settings.content, customerMessages: v } },
-      { onSuccess: (saved) => saved.content.customerMessages && reset(saved.content.customerMessages), onError: (err) => applyServerIssues(err, setError, (f) => f.replace(/^content\.customerMessages\.?/, '')) },
-    ),
+  const onSubmit = handleSubmit(
+    (v) =>
+      save.mutate(
+        { content: { ...settings.content, customerMessages: v } },
+        {
+          onSuccess: (saved) => saved.content.customerMessages && reset(saved.content.customerMessages),
+          onError: (err) => applyServerIssues(err, setError, (f) => f.replace(/^content\.customerMessages\.?/, '')),
+        },
+      ),
+    // Erro numa mensagem que não está aberta: abre a primeira com problema.
+    (errs) => {
+      const first = CUSTOMER_MESSAGE_FIELDS.find((f) => errs[f.key]);
+      if (first) setSelected(first.key);
+    },
   );
 
   if (!initial) return null;
+  const meta = CUSTOMER_MESSAGE_FIELDS.find((f) => f.key === selected)!;
+  const current = values[selected] ?? '';
+  const textareaId = `cm-${selected}`;
+  const field = register(selected);
+
+  const insertToken = (token: string) => {
+    const el = document.getElementById(textareaId) as HTMLTextAreaElement | null;
+    const start = el?.selectionStart ?? current.length;
+    const end = el?.selectionEnd ?? current.length;
+    const before = current.slice(0, start);
+    const glue = before && !/\s$/.test(before) ? ' ' : '';
+    const next = `${before}${glue}${token}${current.slice(end)}`;
+    setValue(selected, next, { shouldDirty: true, shouldValidate: !!errors[selected] });
+    const caret = start + glue.length + token.length;
+    window.setTimeout(() => {
+      el?.focus();
+      el?.setSelectionRange(caret, caret);
+    }, 0);
+  };
+
   return (
     <SectionForm
       id="sec-avisos"
@@ -579,20 +626,65 @@ function CustomerMessagesSection({ settings }: { settings: AdminSettings }) {
       pending={save.isPending}
       onDiscard={() => reset()}
     >
-      <p className="notice">
-        Use <b>{'{nome}'}</b> para o primeiro nome do cliente, <b>{'{pedido}'}</b> para o código do pedido e <b>{'{loja}'}</b> para o nome da loja.
-      </p>
-      <div className="form-cols two">
-        {CUSTOMER_MESSAGE_FIELDS.map((f) => (
-          <div key={f.key} className="field">
-            <label htmlFor={`cm-${f.key}`}>{f.label}</label>
-            <textarea id={`cm-${f.key}`} className="textarea" rows={3} aria-invalid={!!errors[f.key]} {...register(f.key)} />
-            <span className="hint">
-              {f.hint} Prévia: “{fillSample(values[f.key] ?? '', settings.storeName)}”
+      <div className="msg-editor">
+        <ul className="msg-list" aria-label="Mensagens por etapa">
+          {CUSTOMER_MESSAGE_FIELDS.map((f) => {
+            const text = values[f.key] ?? '';
+            const edited = text !== DEFAULT_CUSTOMER_MESSAGES[f.key];
+            return (
+              <li key={f.key}>
+                <button type="button" className={`msg-item ${f.key === selected ? 'on' : ''}`} aria-pressed={f.key === selected} onClick={() => setSelected(f.key)}>
+                  <span className="msg-item-head">
+                    <b>{f.label}</b>
+                    {errors[f.key] ? <Tag tone="danger">Corrigir</Tag> : edited ? <Tag tone="gold">Editada</Tag> : null}
+                  </span>
+                  <small>{fillSample(text, settings.storeName)}</small>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="msg-edit">
+          <div className="field">
+            <label htmlFor={textareaId}>{meta.label}</label>
+            <textarea
+              key={selected}
+              id={textareaId}
+              className="textarea"
+              rows={5}
+              maxLength={500}
+              aria-invalid={!!errors[selected]}
+              aria-describedby={`${textareaId}-hint`}
+              {...field}
+            />
+            <span className="hint msg-count" id={`${textareaId}-hint`}>
+              <span>{meta.hint}</span>
+              <span className="mono">{current.length}/500</span>
             </span>
-            <FieldError message={errors[f.key]?.message} />
+            <FieldError message={errors[selected]?.message} />
           </div>
-        ))}
+          <div className="msg-tools">
+            <span className="hint">Inserir:</span>
+            {MESSAGE_TOKENS.map((t) => (
+              <button key={t.token} type="button" className="token-chip" onClick={() => insertToken(t.token)} title={`Inserir ${t.token} (${t.hint})`}>
+                <code>{t.token}</code> {t.hint}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="link-btn msg-restore"
+              onClick={() => setValue(selected, DEFAULT_CUSTOMER_MESSAGES[selected], { shouldDirty: true, shouldValidate: true })}
+              disabled={current === DEFAULT_CUSTOMER_MESSAGES[selected]}
+            >
+              Restaurar texto padrão
+            </button>
+          </div>
+          <div className="wa-preview" aria-label="Prévia da mensagem (exemplo)">
+            <span className="mono-label">Prévia · como o cliente recebe</span>
+            <p className="msg-preview">{fillSample(current, settings.storeName) || '…'}</p>
+            <span className="hint">Exemplo com o cliente “Maria” e o pedido “PS-EXEMPLO”.</span>
+          </div>
+        </div>
       </div>
     </SectionForm>
   );

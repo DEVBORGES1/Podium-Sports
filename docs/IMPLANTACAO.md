@@ -174,7 +174,7 @@ O workflow `.github/workflows/ci.yml` roda lint, typecheck, testes, build e E2E 
 - **Pedidos**: chegam como *Novo pedido* (o cliente vê “Aguardando confirmação da loja”). Com o painel aberto, um pedido novo aparece sozinho em até 15 s, com faixa de aviso, contador no menu e no título da aba e, se ativado, aviso sonoro (botão **Ativar som** no topo do painel). Aceite, separe, marque como pronto, saiu para entrega (só entregas) e conclua; depois de cada etapa o pedido sugere a mensagem para o cliente — o botão abre o WhatsApp com o texto pronto e **a pessoa revisa e envia**. Marque **Pago** somente quando o pagamento for confirmado; o valor “Recebido” da visão geral conta só pedidos pagos.
 - **Avisos ao cliente**: os textos ficam em `Configurações → Mensagens do WhatsApp → Avisos de andamento ao cliente` (marcadores `{nome}`, `{pedido}` e `{loja}`).
 - **Pedidos abandonados**: pendentes sem atendimento expiram após `Configurações → Pedidos e vitrine` (padrão 48 h) e o estoque reservado volta automaticamente.
-- **Estoque**: o saldo só muda por movimentações (entrada, saída, ajuste com justificativa) e pelos pedidos. Tudo fica no histórico e na auditoria.
+- **Estoque**: o saldo só muda por movimentações (entrada, saída, ajuste com justificativa) e pelos pedidos. Na tabela, **+** e **−** acumulam ajustes que são gravados juntos em **Salvar ajustes** (tudo ou nada; saídas pedem motivo); **Lançar…** registra uma entrada, saída ou ajuste com motivo. Tudo fica no histórico e na auditoria.
 - **Produtos com pedidos** não podem ser excluídos (o histórico é preservado): desative a publicação.
 
 ## 10. Diagnóstico de falhas

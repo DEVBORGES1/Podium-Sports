@@ -133,13 +133,46 @@ export default function OrdersPage() {
           )
         }
         actions={
-          <div className="seg" role="group" aria-label="Forma de exibição">
-            <button type="button" className={mode === 'board' ? 'on' : ''} aria-pressed={mode === 'board'} onClick={() => set({ modo: '', view: '' })}>
-              Quadro
+          <div className="orders-toolbar">
+            <div className="search-field">
+              <SearchIcon aria-hidden />
+              <label htmlFor="orders-q" className="sr-only">
+                Buscar pedido
+              </label>
+              <input
+                id="orders-q"
+                className="input"
+                type="search"
+                placeholder="Código, nome ou telefone"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  set({ q: e.target.value.trim() });
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              className={`btn btn-outline ${showFilters ? 'on' : ''}`}
+              aria-expanded={showFilters}
+              aria-controls="orders-more"
+              onClick={() => setShowFilters((v) => !v)}
+            >
+              Pagamento · período
             </button>
-            <button type="button" className={mode === 'list' ? 'on' : ''} aria-pressed={mode === 'list'} onClick={() => set({ modo: 'lista' })}>
-              Lista
-            </button>
+            {hasFilters && (
+              <button type="button" className="btn btn-quiet" onClick={clearFilters}>
+                Limpar filtros
+              </button>
+            )}
+            <div className="seg" role="group" aria-label="Forma de exibição">
+              <button type="button" className={mode === 'board' ? 'on' : ''} aria-pressed={mode === 'board'} onClick={() => set({ modo: '', view: '' })}>
+                Quadro
+              </button>
+              <button type="button" className={mode === 'list' ? 'on' : ''} aria-pressed={mode === 'list'} onClick={() => set({ modo: 'lista' })}>
+                Lista
+              </button>
+            </div>
           </div>
         }
       />
@@ -169,33 +202,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      <div className="orders-toolbar">
-        <div className="search-field">
-          <SearchIcon aria-hidden />
-          <label htmlFor="orders-q" className="sr-only">
-            Buscar pedido
-          </label>
-          <input
-            id="orders-q"
-            className="input"
-            type="search"
-            placeholder="Código, nome ou telefone"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              set({ q: e.target.value.trim() });
-            }}
-          />
-        </div>
-        <button type="button" className="btn btn-outline btn-sm" aria-expanded={showFilters} aria-controls="orders-more" onClick={() => setShowFilters((v) => !v)}>
-          {showFilters ? 'Menos filtros' : 'Mais filtros'}
-        </button>
-        {hasFilters && (
-          <button type="button" className="btn btn-quiet btn-sm" onClick={clearFilters}>
-            Limpar filtros
-          </button>
-        )}
-      </div>
       {showFilters && (
         <div className="filters-bar" id="orders-more">
           <div className="field">

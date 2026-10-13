@@ -5,6 +5,7 @@ import { api, createAdmin, createProduct, makeApp, resetDb, type AdminCtx } from
 const app = makeApp();
 let admin: AdminCtx;
 const move = (body: object) => api(app).post('/api/v1/admin/inventory/movements').set('Authorization', admin.auth).send(body);
+const batch = (body: object) => api(app).post('/api/v1/admin/inventory/movements/batch').set('Authorization', admin.auth).send(body);
 const stockOf = async (id: string) => (await prisma.product.findUniqueOrThrow({ where: { id } })).stockQuantity;
 
 beforeEach(async () => {
@@ -69,6 +70,46 @@ describe('movimentações de estoque', () => {
     const res = await api(app).patch(`/api/v1/admin/products/${p.id}`).set('Authorization', admin.auth).send({ stockQuantity: 999 });
     expect(res.status).toBe(400);
     expect(await stockOf(p.id)).toBe(5);
+  });
+});
+
+describe('ajustes em lote (+ / − na tabela)', () => {
+  it('aplica entradas e saídas de vários produtos de uma vez, com histórico e auditoria', async () => {
+    const a = await createProduct({ stock: 5 });
+    const b = await createProduct({ stock: 2 });
+    const res = await batch({ reason: 'Contagem de sexta', items: [{ productId: a.id, delta: 3 }, { productId: b.id, delta: -2 }] });
+    expect(res.status).toBe(201);
+    expect(res.body.items).toHaveLength(2);
+    expect(await stockOf(a.id)).toBe(8);
+    expect(await stockOf(b.id)).toBe(0);
+    const movs = await prisma.inventoryMovement.findMany({ where: { productId: { in: [a.id, b.id] }, type: { in: ['IN', 'OUT'] } } });
+    expect(movs.map((m) => [m.type, m.quantity, m.reason, m.profileId]).sort()).toEqual([
+      ['IN', 3, 'Contagem de sexta', admin.profile.id],
+      ['OUT', -2, 'Contagem de sexta', admin.profile.id],
+    ]);
+    expect(await prisma.auditLog.count({ where: { action: { in: ['inventory.in', 'inventory.out'] }, entityId: { in: [a.id, b.id] } } })).toBe(2);
+  });
+
+  it('é tudo ou nada: uma saída sem saldo cancela o lote inteiro', async () => {
+    const a = await createProduct({ stock: 5 });
+    const b = await createProduct({ stock: 1 });
+    const res = await batch({ reason: 'Avaria', items: [{ productId: a.id, delta: 4 }, { productId: b.id, delta: -2 }] });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('INSUFFICIENT_STOCK');
+    expect(await stockOf(a.id)).toBe(5);
+    expect(await stockOf(b.id)).toBe(1);
+  });
+
+  it('valida justificativa das saídas, zeros, repetidos e lista vazia', async () => {
+    const a = await createProduct({ stock: 5 });
+    expect((await batch({ items: [{ productId: a.id, delta: -1 }] })).status).toBe(400);
+    expect((await batch({ items: [{ productId: a.id, delta: 0 }] })).status).toBe(400);
+    expect((await batch({ items: [] })).status).toBe(400);
+    expect((await batch({ reason: 'x', items: [{ productId: a.id, delta: 1 }, { productId: a.id, delta: 1 }] })).status).toBe(400);
+    // Só entradas: justificativa opcional.
+    const ok = await batch({ items: [{ productId: a.id, delta: 2 }] });
+    expect(ok.status).toBe(201);
+    expect(ok.body.items[0]).toMatchObject({ reason: 'Entrada de mercadoria', balanceAfter: 7 });
   });
 });
 
