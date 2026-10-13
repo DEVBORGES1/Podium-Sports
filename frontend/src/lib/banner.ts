@@ -18,6 +18,8 @@ export type SlideData = Pick<
   | 'imageUrl'
   | 'imageFrame'
   | 'imageBg'
+  | 'mobileImageUrl'
+  | 'mobileImageBg'
   | 'layout'
   | 'contentAlign'
   | 'overlay'
@@ -55,10 +57,21 @@ export function clampFrame(f: BannerFrame): BannerFrame {
   return { mode: f.mode, x: round(clamp(f.x, 0, 100)), y: round(clamp(f.y, 0, 100)), zoom: round(clamp(f.zoom, MIN_ZOOM, MAX_ZOOM)) };
 }
 
-export function framesOf(d: Pick<SlideData, 'imageFrame'>) {
+/**
+ * Enquadramento de cada dispositivo. Sem ajuste próprio, o celular repete o do computador — exceto quando há
+ * uma foto exclusiva do celular: aí o ajuste do computador (feito para outra imagem) não serve e vale o padrão.
+ */
+export function framesOf(d: Pick<SlideData, 'imageFrame'> & Partial<Pick<SlideData, 'mobileImageUrl' | 'layout'>>) {
   const desktop = d.imageFrame?.desktop ?? CENTER_FRAME;
-  return { desktop, mobile: d.imageFrame?.mobile ?? desktop };
+  const mobile = d.imageFrame?.mobile ?? (d.mobileImageUrl ? defaultFrame(d.layout ?? 'full') : desktop);
+  return { desktop, mobile };
 }
+
+/**
+ * Proporção da área da imagem no celular (a imagem fica acima do texto). Serve de orientação para quem
+ * prepara a foto exclusiva do celular.
+ */
+export const mobileImageSize = (layout: BannerLayout) => (layout === 'split' ? { ratio: '4:3', size: '1200 × 900 px' } : { ratio: '16:10', size: '1200 × 750 px' });
 
 /**
  * Desconto exibido no banner: só quando os dois preços são válidos e o original é maior.
@@ -91,6 +104,8 @@ export function slideStyle(d: SlideData): CSSProperties {
     '--bgc': to,
     '--ov': String(clamp(d.overlay, 0, 90) / 100),
     '--imgbg': d.imageBg && HEX.test(d.imageBg) ? d.imageBg : 'transparent',
+    // Cor atrás da foto no celular: a da foto exclusiva, se houver; senão a mesma do computador.
+    '--imgbg-m': d.mobileImageUrl ? (d.mobileImageBg && HEX.test(d.mobileImageBg) ? d.mobileImageBg : 'transparent') : d.imageBg && HEX.test(d.imageBg) ? d.imageBg : 'transparent',
     ...frameVars(desktop, 'd'),
     ...frameVars(mobile, 'm'),
   } as CSSProperties;

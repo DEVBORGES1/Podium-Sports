@@ -85,6 +85,9 @@ export interface Banner {
   overlay: number;
   imageFrame: BannerImageFrame | null;
   imageBg: string | null;
+  /** Foto exclusiva do celular; null = o celular usa imageUrl. */
+  mobileImageUrl: string | null;
+  mobileImageBg: string | null;
   sortOrder: number;
 }
 

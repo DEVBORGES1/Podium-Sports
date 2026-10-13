@@ -12,7 +12,20 @@ import { useAdminMutation } from '../../hooks/useAdminMutation';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { adminApi, ApiError } from '../../lib/api';
 import { draftFromTarget, EMPTY_TARGET, targetError, targetFromDraft, type TargetDraft } from '../../lib/banner-targets';
-import { BANNER_ICONS, CENTER_FRAME, clampFrame, defaultFrame, defaultOverlay, discountPercent, MAX_ZOOM, MIN_ZOOM, sampleEdgeColor, type BannerIcon, type SlideData } from '../../lib/banner';
+import {
+  BANNER_ICONS,
+  CENTER_FRAME,
+  clampFrame,
+  defaultFrame,
+  defaultOverlay,
+  discountPercent,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  mobileImageSize,
+  sampleEdgeColor,
+  type BannerIcon,
+  type SlideData,
+} from '../../lib/banner';
 import { brl } from '../../lib/format';
 import { CONTENT_STATE } from '../../lib/labels';
 import type { AdminBanner, AdminProduct } from '../../types/admin';
@@ -65,6 +78,9 @@ const schema = z
     frameDesktop: frame,
     frameMobile: frame.nullable(),
     imageBg: z.string().refine((v) => v === '' || HEX.test(v), 'Use uma cor no formato #RRGGBB.'),
+    mobileImagePath: z.string().nullable(),
+    mobileImageUrl: z.string().nullable(),
+    mobileImageBg: z.string().refine((v) => v === '' || HEX.test(v), 'Use uma cor no formato #RRGGBB.'),
     layout: z.enum(['split', 'full']),
     contentAlign: z.enum(['left', 'right']),
     overlay: z.number().int().min(0).max(90),
@@ -122,6 +138,9 @@ const DEFAULTS: FormValues = {
   frameDesktop: defaultFrame('split'),
   frameMobile: null,
   imageBg: '',
+  mobileImagePath: null,
+  mobileImageUrl: null,
+  mobileImageBg: '',
   layout: 'split',
   contentAlign: 'left',
   overlay: defaultOverlay('split'),
@@ -159,6 +178,9 @@ function fromBanner(b: AdminBanner): FormValues {
     frameDesktop: b.imageFrame?.desktop ?? CENTER_FRAME,
     frameMobile: b.imageFrame?.mobile ?? null,
     imageBg: b.imageBg ?? '',
+    mobileImagePath: b.mobileImagePath,
+    mobileImageUrl: b.mobileImageUrl,
+    mobileImageBg: b.mobileImageBg ?? '',
     layout: b.layout,
     contentAlign: b.contentAlign,
     overlay: b.overlay,
@@ -198,6 +220,9 @@ function toBody(v: FormValues) {
     imagePath: v.imagePath,
     imageFrame: { desktop: clampFrame(v.frameDesktop), mobile: v.frameMobile ? clampFrame(v.frameMobile) : null },
     imageBg: v.imageBg || null,
+    // Sem foto principal não existe foto de celular (o servidor exige as duas juntas).
+    mobileImagePath: v.imagePath ? v.mobileImagePath : null,
+    mobileImageBg: v.imagePath && v.mobileImagePath ? v.mobileImageBg || null : null,
     layout: v.layout,
     contentAlign: v.contentAlign,
     overlay: v.overlay,
@@ -228,6 +253,8 @@ function toSlide(v: FormValues): SlideData {
     imageUrl: v.imageUrl,
     imageFrame: { desktop: v.frameDesktop, mobile: v.frameMobile },
     imageBg: v.imageBg || null,
+    mobileImageUrl: v.imageUrl ? v.mobileImageUrl : null,
+    mobileImageBg: v.mobileImageBg || null,
     layout: v.layout,
     contentAlign: v.contentAlign,
     overlay: v.overlay,
@@ -271,8 +298,8 @@ type TabId = 'content' | 'buttons' | 'image' | 'look' | 'publish';
 const TABS: { id: TabId; label: string; fields: (keyof FormValues)[] }[] = [
   { id: 'content', label: 'Conteúdo', fields: ['kicker', 'title', 'highlight', 'subtitle', 'footnote', 'priceOriginalCents', 'priceSaleCents'] },
   { id: 'buttons', label: 'Botões', fields: ['buttonLabel', 'buttonTarget', 'secondaryButtonLabel', 'secondaryButtonTarget'] },
-  { id: 'image', label: 'Imagem', fields: ['imagePath', 'frameDesktop', 'frameMobile'] },
-  { id: 'look', label: 'Aparência', fields: ['colorFrom', 'colorTo', 'overlay', 'imageBg', 'icon', 'badgeTop', 'badgeMain', 'badgeBottom', 'contentAlign'] },
+  { id: 'image', label: 'Imagem', fields: ['imagePath', 'mobileImagePath', 'frameDesktop', 'frameMobile'] },
+  { id: 'look', label: 'Aparência', fields: ['colorFrom', 'colorTo', 'overlay', 'imageBg', 'mobileImageBg', 'icon', 'badgeTop', 'badgeMain', 'badgeBottom', 'contentAlign'] },
   { id: 'publish', label: 'Publicação', fields: ['isActive', 'sortOrder', 'startsAt', 'endsAt'] },
 ];
 const tabWithError = (errors: FieldErrors<FormValues>) => TABS.find((t) => t.fields.some((f) => errors[f]))?.id;
@@ -296,7 +323,7 @@ function Segmented<T extends string>({ label, value, options, onChange, name }: 
   );
 }
 
-function ColorField({ id, label, name, control, error, hint }: { id: string; label: string; name: 'colorFrom' | 'colorTo' | 'imageBg'; control: Control<FormValues>; error?: string; hint?: string }) {
+function ColorField({ id, label, name, control, error, hint }: { id: string; label: string; name: 'colorFrom' | 'colorTo' | 'imageBg' | 'mobileImageBg'; control: Control<FormValues>; error?: string; hint?: string }) {
   return (
     <FormField id={id} label={label} error={error} hint={hint}>
       <Controller
@@ -305,7 +332,7 @@ function ColorField({ id, label, name, control, error, hint }: { id: string; lab
         render={({ field }) => (
           <div className="color-row">
             <input type="color" aria-label={`${label} (seletor)`} value={HEX.test(field.value) ? field.value : '#000000'} onChange={(e) => field.onChange(e.target.value)} />
-            <input id={id} className="input" maxLength={7} placeholder={name === 'imageBg' ? 'Sem cor' : undefined} aria-invalid={!!error} value={field.value} onChange={(e) => field.onChange(e.target.value.trim())} onBlur={field.onBlur} />
+            <input id={id} className="input" maxLength={7} placeholder={name === 'imageBg' || name === 'mobileImageBg' ? 'Sem cor' : undefined} aria-invalid={!!error} value={field.value} onChange={(e) => field.onChange(e.target.value.trim())} onBlur={field.onBlur} />
           </div>
         )}
       />
@@ -459,10 +486,13 @@ function ButtonsTab({ form, onProduct }: { form: Form; onProduct: (p: AdminProdu
 
 function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevice; setDevice: (d: PreviewDevice) => void }) {
   const { control, setValue, getValues, getFieldState, formState } = form;
-  const [imageUrl, layout, frameDesktop, frameMobile] = useWatch({ control, name: ['imageUrl', 'layout', 'frameDesktop', 'frameMobile'] });
+  const [imageUrl, layout, frameDesktop, frameMobile, mobileImageUrl] = useWatch({ control, name: ['imageUrl', 'layout', 'frameDesktop', 'frameMobile', 'mobileImageUrl'] });
   const [detecting, setDetecting] = useState(false);
   const dirty = { shouldDirty: true };
-  const current = device === 'mobile' ? (frameMobile ?? frameDesktop) : frameDesktop;
+  // Com foto exclusiva do celular, o celular sempre tem enquadramento próprio (a foto é outra).
+  const ownMobilePhoto = !!mobileImageUrl;
+  const current = device === 'mobile' ? (frameMobile ?? (ownMobilePhoto ? defaultFrame(layout) : frameDesktop)) : frameDesktop;
+  const mobileSize = mobileImageSize(layout);
   const setFrame = (f: BannerFrame) => {
     const next = clampFrame(f);
     if (device === 'mobile') setValue('frameMobile', next, dirty);
@@ -475,20 +505,23 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
     // Ajustes ainda no padrão acompanham o novo formato; ajustes feitos à mão são mantidos.
     const isDefault = (f: BannerFrame | null) => !f || JSON.stringify(f) === JSON.stringify(defaultFrame(prev)) || JSON.stringify(f) === JSON.stringify(CENTER_FRAME);
     if (isDefault(getValues('frameDesktop'))) setValue('frameDesktop', defaultFrame(next), dirty);
-    if (getValues('frameMobile') && isDefault(getValues('frameMobile'))) setValue('frameMobile', null, dirty);
+    if (getValues('frameMobile') && isDefault(getValues('frameMobile'))) setValue('frameMobile', getValues('mobileImageUrl') ? defaultFrame(next) : null, dirty);
     // Escurecimento ainda não ajustado nesta edição acompanha o formato (foto de produto ao lado do texto não escurece).
     if (!getFieldState('overlay').isDirty || getValues('overlay') === defaultOverlay(prev)) setValue('overlay', defaultOverlay(next), dirty);
   };
-  const detect = async (url: string) => {
+  const detect = async (url: string, target: 'imageBg' | 'mobileImageBg' = 'imageBg') => {
     setDetecting(true);
     const color = await sampleEdgeColor(url);
     setDetecting(false);
-    if (color) setValue('imageBg', color, dirty);
+    if (color) setValue(target, color, dirty);
   };
 
   return (
     <>
-      <Section title="Foto" hint="De preferência uma foto do produto com fundo limpo. JPG, PNG ou WEBP até 5 MB. A foto original não é alterada: os ajustes ficam salvos à parte.">
+      <Section
+        title={mobileImageUrl ? 'Foto para computador' : 'Foto'}
+        hint="De preferência uma foto do produto com fundo limpo. JPG, PNG ou WEBP até 5 MB. A foto original não é alterada: os ajustes ficam salvos à parte."
+      >
         <ImageUpload
           folder="banners"
           label="Foto do banner"
@@ -498,12 +531,17 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
             setValue('imagePath', path, dirty);
             setValue('imageUrl', url, dirty);
             setValue('frameDesktop', defaultFrame(getValues('layout')), dirty);
-            setValue('frameMobile', null, dirty);
+            // O ajuste do celular só é descartado quando ele vinha desta mesma foto.
+            if (!getValues('mobileImageUrl')) setValue('frameMobile', null, dirty);
             void detect(url);
           }}
           onRemove={() => {
             setValue('imagePath', null, dirty);
             setValue('imageUrl', null, dirty);
+            // A foto do celular é uma alternativa à principal: sai junto.
+            setValue('mobileImagePath', null, dirty);
+            setValue('mobileImageUrl', null, dirty);
+            setValue('frameMobile', null, dirty);
           }}
         />
         {formState.errors.imagePath && (
@@ -512,6 +550,44 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
           </span>
         )}
       </Section>
+
+      {imageUrl && (
+        <Section
+          title="Foto para celular (opcional)"
+          hint={`Use quando a foto do computador fica ruim no celular (ex.: foto larga com o produto pequeno). No celular a imagem aparece acima do texto, no formato ${mobileSize.ratio} — recomendado ${mobileSize.size}. Sem foto aqui, o celular usa a foto do computador.`}
+        >
+          <div className="mobile-photo">
+            {mobileImageUrl && <img className="mobile-photo-thumb" src={mobileImageUrl} alt="Foto atual do celular" />}
+            <div className="mobile-photo-actions">
+              <ImageUpload
+                folder="banners"
+                label="Foto do banner no celular"
+                url={mobileImageUrl}
+                showPreview={false}
+                onUploaded={(path, url) => {
+                  setValue('mobileImagePath', path, dirty);
+                  setValue('mobileImageUrl', url, dirty);
+                  setValue('frameMobile', defaultFrame(getValues('layout')), dirty);
+                  setDevice('mobile');
+                  void detect(url, 'mobileImageBg');
+                }}
+                onRemove={() => {
+                  setValue('mobileImagePath', null, dirty);
+                  setValue('mobileImageUrl', null, dirty);
+                  setValue('mobileImageBg', '', dirty);
+                  setValue('frameMobile', null, dirty);
+                }}
+              />
+              <span className="hint">{mobileImageUrl ? 'O celular mostra esta foto; o computador continua com a foto acima.' : 'Nenhuma foto exclusiva: o celular usa a foto do computador.'}</span>
+            </div>
+          </div>
+          {formState.errors.mobileImagePath && (
+            <span className="err" role="alert">
+              {formState.errors.mobileImagePath.message}
+            </span>
+          )}
+        </Section>
+      )}
 
       <Section title="Formato do banner">
         <Segmented
@@ -545,7 +621,12 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
               { value: 'mobile', label: 'Celular' },
             ]}
           />
-          {device === 'mobile' && (
+          {device === 'mobile' && ownMobilePhoto && (
+            <p className="notice" style={{ margin: '10px 0' }}>
+              Ajustando a <b>foto do celular</b>. O enquadramento do computador não é afetado.
+            </p>
+          )}
+          {device === 'mobile' && !ownMobilePhoto && (
             <div style={{ margin: '10px 0' }}>
               <Switch
                 label="Ajuste próprio para o celular"
@@ -607,7 +688,13 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
             <button type="button" className="btn btn-outline btn-sm" onClick={() => setFrame(defaultFrame(layout))}>
               Restaurar enquadramento
             </button>
-            <button type="button" className="btn btn-quiet btn-sm" onClick={() => imageUrl && detect(imageUrl)} disabled={detecting} aria-busy={detecting}>
+            <button
+              type="button"
+              className="btn btn-quiet btn-sm"
+              onClick={() => (device === 'mobile' && mobileImageUrl ? detect(mobileImageUrl, 'mobileImageBg') : imageUrl && detect(imageUrl))}
+              disabled={detecting}
+              aria-busy={detecting}
+            >
               Detectar cor de fundo da foto
             </button>
           </div>
@@ -624,7 +711,7 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
 function LookTab({ form }: { form: Form }) {
   const { register, control, formState } = form;
   const errors = formState.errors;
-  const [imageUrl, layout, colorTo, overlay, contentAlign] = useWatch({ control, name: ['imageUrl', 'layout', 'colorTo', 'overlay', 'contentAlign'] });
+  const [imageUrl, layout, colorTo, overlay, contentAlign, mobileImageUrl] = useWatch({ control, name: ['imageUrl', 'layout', 'colorTo', 'overlay', 'contentAlign', 'mobileImageUrl'] });
   const lowContrast = contrastWithWhite(colorTo) < 4.5;
   return (
     <>
@@ -633,7 +720,10 @@ function LookTab({ form }: { form: Form }) {
           <ColorField id="colorFrom" label="Cor de destaque" name="colorFrom" control={control} error={errors.colorFrom?.message} hint="Brilho do degradê de fundo." />
           <ColorField id="colorTo" label="Cor de fundo" name="colorTo" control={control} error={errors.colorTo?.message} hint="Base do banner, atrás do texto." />
           {imageUrl && (
-            <ColorField id="imageBg" label="Cor atrás da foto" name="imageBg" control={control} error={errors.imageBg?.message} hint="Preenche as sobras quando a imagem aparece inteira." />
+            <ColorField id="imageBg" label={mobileImageUrl ? 'Cor atrás da foto (computador)' : 'Cor atrás da foto'} name="imageBg" control={control} error={errors.imageBg?.message} hint="Preenche as sobras quando a imagem aparece inteira." />
+          )}
+          {imageUrl && mobileImageUrl && (
+            <ColorField id="mobileImageBg" label="Cor atrás da foto (celular)" name="mobileImageBg" control={control} error={errors.mobileImageBg?.message} hint="Detectada automaticamente ao enviar a foto do celular." />
           )}
         </div>
         {lowContrast && (

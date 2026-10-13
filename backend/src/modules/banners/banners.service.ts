@@ -46,6 +46,8 @@ export function toBannerDto(b: Banner, refs: TargetRefs) {
     imageUrl: mediaUrl(b.imagePath),
     imageFrame: readFrame(b.imageFrame),
     imageBg: b.imageBg,
+    mobileImageUrl: mediaUrl(b.mobileImagePath),
+    mobileImageBg: b.mobileImageBg,
     layout: b.layout,
     contentAlign: b.contentAlign,
     overlay: b.overlay,
@@ -102,6 +104,7 @@ export function toAdminBanner(b: Banner, refs: TargetRefs) {
     secondaryButtonInfo: s.info,
     secondaryButtonEnabled: b.secondaryButtonEnabled,
     imagePath: b.imagePath,
+    mobileImagePath: b.mobileImagePath,
     isActive: b.isActive,
     startsAt: b.startsAt,
     endsAt: b.endsAt,
@@ -231,14 +234,23 @@ export async function updateBanner(id: string, input: UpdateInput, profileId: st
     priceOriginalCents: pick('priceOriginalCents'),
     priceSaleCents: pick('priceSaleCents'),
   });
+  const nextImage = data.imagePath !== undefined ? data.imagePath : current.imagePath;
+  const nextMobileImage = data.mobileImagePath !== undefined ? data.mobileImagePath : current.mobileImagePath;
+  if (nextMobileImage && !nextImage) {
+    throw unprocessable('Envie primeiro a foto principal; a foto do celular é uma alternativa a ela.', [
+      { field: 'mobileImagePath', message: 'Remova a foto do celular ou envie a foto principal.' },
+    ]);
+  }
   const saved = await prisma.$transaction(async (tx) => {
     const b = await tx.banner.update({ where: { id }, data: toData(data) });
     await audit({ profileId, action: 'banner.update', entityType: 'banner', entityId: id, metadata: diff(current, data) as object }, tx);
     return b;
   });
-  if (current.imagePath && current.imagePath !== saved.imagePath) {
-    await storage.get().remove([current.imagePath]).catch(() => undefined);
-  }
+  // Arquivos trocados ou removidos saem do Storage (falha aqui não desfaz o salvamento).
+  const replaced = [current.imagePath !== saved.imagePath && current.imagePath, current.mobileImagePath !== saved.mobileImagePath && current.mobileImagePath].filter(
+    (path): path is string => !!path,
+  );
+  if (replaced.length) await storage.get().remove(replaced).catch(() => undefined);
   return saved;
 }
 
@@ -249,5 +261,6 @@ export async function deleteBanner(id: string, profileId: string) {
     await tx.banner.delete({ where: { id } });
     await audit({ profileId, action: 'banner.delete', entityType: 'banner', entityId: id, metadata: { title: current.title } }, tx);
   });
-  if (current.imagePath) await storage.get().remove([current.imagePath]).catch(() => undefined);
+  const files = [current.imagePath, current.mobileImagePath].filter((path): path is string => !!path);
+  if (files.length) await storage.get().remove(files).catch(() => undefined);
 }

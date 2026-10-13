@@ -99,7 +99,7 @@ export function BannerSlidePreview({
       <div className="banner-preview-canvas" style={{ width, zoom: scale || undefined, visibility: scale ? 'visible' : 'hidden' }}>
         <section className="hero" aria-hidden={!editable}>
           <div className="slides">
-            <BannerSlide data={data} active links={false} placeholderTitle={placeholderTitle} mediaRef={media} mediaProps={mediaProps}>
+            <BannerSlide data={data} active links={false} placeholderTitle={placeholderTitle} mediaRef={media} mediaProps={mediaProps} device={device}>
               {editable && data.layout === 'full' && device === 'desktop' && (
                 <span className={`text-zone ${data.contentAlign}`} aria-hidden>
                   Área do texto

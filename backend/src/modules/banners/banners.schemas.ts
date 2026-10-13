@@ -34,6 +34,12 @@ const frame = z
 export const imageFrameSchema = z.object({ desktop: frame, mobile: frame.nullable() }).strict();
 export type ImageFrame = z.infer<typeof imageFrameSchema>;
 
+const bannerImagePath = z
+  .string()
+  .regex(/^banners\/[0-9a-f-]{36}\.(jpg|png|webp)$/, 'Imagem inválida.')
+  .nullish()
+  .transform((v) => v ?? null);
+
 const fields = {
   kicker: optionalText(80),
   showKicker: z.boolean(),
@@ -44,13 +50,12 @@ const fields = {
   priceOriginalCents: cents,
   priceSaleCents: cents,
   showPrices: z.boolean(),
-  imagePath: z
-    .string()
-    .regex(/^banners\/[0-9a-f-]{36}\.(jpg|png|webp)$/, 'Imagem inválida.')
-    .nullish()
-    .transform((v) => v ?? null),
+  imagePath: bannerImagePath,
   imageFrame: imageFrameSchema.nullable().optional(),
   imageBg: hexColor.nullish().transform((v) => v ?? null),
+  /** Foto só para o celular; nula = o celular usa a foto principal. */
+  mobileImagePath: bannerImagePath,
+  mobileImageBg: hexColor.nullish().transform((v) => v ?? null),
   layout: z.enum(['split', 'full']),
   contentAlign: z.enum(['left', 'right']),
   overlay: z.number().int().min(0).max(90),
@@ -84,6 +89,9 @@ const buttonsOk = (v: { buttonLabel?: string | null; buttonUrl?: string | null; 
 const period = { message: 'A data final deve ser posterior à inicial.', path: ['endsAt'] };
 const prices = { message: 'O preço original deve ser maior que o preço promocional.', path: ['priceOriginalCents'] };
 const button = { message: 'Informe o texto e o destino do botão juntos.', path: ['buttonTarget'] };
+/** A foto de celular complementa a principal: sem foto principal não há o que trocar no celular. */
+const mobileOk = (v: { imagePath?: string | null; mobileImagePath?: string | null }) => !v.mobileImagePath || !!v.imagePath;
+const mobile = { message: 'Envie primeiro a foto principal; a foto do celular é uma alternativa a ela.', path: ['mobileImagePath'] };
 
 export const createBannerSchema = z
   .object({
@@ -101,6 +109,7 @@ export const createBannerSchema = z
   })
   .refine(periodOk, period)
   .refine(pricesOk, prices)
-  .refine(buttonsOk, button);
+  .refine(buttonsOk, button)
+  .refine(mobileOk, mobile);
 
 export const updateBannerSchema = z.object(fields).partial().strict().refine(periodOk, period).refine(pricesOk, prices);

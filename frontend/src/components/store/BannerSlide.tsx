@@ -1,9 +1,12 @@
 import type { HTMLAttributes, ReactNode, Ref } from 'react';
 import trophy from '../../assets/trophy.png';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { discountPercent, slideStyle, type SlideData } from '../../lib/banner';
 import { brl } from '../../lib/format';
 import { CategoryGlyph } from '../ui/Icons';
 import { SmartLink } from '../ui/SmartLink';
+
+const MOBILE_QUERY = '(max-width: 759px)';
 
 function SlideArt({ data }: { data: SlideData }) {
   if (!data.icon) return null;
@@ -61,6 +64,7 @@ export function BannerSlide({
   slideProps,
   mediaRef,
   mediaProps,
+  device,
   children,
 }: {
   data: SlideData;
@@ -72,6 +76,8 @@ export function BannerSlide({
   slideProps?: HTMLAttributes<HTMLDivElement> & { inert?: boolean };
   mediaRef?: Ref<HTMLDivElement>;
   mediaProps?: HTMLAttributes<HTMLDivElement>;
+  /** Prévia do painel: mostra a foto do dispositivo escolhido. Na loja fica vazio e o navegador escolhe pela tela. */
+  device?: 'desktop' | 'mobile';
   /** Elementos extras sobre a imagem (guias do editor). */
   children?: ReactNode;
 }) {
@@ -89,9 +95,15 @@ export function BannerSlide({
   };
   const primary = button(data.buttonLabel, data.buttonUrl, 'btn btn-gold');
   const secondary = button(data.secondaryButtonLabel, data.secondaryButtonUrl, 'btn btn-ghost');
+  // Foto exclusiva do celular. Na loja a escolha é feita pela largura da tela (760 px = mesmo limite do layout
+  // de celular do banner, que ocupa toda a largura) e só a foto escolhida é baixada. Não usamos <picture>:
+  // o React define o src do <img> antes de colocá-lo no <picture>, e o navegador baixaria as duas fotos.
+  const narrowScreen = useMediaQuery(MOBILE_QUERY);
+  const showMobilePhoto = !!data.mobileImageUrl && (device ? device === 'mobile' : narrowScreen);
+  const img = <img className="slide-img" src={showMobilePhoto ? data.mobileImageUrl! : data.imageUrl!} alt="" draggable={false} decoding="async" />;
   const media = hasImage ? (
     <div ref={mediaRef} className="slide-media" {...mediaProps}>
-      <img className="slide-img" src={data.imageUrl!} alt="" draggable={false} decoding="async" />
+      {img}
       <div className="slide-shade" aria-hidden />
       {children}
     </div>

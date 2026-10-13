@@ -16,6 +16,8 @@ const fallbackSlide = (storeName: string): SlideData => ({
   imageUrl: null,
   imageFrame: null,
   imageBg: null,
+  mobileImageUrl: null,
+  mobileImageBg: null,
   layout: 'full',
   contentAlign: 'left',
   overlay: 0,

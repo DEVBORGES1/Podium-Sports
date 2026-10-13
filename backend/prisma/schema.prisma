@@ -210,6 +210,9 @@ model Banner {
   /// Enquadramento da foto por dispositivo: { desktop: { mode, x, y, zoom }, mobile: {...} | null }.
   imageFrame             Json?     @map("image_frame")
   imageBg                String?   @map("image_bg") @db.VarChar(7)
+  /// Foto opcional só para o celular (ex.: versão vertical/recortada). Nula = usa a foto principal.
+  mobileImagePath        String?   @map("mobile_image_path") @db.VarChar(300)
+  mobileImageBg          String?   @map("mobile_image_bg") @db.VarChar(7)
   sortOrder              Int       @default(0) @map("sort_order")
   isActive               Boolean   @default(true) @map("is_active")
   startsAt               DateTime? @map("starts_at") @db.Timestamptz(3)

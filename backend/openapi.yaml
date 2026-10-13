@@ -164,6 +164,8 @@ components:
         overlay: { type: integer, minimum: 0, maximum: 90, description: Escurecimento sobre a foto (%) }
         imageFrame: { oneOf: [{ $ref: '#/components/schemas/BannerImageFrame' }, { type: 'null' }] }
         imageBg: { type: [string, 'null'], description: 'Cor atrás da foto (#RRGGBB)' }
+        mobileImageUrl: { type: [string, 'null'], description: 'Foto exclusiva do celular (largura do banner < 760 px). Nula = o celular usa imageUrl' }
+        mobileImageBg: { type: [string, 'null'], description: 'Cor atrás da foto do celular (#RRGGBB)' }
         sortOrder: { type: integer }
     BannerFrame:
       type: object

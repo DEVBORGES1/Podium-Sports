@@ -179,3 +179,52 @@ describe('banners: conteúdo comercial e imagem', () => {
     expect(cleared.body).toMatchObject({ layout: 'split', imageFrame: { desktop: { mode: 'fit' } } });
   });
 });
+
+describe('banners: foto exclusiva do celular', () => {
+  const desktop = 'banners/11111111-1111-4111-8111-111111111111.jpg';
+  const mobile = 'banners/22222222-2222-4222-8222-222222222222.webp';
+
+  it('salva e publica a foto do celular com enquadramento e cor próprios', async () => {
+    const res = await create({
+      imagePath: desktop,
+      mobileImagePath: mobile,
+      mobileImageBg: '#ffffff',
+      layout: 'full',
+      imageFrame: { desktop: { mode: 'fill', x: 70, y: 50, zoom: 1 }, mobile: { mode: 'fit', x: 50, y: 40, zoom: 1.2 } },
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ imagePath: desktop, mobileImagePath: mobile, mobileImageBg: '#ffffff' });
+    const [pub] = await publicBanners();
+    expect(pub!.imageUrl).toContain(desktop);
+    expect(pub!.mobileImageUrl).toContain(mobile);
+    expect(pub!.mobileImageBg).toBe('#ffffff');
+    expect(pub).not.toHaveProperty('mobileImagePath'); // a loja recebe só a URL pública
+  });
+
+  it('banner sem foto de celular continua usando a principal (campo nulo)', async () => {
+    const res = await create({ imagePath: desktop });
+    expect(res.body.mobileImagePath).toBeNull();
+    const [pub] = await publicBanners();
+    expect(pub!.mobileImageUrl).toBeNull();
+  });
+
+  it('remover a foto do celular volta a usar a principal; caminho inválido é recusado', async () => {
+    const { body } = await create({ imagePath: desktop, mobileImagePath: mobile });
+    expect((await patch(body.id, { mobileImagePath: 'https://evil.example/x.jpg' })).status).toBe(400);
+    expect((await patch(body.id, { mobileImagePath: 'products/22222222-2222-4222-8222-222222222222.jpg' })).status).toBe(400);
+    const cleared = await patch(body.id, { mobileImagePath: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.mobileImagePath).toBeNull();
+    expect((await prisma.banner.findUniqueOrThrow({ where: { id: body.id } })).imagePath).toBe(desktop);
+  });
+
+  it('foto do celular exige a foto principal', async () => {
+    const res = await create({ mobileImagePath: mobile });
+    expect(res.status).toBe(400);
+    const { body } = await create({ imagePath: desktop, mobileImagePath: mobile });
+    const removed = await patch(body.id, { imagePath: null });
+    expect(removed.status).toBe(422);
+    expect(removed.body.error.details[0].field).toBe('mobileImagePath');
+    expect((await patch(body.id, { imagePath: null, mobileImagePath: null })).status).toBe(200);
+  });
+});

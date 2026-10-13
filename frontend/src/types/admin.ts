@@ -174,6 +174,7 @@ export interface AdminBanner extends Omit<Banner, 'buttonUrl' | 'secondaryButton
   showKicker: boolean;
   showPrices: boolean;
   imagePath: string | null;
+  mobileImagePath: string | null;
   /** Endereço salvo (gerado a partir do destino ou digitado nos banners antigos). */
   buttonUrl: string | null;
   buttonTarget: ButtonTarget | null;

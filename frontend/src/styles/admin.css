@@ -496,3 +496,6 @@ details.advanced[open] summary { margin-bottom: 4px; }
 .od-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; overflow-wrap: anywhere; }
 .od-title span { font-weight: 500; color: var(--muted); font-size: 16px; }
 .plain-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 14px; }
+.mobile-photo { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.mobile-photo-thumb { width: 120px; max-height: 120px; object-fit: contain; border-radius: 8px; border: 1px solid var(--line); background: var(--soft); flex: 0 0 auto; }
+.mobile-photo-actions { display: grid; gap: 6px; flex: 1 1 200px; min-width: 0; }
