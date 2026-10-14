@@ -317,7 +317,7 @@ function OrderRow({ order: o, isNew, onOpen }: { order: AdminOrderRow; isNew: bo
           <span className="oc-phone">{formatPhone(o.customerPhone)}</span>
         </span>
         <span className="order-items">
-          {o.itemsPreview.map((i) => `${i.quantity}× ${i.productName}`).join(' · ')}
+          {o.itemsPreview.map((i) => `${i.quantity}× ${i.productName}${i.variantLabel ? ` (${i.variantLabel})` : ''}`).join(' · ')}
           {extra > 0 && ` · +${extra} item(ns)`}
         </span>
         <OrderMeta order={o} />
@@ -476,7 +476,7 @@ function OrderCard({ order: o, now, isNew, selected, onOpen }: { order: AdminOrd
           <small>{formatPhone(o.customerPhone)}</small>
         </span>
         <span className="oc-items">
-          {o.itemsPreview.map((i) => `${i.quantity}× ${i.productName}`).join(' · ')}
+          {o.itemsPreview.map((i) => `${i.quantity}× ${i.productName}${i.variantLabel ? ` (${i.variantLabel})` : ''}`).join(' · ')}
           {extra > 0 && ` · +${extra} item(ns)`}
         </span>
         {o.status === 'ACCEPTED' && <span className="oc-sub">Aceito · aguardando separação</span>}

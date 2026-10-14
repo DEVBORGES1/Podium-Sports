@@ -1,9 +1,11 @@
-import type { Banner, Category, CreateOrderInput, Page, Product, ProductDetail, PublicOrder, Quote, StoreSettings } from '../types/api';
+import type { Banner, Brand, Category, CreateOrderInput, Page, Product, ProductDetail, PublicOrder, Quote, StoreSettings } from '../types/api';
 import { request } from './api';
 
 export interface ProductQuery {
   q?: string;
   category?: string;
+  /** Marcas separadas por vírgula. */
+  brand?: string;
   onSale?: boolean;
   featured?: boolean;
   minPrice?: number;
@@ -17,11 +19,12 @@ export interface ProductQuery {
 export const storeApi = {
   settings: () => request<StoreSettings>('/store/settings'),
   categories: () => request<{ items: Category[] }>('/categories').then((r) => r.items),
+  brands: (category?: string) => request<{ items: Brand[] }>('/brands', { query: category ? { category } : {} }).then((r) => r.items),
   banners: () => request<{ items: Banner[] }>('/banners').then((r) => r.items),
   products: (query: ProductQuery) => request<Page<Product>>('/products', { query: { ...query } }),
   product: (idOrSlug: string) => request<ProductDetail>(`/products/${encodeURIComponent(idOrSlug)}`),
   legacyMap: (ids: number[]) => request<{ items: { legacyId: number; id: string }[] }>('/products/legacy-map', { query: { ids: ids.join(',') } }),
-  quote: (items: { productId: string; quantity: number }[]) => request<Quote>('/orders/quote', { method: 'POST', body: { items } }),
+  quote: (items: { productId: string; variantId?: string | null; quantity: number }[]) => request<Quote>('/orders/quote', { method: 'POST', body: { items } }),
   createOrder: (input: CreateOrderInput, idempotencyKey: string) =>
     request<{ order: PublicOrder; accessToken: string }>('/orders', { method: 'POST', body: input, headers: { 'Idempotency-Key': idempotencyKey } }),
   order: (code: string, token: string) => request<PublicOrder>(`/orders/${code}`, { headers: { 'X-Order-Token': token } }),

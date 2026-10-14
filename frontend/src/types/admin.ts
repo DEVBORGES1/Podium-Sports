@@ -4,13 +4,24 @@ import type { Availability, Banner, CategoryIcon, Fulfillment, InfoItem, OrderSt
 export interface AdminProductImage {
   id: string;
   url: string;
+  thumbUrl?: string;
+  mediumUrl?: string;
   altText: string | null;
   isPrimary: boolean;
   sortOrder: number;
   sizeBytes: number;
 }
 
-export interface AdminProduct extends Omit<Product, 'images'> {
+/** Variação no painel: inclui as inativas e o estoque de cada uma. */
+export interface AdminVariant {
+  id: string;
+  label: string;
+  stockQuantity: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface AdminProduct extends Omit<Product, 'images' | 'variants'> {
   priceCents: number; // preço cheio
   salePriceCents: number | null;
   effectivePriceCents: number;
@@ -20,6 +31,8 @@ export interface AdminProduct extends Omit<Product, 'images'> {
   isActive: boolean;
   sortOrder: number;
   legacyId: number | null;
+  variantType?: string | null;
+  variants?: AdminVariant[];
   images: AdminProductImage[];
   updatedAt: string;
   orderCount?: number;
@@ -40,6 +53,9 @@ export interface AdminCategory {
   showOnHome: boolean;
   isActive: boolean;
   productCount: number;
+  /** Preenchida = subcategoria. */
+  parentId?: string | null;
+  childCount?: number;
 }
 
 export interface InventoryRow {
@@ -53,6 +69,9 @@ export interface InventoryRow {
   reservedInOpenOrders: number;
   status: Availability;
   lastMovementAt: string | null;
+  /** Estoque por variação (tamanho, sabor…); vazio = estoque único. */
+  variantType?: string | null;
+  variants?: { id: string; label: string; stockQuantity: number; isActive: boolean; reservedInOpenOrders: number }[];
 }
 
 export type MovementType = 'INITIAL' | 'IN' | 'OUT' | 'ADJUSTMENT' | 'ORDER_RESERVATION' | 'ORDER_RELEASE';
@@ -66,6 +85,8 @@ export interface InventoryMovement {
   reason: string | null;
   createdAt: string;
   product: { id: string; name: string };
+  /** Movimentação de uma variação: os saldos são os dela. */
+  variant?: { id: string; label: string; type: string } | null;
   user: { id: string; name: string } | null;
   order: { id: string; code: string } | null;
 }
@@ -78,7 +99,7 @@ export interface AdminOrderRow {
   customerPhone: string;
   fulfillment: Fulfillment;
   itemCount: number;
-  itemsPreview: { productName: string; quantity: number }[];
+  itemsPreview: { productName: string; variantLabel?: string | null; quantity: number }[];
   totalCents: number;
   status: OrderStatus;
   statusLabel: string;
@@ -135,6 +156,7 @@ export interface AdminOrder {
     productId: string | null;
     productSlug: string | null;
     productName: string;
+    variantLabel?: string | null;
     quantity: number;
     unitPriceCents: number;
     originalUnitPriceCents: number;

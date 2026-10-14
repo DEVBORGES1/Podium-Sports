@@ -29,6 +29,7 @@ const TABLES = [
   'promotion_products',
   'promotions',
   'product_images',
+  'product_variants',
   'products',
   'categories',
   'banners',
@@ -109,7 +110,7 @@ export async function createProduct(
 
 export const idemKey = () => randomUUID().replace(/-/g, '');
 
-export function orderBody(items: { productId: string; quantity: number }[], extra: Record<string, unknown> = {}) {
+export function orderBody(items: { productId: string; variantId?: string | null; quantity: number }[], extra: Record<string, unknown> = {}) {
   return {
     customer: { name: 'Maria Cliente', phone: '(49) 99999-1234' },
     fulfillment: 'PICKUP',

@@ -23,6 +23,11 @@ const base = {
   sortOrder: z.number().int().min(0).max(100_000).default(0),
   isActive: z.boolean().default(true),
   showOnHome: z.boolean().default(false),
+  /** Categoria-mãe: preenchida = subcategoria (um nível só). */
+  parentId: z
+    .uuid('Categoria-mãe inválida.')
+    .nullish()
+    .transform((v) => v ?? null),
 };
 
 export const createCategorySchema = z.object(base);

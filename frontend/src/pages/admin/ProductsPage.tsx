@@ -7,6 +7,7 @@ import { Pagination } from '../../components/ui/States';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { adminApi } from '../../lib/api';
+import { categoryOptions } from '../../lib/categories';
 import { brl } from '../../lib/format';
 import { AVAILABILITY_LABEL } from '../../lib/labels';
 import type { AdminCategory, AdminProduct } from '../../types/admin';
@@ -62,8 +63,9 @@ export default function ProductsPage() {
           <label htmlFor="cat">Categoria</label>
           <select id="cat" className="select" value={filters.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
             <option value="">Todas</option>
-            {categories.data?.map((c) => (
+            {categoryOptions(categories.data ?? []).map(({ category: c, depth }) => (
               <option key={c.id} value={c.id}>
+                {depth ? '\u00a0\u00a0\u00a0↳ ' : ''}
                 {c.name}
               </option>
             ))}

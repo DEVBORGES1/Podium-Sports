@@ -525,6 +525,8 @@
 .f-cats button { flex: none; height: 40px; display: flex; gap: 6px; align-items: center; justify-content: space-between; padding: 0 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 3px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; text-align: left; }
 .f-cats button span { font-family: var(--font-mono); font-size: 11px; opacity: 0.7; }
 .f-cats button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.f-cats button.sub { font-weight: 450; border-style: dashed; }
+.f-brands .f-check .muted { color: var(--muted); font-size: 12px; }
 .f-open { height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1.5px solid var(--ink); background: none; color: var(--ink); border-radius: 3px; font-family: var(--font-sans); font-stretch: 110%; font-weight: 750; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
 .f-badge { font-family: var(--font-mono); background: var(--gold); color: #141311; padding: 0 6px; border-radius: 2px; }
 input[type='range'] { width: 100%; accent-color: var(--gold); }
@@ -573,6 +575,8 @@ input[type='range'] { width: 100%; accent-color: var(--gold); }
   .f-cats button { height: 38px; border: 0; background: transparent; padding: 0 10px; font-weight: 450; font-size: 14px; }
   .f-cats button:hover { background: var(--soft); }
   .f-cats button.active { font-weight: 650; }
+  .f-cats button.sub { height: 34px; margin-left: 14px; padding-left: 12px; font-size: 13px; border-left: 1px solid var(--line); border-radius: 0 3px 3px 0; }
+  .f-cats button.sub.active { border-left-color: var(--gold); }
   .f-open, .sheet-head, .sheet-done, .f-more::before { display: none !important; }
   .f-more { display: grid; gap: 30px; }
   .f-more .f-help { display: grid; }
@@ -697,6 +701,17 @@ input[type='range'] { width: 100%; accent-color: var(--gold); }
 .product-info .price { display: block; font-family: var(--font-mono); font-weight: 600; font-size: 30px; margin: 10px 0 4px; }
 .product-info .old { font-size: 16px; font-weight: 400; color: var(--muted); margin-right: 8px; }
 .product-info .promo-note { font-size: 13px; color: var(--muted); }
+/* Escolha de tamanho/sabor: opção esgotada aparece riscada e não pode ser escolhida. */
+.variant-picker { border: 0; padding: 0; margin: 18px 0 4px; min-width: 0; }
+.variant-picker legend { font-stretch: 112%; font-weight: 700; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; padding: 0; }
+.variant-picker legend b { color: var(--ink); }
+.variant-options { display: flex; flex-wrap: wrap; gap: 8px; outline: none; }
+.variant-option { min-width: 48px; height: 44px; padding: 0 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
+.variant-option:hover:not(:disabled) { border-color: var(--ink); }
+.variant-option.selected { border-color: var(--gold); background: var(--gold); color: #141311; }
+.variant-option:disabled { color: var(--muted); text-decoration: line-through; cursor: not-allowed; opacity: 0.55; }
+.variant-picker .err { margin: 8px 0 0; font-size: 13px; }
+.variant-label { display: block; color: var(--muted); font-size: 12px; }
 .availability { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 3px; margin: 10px 0; }
 .availability.in { background: var(--ok-bg); color: var(--ok); }
 .availability.low { background: var(--warn-bg); color: var(--warn); }

@@ -8,17 +8,18 @@ export const defaultHandlers = [
   http.get(`${API}/store/settings`, () => HttpResponse.json(settings)),
   http.get(`${API}/categories`, () => HttpResponse.json({ items: categories })),
   http.get(`${API}/banners`, () => HttpResponse.json({ items: [] })),
+  http.get(`${API}/brands`, () => HttpResponse.json({ items: [{ name: 'Adidas', count: 1 }, { name: 'Max Titanium', count: 1 }] })),
   http.get(`${API}/products`, () => HttpResponse.json({ items: [product(), whey], page: 1, pageSize: 20, total: 2, totalPages: 1 })),
   http.get(`${API}/products/:slug`, ({ params }) => {
     const found = [product(), whey].find((p) => p.slug === params.slug || p.id === params.slug);
     return found ? HttpResponse.json({ ...found, related: [] }) : HttpResponse.json({ error: { code: 'NOT_FOUND', message: 'Produto não encontrado.' } }, { status: 404 });
   }),
   http.post(`${API}/orders/quote`, async ({ request }) => {
-    const body = (await request.json()) as { items: { productId: string; quantity: number }[] };
+    const body = (await request.json()) as { items: { productId: string; variantId?: string; quantity: number }[] };
     const all = [product(), whey];
     const lines = body.items.map((i) => {
       const p = all.find((x) => x.id === i.productId)!;
-      return { productId: i.productId, quantity: i.quantity, issue: null, available: true, name: p.name, slug: p.slug, imageUrl: null, unitPriceCents: p.priceCents, regularUnitPriceCents: p.regularPriceCents, subtotalCents: p.priceCents * i.quantity, maxQuantity: p.maxQuantity };
+      return { productId: i.productId, variantId: i.variantId ?? null, quantity: i.quantity, issue: null, available: true, name: p.name, slug: p.slug, imageUrl: null, unitPriceCents: p.priceCents, regularUnitPriceCents: p.regularPriceCents, subtotalCents: p.priceCents * i.quantity, maxQuantity: p.maxQuantity };
     });
     const total = lines.reduce((s, l) => s + l.subtotalCents, 0);
     const subtotal = lines.reduce((s, l) => s + l.regularUnitPriceCents * l.quantity, 0);

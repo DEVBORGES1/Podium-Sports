@@ -10,6 +10,7 @@ import { useAdminMutation } from '../../hooks/useAdminMutation';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { adminApi, ApiError, errorMessage } from '../../lib/api';
+import { categoryOptions } from '../../lib/categories';
 import { formatDateTime } from '../../lib/format';
 import { AVAILABILITY_LABEL, MOVEMENT_TYPE } from '../../lib/labels';
 import type { AdminCategory, InventoryMovement, InventoryRow, MovementType } from '../../types/admin';
@@ -99,16 +100,50 @@ export default function InventoryPage() {
 
 /** Ajuste pendente de um produto (+ / − na tabela), guardado até "Salvar ajustes". */
 interface PendingAdjust {
+  productId: string;
+  /** Opção (tamanho, sabor…) ajustada; null = estoque único do produto. */
+  variantId: string | null;
   delta: number;
   name: string;
   /** Saldo exibido quando o ajuste começou (para o resumo, mesmo com o produto fora da página atual). */
   base: number;
 }
 
+/** O que recebe a movimentação: o produto (estoque único) ou uma das suas opções. */
+type StockTarget = { productId: string; variantId?: string | null; name: string; stockQuantity: number; reservedInOpenOrders: number };
+const targetKey = (t: Pick<StockTarget, 'productId' | 'variantId'>) => (t.variantId ? `${t.productId}:${t.variantId}` : t.productId);
+const productTarget = (r: InventoryRow): StockTarget => ({ productId: r.productId, name: r.name, stockQuantity: r.stockQuantity, reservedInOpenOrders: r.reservedInOpenOrders });
+const variantTarget = (r: InventoryRow, v: NonNullable<InventoryRow['variants']>[number]): StockTarget => ({
+  productId: r.productId,
+  variantId: v.id,
+  name: `${r.name} (${r.variantType ?? 'Opção'} ${v.label})`,
+  stockQuantity: v.stockQuantity,
+  reservedInOpenOrders: v.reservedInOpenOrders,
+});
+
+/** − saldo + com o ajuste pendente ao lado. */
+function Stepper({ target, delta, status, onStep }: { target: StockTarget; delta: number; status: string; onStep: (t: StockTarget, d: number) => void }) {
+  const n = target.stockQuantity + delta;
+  return (
+    <div className="stepper" role="group" aria-label={`Saldo de ${target.name}`}>
+      <button type="button" onClick={() => onStep(target, -1)} disabled={n <= 0} aria-label={`Diminuir estoque de ${target.name}`}>
+        −
+      </button>
+      <output aria-live="polite" className={status === 'OUT_OF_STOCK' ? 'out' : status === 'LOW_STOCK' ? 'low' : ''}>
+        {n}
+      </output>
+      <button type="button" onClick={() => onStep(target, 1)} aria-label={`Aumentar estoque de ${target.name}`}>
+        +
+      </button>
+      {delta !== 0 && <span className="delta">{delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}</span>}
+    </div>
+  );
+}
+
 function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set: SetParam; onHistory: (productId: string) => void }) {
   const [search, setSearch] = useState(params.get('q') ?? '');
   const q = useDebouncedValue(search.trim(), 300);
-  const [moving, setMoving] = useState<InventoryRow | null>(null);
+  const [moving, setMoving] = useState<StockTarget | null>(null);
   const [adjust, setAdjust] = useState<Record<string, PendingAdjust>>({});
   const stockParam = params.get('stock') ?? '';
   const filters = {
@@ -126,13 +161,14 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
     placeholderData: keepPreviousData,
   });
 
-  const step = (r: InventoryRow, d: number) =>
+  const step = (t: StockTarget, d: number) =>
     setAdjust((cur) => {
-      const prev = cur[r.productId];
-      const delta = Math.max(-r.stockQuantity, Math.min(100_000, (prev?.delta ?? 0) + d));
+      const key = targetKey(t);
+      const prev = cur[key];
+      const delta = Math.max(-t.stockQuantity, Math.min(100_000, (prev?.delta ?? 0) + d));
       const next = { ...cur };
-      if (delta === 0) delete next[r.productId];
-      else next[r.productId] = { delta, name: r.name, base: prev?.base ?? r.stockQuantity };
+      if (delta === 0) delete next[key];
+      else next[key] = { productId: t.productId, variantId: t.variantId ?? null, delta, name: t.name, base: prev?.base ?? t.stockQuantity };
       return next;
     });
 
@@ -157,8 +193,9 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
           <label htmlFor="inv-cat">Categoria</label>
           <select id="inv-cat" className="select" value={filters.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
             <option value="">Todas</option>
-            {categories.data?.map((c) => (
+            {categoryOptions(categories.data ?? []).map(({ category: c, depth }) => (
               <option key={c.id} value={c.id}>
+                {depth ? '\u00a0\u00a0\u00a0↳ ' : ''}
                 {c.name}
               </option>
             ))}
@@ -198,13 +235,14 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
             {rows.isPending || rows.isError || rows.data.items.length === 0 ? (
               <TableState colSpan={7} loading={rows.isPending} error={rows.error} empty="Nenhum produto encontrado." onRetry={() => rows.refetch()} />
             ) : (
-              rows.data.items.map((r) => {
-                const delta = adjust[r.productId]?.delta ?? 0;
+              rows.data.items.flatMap((r) => {
+                const variants = r.variants ?? [];
+                const delta = variants.length ? variants.reduce((sum, v) => sum + (adjust[targetKey(variantTarget(r, v))]?.delta ?? 0), 0) : (adjust[r.productId]?.delta ?? 0);
                 const n = r.stockQuantity + delta;
                 const status = n === 0 ? 'OUT_OF_STOCK' : n <= r.minStock ? 'LOW_STOCK' : 'IN_STOCK';
                 const st = AVAILABILITY_LABEL[delta ? status : r.status];
                 const pct = Math.min(100, (n / Math.max(1, r.minStock * 4)) * 100);
-                return (
+                return [
                   <tr key={r.productId} className={delta ? 'changed' : undefined}>
                     <td>
                       <Link to={`/admin/products/${r.productId}`}>
@@ -221,18 +259,18 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
                       </div>
                     </td>
                     <td>
-                      <div className="stepper" role="group" aria-label={`Saldo de ${r.name}`}>
-                        <button type="button" onClick={() => step(r, -1)} disabled={n <= 0} aria-label={`Diminuir estoque de ${r.name}`}>
-                          −
-                        </button>
-                        <output aria-live="polite" className={status === 'OUT_OF_STOCK' ? 'out' : status === 'LOW_STOCK' ? 'low' : ''}>
-                          {n}
-                        </output>
-                        <button type="button" onClick={() => step(r, 1)} aria-label={`Aumentar estoque de ${r.name}`}>
-                          +
-                        </button>
-                        {delta !== 0 && <span className="delta">{delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}</span>}
-                      </div>
+                      {variants.length ? (
+                        // Estoque por opção: o total é a soma, ajustada nas linhas de cada opção abaixo.
+                        <div className="stepper total" aria-label={`Total de ${r.name}`}>
+                          <output aria-live="polite" className={status === 'OUT_OF_STOCK' ? 'out' : status === 'LOW_STOCK' ? 'low' : ''}>
+                            {n}
+                          </output>
+                          <span className="muted">total · por {(r.variantType ?? 'opção').toLowerCase()}</span>
+                          {delta !== 0 && <span className="delta">{delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}</span>}
+                        </div>
+                      ) : (
+                        <Stepper target={productTarget(r)} delta={delta} status={status} onStep={step} />
+                      )}
                       <span className="meter stock-meter" aria-hidden>
                         <span style={{ width: `${pct}%` }} className={status === 'OUT_OF_STOCK' ? 'out' : status === 'LOW_STOCK' ? 'low' : 'ok'} />
                       </span>
@@ -247,22 +285,65 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
                     <td style={{ whiteSpace: 'nowrap' }}>{r.lastMovementAt ? formatDateTime(r.lastMovementAt) : <span className="muted">—</span>}</td>
                     <td>
                       <div className="row-actions nowrap">
-                        <button
-                          type="button"
-                          className="btn btn-outline btn-sm"
-                          onClick={() => setMoving(r)}
-                          aria-label={`Lançar movimentação de ${r.name}`}
-                          title="Entrada, saída ou ajuste com motivo"
-                        >
-                          Lançar…
-                        </button>
+                        {!variants.length && (
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={() => setMoving(productTarget(r))}
+                            aria-label={`Lançar movimentação de ${r.name}`}
+                            title="Entrada, saída ou ajuste com motivo"
+                          >
+                            Lançar…
+                          </button>
+                        )}
                         <button type="button" className="btn btn-quiet btn-sm" onClick={() => onHistory(r.productId)} aria-label={`Histórico de ${r.name}`}>
                           Histórico
                         </button>
                       </div>
                     </td>
-                  </tr>
-                );
+                  </tr>,
+                  // Uma linha por opção (tamanho, sabor…), com seu saldo e seus botões.
+                  ...variants.map((v) => {
+                    const t = variantTarget(r, v);
+                    const vDelta = adjust[targetKey(t)]?.delta ?? 0;
+                    const vn = v.stockQuantity + vDelta;
+                    const vStatus = vn === 0 ? 'OUT_OF_STOCK' : 'IN_STOCK';
+                    return (
+                      <tr key={`${r.productId}:${v.id}`} className={`variant-row${vDelta ? ' changed' : ''}`}>
+                        <td>
+                          <span className="muted" aria-hidden>
+                            ↳{' '}
+                          </span>
+                          {r.variantType ?? 'Opção'} <b>{v.label}</b>
+                          {!v.isActive && (
+                            <>
+                              {' '}
+                              <Tag>Fora da loja</Tag>
+                            </>
+                          )}
+                        </td>
+                        <td>
+                          <Stepper target={t} delta={vDelta} status={vStatus} onStep={step} />
+                        </td>
+                        <td className="num">{v.reservedInOpenOrders}</td>
+                        <td className="num">
+                          <span className="muted">—</span>
+                        </td>
+                        <td>
+                          <Tag tone={AVAILABILITY_LABEL[vStatus].tone}>{AVAILABILITY_LABEL[vStatus].label}</Tag>
+                        </td>
+                        <td />
+                        <td>
+                          <div className="row-actions nowrap">
+                            <button type="button" className="btn btn-outline btn-sm" onClick={() => setMoving(t)} aria-label={`Lançar movimentação de ${t.name}`}>
+                              Lançar…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }),
+                ];
               })
             )}
           </tbody>
@@ -297,7 +378,7 @@ function AdjustBar({ adjust, onDone }: { adjust: Record<string, PendingAdjust>; 
     () =>
       adminApi.post<{ items: CreatedMovement[] }>('/inventory/movements/batch', {
         ...(reason.trim() ? { reason: reason.trim() } : {}),
-        items: ids.map((productId) => ({ productId, delta: adjust[productId]!.delta })),
+        items: ids.map((key) => ({ productId: adjust[key]!.productId, ...(adjust[key]!.variantId ? { variantId: adjust[key]!.variantId } : {}), delta: adjust[key]!.delta })),
       }),
     {
       success: (r) => {
@@ -465,7 +546,7 @@ const toOptionalInt = (v: unknown) => {
 
 const MOVEMENT_TITLE: Record<MovementForm['type'], string> = { IN: 'Adicionar estoque', OUT: 'Registrar saída', ADJUSTMENT: 'Ajustar quantidade' };
 
-function MovementModal({ row, initialType, onClose }: { row: InventoryRow; initialType: MovementForm['type']; onClose: () => void }) {
+function MovementModal({ row, initialType, onClose }: { row: StockTarget; initialType: MovementForm['type']; onClose: () => void }) {
   const { register, control, handleSubmit, formState, setError } = useForm<MovementForm>({
     resolver: zodResolver(movementSchema),
     defaultValues: { type: initialType, quantity: undefined, newBalance: undefined, reason: '' },
@@ -475,12 +556,13 @@ function MovementModal({ row, initialType, onClose }: { row: InventoryRow; initi
   const errors = formState.errors;
   const [type, quantity, newBalance] = useWatch({ control, name: ['type', 'quantity', 'newBalance'] });
 
+  const variantPart = row.variantId ? { variantId: row.variantId } : {};
   const create = useAdminMutation(
     (v: MovementForm) => {
       const body =
         v.type === 'ADJUSTMENT'
-          ? { type: v.type, productId: row.productId, newBalance: v.newBalance, reason: v.reason }
-          : { type: v.type, productId: row.productId, quantity: v.quantity, ...(v.reason ? { reason: v.reason } : {}) };
+          ? { type: v.type, productId: row.productId, ...variantPart, newBalance: v.newBalance, reason: v.reason }
+          : { type: v.type, productId: row.productId, ...variantPart, quantity: v.quantity, ...(v.reason ? { reason: v.reason } : {}) };
       return adminApi.post<CreatedMovement>('/inventory/movements', body);
     },
     {
@@ -715,6 +797,12 @@ function MovementsTab({ params, set }: { params: URLSearchParams; set: SetParam 
                     <td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(m.createdAt)}</td>
                     <td>
                       <Link to={`/admin/products/${m.product.id}`}>{m.product.name}</Link>
+                      {m.variant && (
+                        <span className="muted">
+                          {' '}
+                          · {m.variant.type} {m.variant.label}
+                        </span>
+                      )}
                     </td>
                     <td>
                       <Tag tone={t.tone}>{t.label}</Tag>

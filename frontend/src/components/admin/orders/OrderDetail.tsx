@@ -262,6 +262,7 @@ export function OrderDetail({ id, onNavigateAway, showTitle = true }: { id: stri
                 ) : (
                   i.productName
                 )}
+                {i.variantLabel && <b className="oi-variant"> · {i.variantLabel}</b>}
                 <small>
                   {i.originalUnitPriceCents !== i.unitPriceCents && <s aria-label={`Preço original ${brl(i.originalUnitPriceCents)}`}>{brl(i.originalUnitPriceCents)}</s>} {brl(i.unitPriceCents)} cada
                   {!i.productId && ' · produto removido do catálogo'}

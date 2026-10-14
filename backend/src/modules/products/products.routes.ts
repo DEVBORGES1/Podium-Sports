@@ -7,9 +7,11 @@ import {
   adminListQuery,
   createProductSchema,
   legacyMapQuery,
+  optimizeImagesSchema,
   podiumSchema,
   publicListQuery,
   reorderImagesSchema,
+  setVariantsSchema,
   updateImageSchema,
   updateProductSchema,
 } from './products.schemas.js';
@@ -20,6 +22,11 @@ export const publicProductsRouter = Router();
 publicProductsRouter.get('/products', async (req, res) => {
   const query = parse(publicListQuery, req.query);
   res.json(await service.listPublicProducts(query));
+});
+publicProductsRouter.get('/brands', async (req, res) => {
+  const { category } = parse(z.object({ category: z.string().trim().max(100).optional() }), req.query);
+  res.set('Cache-Control', 'public, max-age=60');
+  res.json({ items: await service.listBrands(category) });
 });
 publicProductsRouter.get('/products/legacy-map', async (req, res) => {
   const { ids } = parse(legacyMapQuery, req.query);
@@ -62,6 +69,16 @@ adminProductsRouter.delete('/products/:id', async (req, res) => {
   res.status(204).end();
 });
 
+adminProductsRouter.put('/products/:id/variants', async (req, res) => {
+  const { id } = parse(uuidParam, req.params);
+  const input = parse(setVariantsSchema, req.body);
+  res.json(await service.setVariants(id, input, currentProfile(req).id));
+});
+
+adminProductsRouter.post('/products/images/optimize', async (req, res) => {
+  const { limit } = parse(optimizeImagesSchema, req.body ?? {});
+  res.json(await service.optimizeImages(limit, currentProfile(req).id));
+});
 adminProductsRouter.post('/products/:id/images', imageUpload.array('images', 8), async (req, res) => {
   const { id } = parse(uuidParam, req.params);
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];

@@ -10,6 +10,7 @@ import { CategoryGlyph, productGlyph } from '../ui/Icons';
 export const ISSUE_TEXT: Record<Exclude<LineIssue, null>, string> = {
   NOT_FOUND: 'Produto não está mais disponível. Remova da sacola.',
   UNAVAILABLE: 'Produto indisponível no momento. Remova da sacola.',
+  VARIANT_REQUIRED: 'Escolha o tamanho/opção na página do produto. Remova e adicione de novo.',
   OUT_OF_STOCK: 'Esgotado. Remova da sacola.',
   INSUFFICIENT_STOCK: 'Quantidade maior que o estoque disponível.',
   QUANTITY_LIMIT: `Máximo de ${MAX_QUANTITY_PER_ITEM} unidades por produto.`,
@@ -46,11 +47,12 @@ export function CartDrawer({ note }: { note: string }) {
           ) : (
             <ul style={{ listStyle: 'none' }} aria-label="Itens da sacola">
               {items.map((item) => {
-                const line = quote.lineFor(item.productId);
+                const line = quote.lineFor(item);
                 const unit = line?.unitPriceCents ?? item.snapshot.priceCents;
                 const max = Math.min(line?.maxQuantity ?? item.snapshot.maxQuantity, MAX_QUANTITY_PER_ITEM);
+                const variantLabel = line?.variantLabel ?? item.variantLabel;
                 return (
-                  <li className="item" key={item.productId}>
+                  <li className="item" key={item.key}>
                     <div className="mini" aria-hidden>
                       {item.snapshot.imageUrl ? <img src={item.snapshot.imageUrl} alt="" /> : <CategoryGlyph icon={productGlyph(item.snapshot.icon, item.snapshot.categorySlug)} />}
                     </div>
@@ -58,22 +60,23 @@ export function CartDrawer({ note }: { note: string }) {
                       <Link to={`/produto/${item.snapshot.slug}`} onClick={close}>
                         {line?.name ?? item.snapshot.name}
                       </Link>
+                      {variantLabel && <small className="variant-label">{variantLabel}</small>}
                       <small style={{ display: 'block' }}>
                         {brl(unit)} {item.quantity > 1 && `· ${brl(unit * item.quantity)}`}
                       </small>
                       {line?.issue && <span className="issue">{ISSUE_TEXT[line.issue]}</span>}
                       {line?.issue === 'INSUFFICIENT_STOCK' && max > 0 && (
-                        <button type="button" className="remove" onClick={() => setQuantity(item.productId, max)}>
+                        <button type="button" className="remove" onClick={() => setQuantity(item.key, max)}>
                           Ajustar para {max}
                         </button>
                       )}
                       {' '}
-                      <button type="button" className="remove" onClick={() => remove(item.productId)}>
+                      <button type="button" className="remove" onClick={() => remove(item.key)}>
                         Remover
                       </button>
                     </div>
                     <div className="qty">
-                      <button type="button" onClick={() => setQuantity(item.productId, item.quantity - 1)} aria-label={`Diminuir quantidade de ${item.snapshot.name}`}>
+                      <button type="button" onClick={() => setQuantity(item.key, item.quantity - 1)} aria-label={`Diminuir quantidade de ${item.snapshot.name}`}>
                         −
                       </button>
                       <output aria-live="polite" aria-label={`Quantidade de ${item.snapshot.name}`}>
@@ -81,7 +84,7 @@ export function CartDrawer({ note }: { note: string }) {
                       </output>
                       <button
                         type="button"
-                        onClick={() => setQuantity(item.productId, item.quantity + 1)}
+                        onClick={() => setQuantity(item.key, item.quantity + 1)}
                         disabled={item.quantity >= max}
                         aria-label={`Aumentar quantidade de ${item.snapshot.name}`}
                       >

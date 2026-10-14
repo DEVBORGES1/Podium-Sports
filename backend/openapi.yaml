@@ -227,6 +227,7 @@ components:
       required: [productId, quantity]
       properties:
         productId: { type: string, format: uuid }
+        variantId: { type: [string, 'null'], format: uuid, description: Opção escolhida (tamanho, sabor…); obrigatória quando o produto tem variações }
         quantity: { type: integer, minimum: 1, maximum: 20 }
     OrderInput:
       type: object
@@ -314,7 +315,8 @@ paths:
       summary: Catálogo público com busca, filtros, ordenação e paginação
       parameters:
         - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: Busca sem acentos por nome, marca e categoria }
-        - { name: category, in: query, schema: { type: string }, description: Slug da categoria }
+        - { name: category, in: query, schema: { type: string }, description: Slug da categoria (a principal inclui as subcategorias) }
+        - { name: brand, in: query, schema: { type: string }, description: 'Uma ou mais marcas separadas por vírgula (ex.: Nike,Penalty)' }
         - { name: onSale, in: query, schema: { type: boolean } }
         - { name: featured, in: query, schema: { type: boolean } }
         - { name: minPrice, in: query, schema: { type: integer }, description: Centavos }
@@ -325,6 +327,14 @@ paths:
       responses:
         '200': { description: Página de produtos, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } }
         '400': { $ref: '#/components/responses/Error' }
+  /brands:
+    get:
+      tags: [Loja]
+      summary: Marcas com produtos à venda (filtro do catálogo), opcionalmente de uma categoria
+      parameters:
+        - { name: category, in: query, required: false, schema: { type: string }, description: Slug da categoria (a principal inclui as subcategorias) }
+      responses:
+        '200': { description: OK }
   /products/legacy-map:
     get:
       tags: [Loja]
@@ -478,6 +488,52 @@ paths:
         '201': { description: Criado }
         '400': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+  /admin/products/images/optimize:
+    post:
+      tags: [Admin · Produtos]
+      summary: Gera as versões leves (miniatura e média, WEBP) das fotos antigas, em lotes; repetir enquanto `remaining` > 0
+      security: [{ bearer: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, properties: { limit: { type: integer, minimum: 1, maximum: 30, default: 10 } } }
+      responses:
+        '200': { description: 'OK — { processed, failed, remaining }' }
+  /admin/products/{id}/variants:
+    put:
+      tags: [Admin · Produtos]
+      summary: Define as variações (tamanho, sabor…) do produto e o estoque de cada uma; lista vazia volta ao estoque único
+      description: >-
+        A lista é completa e ordenada: variações com `id` são mantidas, as que ficarem de fora são excluídas.
+        O estoque muda por `stockDelta` (diferença em relação ao saldo exibido), preservando reservas feitas nesse meio-tempo.
+      security: [{ bearer: [] }]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [variantType, variants]
+              properties:
+                variantType: { type: [string, 'null'], maxLength: 30, examples: [Tamanho] }
+                variants:
+                  type: array
+                  maxItems: 40
+                  items:
+                    type: object
+                    required: [label]
+                    properties:
+                      id: { type: string, format: uuid }
+                      label: { type: string, maxLength: 40 }
+                      isActive: { type: boolean, default: true }
+                      stockDelta: { type: integer, default: 0 }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
   /admin/products/podium:
     get:
       tags: [Admin · Produtos]
@@ -655,7 +711,7 @@ paths:
                   type: array
                   minItems: 1
                   maxItems: 100
-                  items: { type: object, required: [productId, delta], properties: { productId: { type: string, format: uuid }, delta: { type: integer, description: 'Positivo entra, negativo sai; diferente de zero.' } } }
+                  items: { type: object, required: [productId, delta], properties: { productId: { type: string, format: uuid }, variantId: { type: [string, 'null'], format: uuid, description: Obrigatória para produtos com estoque por variação }, delta: { type: integer, description: 'Positivo entra, negativo sai; diferente de zero.' } } }
       responses:
         '201': { description: Movimentações registradas }
         '409': { description: Estoque insuficiente em algum item (nenhum ajuste é aplicado), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

@@ -11,8 +11,15 @@ const phone = z
   .transform((v) => v.replace(/\D/g, ''))
   .pipe(z.string().regex(/^\d{10,13}$/, 'Informe um telefone com DDD.'));
 
+/** Variação escolhida (tamanho, sabor…); obrigatória quando o produto tem variações. */
+const variantId = z
+  .uuid('Opção inválida.')
+  .nullish()
+  .transform((v) => v ?? null);
+
 const item = z.object({
   productId: z.uuid('Produto inválido.'),
+  variantId,
   quantity: z
     .number()
     .int('Quantidade inválida.')
@@ -47,7 +54,7 @@ export const createOrderSchema = z
 
 export const quoteSchema = z.object({
   items: z
-    .array(z.object({ productId: z.uuid(), quantity: z.number().int().min(1).max(999) }))
+    .array(z.object({ productId: z.uuid(), variantId, quantity: z.number().int().min(1).max(999) }))
     .min(1)
     .max(50),
 });

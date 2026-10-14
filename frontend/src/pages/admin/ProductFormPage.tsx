@@ -5,12 +5,14 @@ import { Controller, useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import { CloseIcon, ExternalIcon, ImageIcon } from '../../components/admin/AdminIcons';
+import { ProductVariants } from '../../components/admin/ProductVariants';
 import { ConfirmDialog, FormField, MoneyInput, PageHeader, Switch, Tag } from '../../components/admin/ui';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import { useToast } from '../../contexts/ToastContext';
 import { useAdminMutation } from '../../hooks/useAdminMutation';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { adminApi, ApiError, request } from '../../lib/api';
+import { categoryOptions } from '../../lib/categories';
 import { brl } from '../../lib/format';
 import type { AdminCategory, AdminProduct } from '../../types/admin';
 
@@ -40,6 +42,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 const toNumber = (v: string) => (v === '' ? 0 : Math.max(0, Math.floor(Number(v)) || 0));
+
 
 export default function ProductFormPage() {
   const { id } = useParams();
@@ -166,8 +169,10 @@ export default function ProductFormPage() {
                 <FormField id="categoryId" label="Categoria" error={errors.categoryId?.message}>
                   <select id="categoryId" className="select" aria-invalid={!!errors.categoryId} {...register('categoryId')}>
                     <option value="">Selecione…</option>
-                    {categories.data?.map((c) => (
+                    {/* Categorias principais com as subcategorias logo abaixo. */}
+                    {categoryOptions(categories.data ?? []).map(({ category: c, depth }) => (
                       <option key={c.id} value={c.id}>
+                        {depth ? '   ↳ ' : ''}
                         {c.name}
                         {!c.isActive ? ' (oculta na loja)' : ''}
                       </option>
@@ -213,6 +218,15 @@ export default function ProductFormPage() {
                 <p className="notice">Salve o produto para enviar as fotos — a área de envio aparece aqui logo depois.</p>
               </section>
             )}
+
+            {!isNew && p ? (
+              <ProductVariants product={p} />
+            ) : (
+              <section className="adm-card">
+                <h2>Tamanhos, sabores e cores</h2>
+                <p className="notice">Salve o produto para cadastrar as opções (ex.: tamanhos 38 a 44), cada uma com seu estoque.</p>
+              </section>
+            )}
           </div>
 
           <div className="form-side">
@@ -227,9 +241,17 @@ export default function ProductFormPage() {
               <h2>5. Estoque</h2>
               <div style={{ display: 'grid', gap: 12 }}>
                 {isNew ? (
-                  <FormField id="initialStock" label="Quantidade em estoque" hint="Quantas unidades a loja tem agora. Fica registrado como carga inicial.">
+                  <FormField id="initialStock" label="Quantidade em estoque" hint="Quantas unidades a loja tem agora. Fica registrado como carga inicial. Se o produto tiver tamanhos, deixe 0 e lance o estoque de cada tamanho depois de salvar.">
                     <input id="initialStock" className="input" type="number" inputMode="numeric" min={0} {...register('initialStock', { setValueAs: toNumber })} />
                   </FormField>
+                ) : p?.variants?.length ? (
+                  <p className="notice">
+                    Estoque por {(p.variantType ?? 'opção').toLowerCase()}: <b>{p.stockQuantity}</b> no total. Ajuste cada opção na seção <b>{p.variantType ?? 'Opções'}</b> ou em{' '}
+                    <Link to={`/admin/inventory?q=${encodeURIComponent(p.name)}`} className="link-btn">
+                      Estoque
+                    </Link>
+                    .
+                  </p>
                 ) : (
                   <p className="notice">
                     Saldo atual: <b>{p?.stockQuantity}</b>. Para adicionar ou retirar unidades use{' '}
@@ -376,7 +398,7 @@ function ProductImages({ product }: { product: AdminProduct }) {
         <div className="images-grid" style={{ marginTop: 12 }}>
           {images.map((img, i) => (
             <div key={img.id} className={`img-tile ${img.isPrimary ? 'primary' : ''}`}>
-              <img src={img.url} alt={img.altText ?? ''} />
+              <img src={img.thumbUrl ?? img.url} alt={img.altText ?? ''} />
               <div className="meta">
                 {img.isPrimary && <Tag tone="gold">Principal</Tag>}
                 <label className="sr-only" htmlFor={`alt-${img.id}`}>

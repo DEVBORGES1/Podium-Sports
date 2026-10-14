@@ -88,7 +88,7 @@ export default function HomePage() {
   usePageMeta({ title: `${s.storeName} · Artigos esportivos em Videira, SC`, path: '/' });
   useReveal(mainRef);
   const home = s.content.home;
-  const all = categories.data ?? [];
+  const all = (categories.data ?? []).filter((c) => !c.parentId);
   const tiles = all.filter((c) => c.showOnHome);
   const tabs = [
     ...(home.showOnSale ? [{ id: 'ofertas', label: 'Ofertas', query: { onSale: true, pageSize: 5 }, moreLink: '/produtos?ofertas=1' }] : []),
@@ -108,7 +108,7 @@ export default function HomePage() {
         {home.showCategories && tiles.length > 0 && <CategoriesSection tiles={tiles} others={all.filter((c) => !c.showOnHome)} />}
         <BrandBanner data={s.content.brandBanner} />
         {tabs.length > 0 && <Showcase tabs={tabs} />}
-        {home.showCatalog && categories.data && <HomeCatalog categories={categories.data} />}
+        {home.showCatalog && categories.data && <HomeCatalog categories={all} />}
         {categories.isError && <EmptyState title="Categorias indisponíveis" />}
         <CtaBand data={s.content.cta} whatsappNumber={s.whatsappNumber} greeting={s.whatsappGreeting} storeName={s.storeName} />
       </div>

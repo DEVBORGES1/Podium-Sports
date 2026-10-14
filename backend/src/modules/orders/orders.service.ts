@@ -38,28 +38,54 @@ function tokenMatches(orderId: string, token: string) {
   return expected.length === given.length && timingSafeEqual(expected, given);
 }
 
-/** Soma quantidades repetidas do mesmo produto. */
-function mergeItems(items: { productId: string; quantity: number }[]) {
-  const map = new Map<string, number>();
-  for (const i of items) map.set(i.productId, (map.get(i.productId) ?? 0) + i.quantity);
-  return [...map.entries()].map(([productId, quantity]) => ({ productId, quantity }));
+interface CartLine {
+  productId: string;
+  variantId: string | null;
+  quantity: number;
+}
+
+const lineKey = (i: { productId: string | null; variantId: string | null }) => `${i.productId}:${i.variantId ?? ''}`;
+
+/** Soma quantidades repetidas do mesmo produto (e da mesma variação). */
+function mergeItems(items: CartLine[]): CartLine[] {
+  const map = new Map<string, CartLine>();
+  for (const i of items) {
+    const key = lineKey(i);
+    const current = map.get(key);
+    map.set(key, { productId: i.productId, variantId: i.variantId, quantity: (current?.quantity ?? 0) + i.quantity });
+  }
+  return [...map.values()];
 }
 
 async function loadProducts(ids: string[], now: Date) {
-  const products = await prisma.product.findMany({ where: { id: { in: ids } }, include: productInclude(now) });
+  const products = await prisma.product.findMany({ where: { id: { in: [...new Set(ids)] } }, include: productInclude(now) });
   return new Map(products.map((p) => [p.id, p]));
 }
 
-type LineIssue = 'NOT_FOUND' | 'UNAVAILABLE' | 'OUT_OF_STOCK' | 'INSUFFICIENT_STOCK' | 'QUANTITY_LIMIT' | null;
+type LineIssue = 'NOT_FOUND' | 'UNAVAILABLE' | 'VARIANT_REQUIRED' | 'OUT_OF_STOCK' | 'INSUFFICIENT_STOCK' | 'QUANTITY_LIMIT' | null;
 
-function lineIssue(product: ProductWithRelations | undefined, quantity: number): LineIssue {
+/** Variação pedida (quando o produto tem variações) e o estoque que vale para a linha. */
+function lineStock(product: ProductWithRelations, variantId: string | null) {
+  if (product.variants.length === 0) return variantId ? null : { variant: null, stock: product.stockQuantity };
+  const variant = variantId ? product.variants.find((v) => v.id === variantId && v.isActive) : undefined;
+  return variant ? { variant, stock: variant.stockQuantity } : null;
+}
+
+function lineIssue(product: ProductWithRelations | undefined, variantId: string | null, quantity: number): LineIssue {
   if (!product) return 'NOT_FOUND';
-  if (!product.isActive || !product.category.isActive) return 'UNAVAILABLE';
-  if (product.stockQuantity <= 0) return 'OUT_OF_STOCK';
+  const parent = product.category.parent;
+  if (!product.isActive || !product.category.isActive || (parent && !parent.isActive)) return 'UNAVAILABLE';
+  if (product.variants.length > 0 && !variantId) return 'VARIANT_REQUIRED';
+  const line = lineStock(product, variantId);
+  if (!line) return 'UNAVAILABLE';
+  if (line.stock <= 0) return 'OUT_OF_STOCK';
   if (quantity > MAX_QUANTITY_PER_ITEM) return 'QUANTITY_LIMIT';
-  if (quantity > product.stockQuantity) return 'INSUFFICIENT_STOCK';
+  if (quantity > line.stock) return 'INSUFFICIENT_STOCK';
   return null;
 }
+
+/** Texto da variação gravado no pedido (ex.: "Tamanho: 40"). */
+const variantText = (product: ProductWithRelations, label: string) => `${product.variantType ?? 'Opção'}: ${label}`;
 
 /** Recalcula a sacola com preços e disponibilidade oficiais (usado pela sacola e pelo checkout). */
 export async function quoteCart(input: z.infer<typeof quoteSchema>) {
@@ -71,27 +97,31 @@ export async function quoteCart(input: z.infer<typeof quoteSchema>) {
   );
   let subtotal = 0;
   let total = 0;
-  const lines = items.map(({ productId, quantity }) => {
+  const lines = items.map(({ productId, variantId, quantity }) => {
     const product = products.get(productId);
-    const issue = lineIssue(product, quantity);
+    const issue = lineIssue(product, variantId, quantity);
     if (!product || issue === 'NOT_FOUND' || issue === 'UNAVAILABLE') {
-      return { productId, quantity, issue, name: product?.name ?? null, available: false };
+      return { productId, variantId, quantity, issue, name: product?.name ?? null, available: false };
     }
     const price = priceOf(product, now);
-    const maxQuantity = Math.max(0, Math.min(product.stockQuantity, MAX_QUANTITY_PER_ITEM));
+    const stock = lineStock(product, variantId);
+    const maxQuantity = Math.max(0, Math.min(stock?.stock ?? 0, MAX_QUANTITY_PER_ITEM));
     const available = issue === null;
     if (available) {
       subtotal += price.regularPriceCents * quantity;
       total += price.priceCents * quantity;
     }
+    const image = product.images[0];
     return {
       productId,
+      variantId,
+      variantLabel: stock?.variant ? variantText(product, stock.variant.label) : null,
       quantity,
       issue,
       available,
       name: product.name,
       slug: product.slug,
-      imageUrl: mediaUrl(product.images[0]?.storagePath),
+      imageUrl: mediaUrl(image?.thumbPath ?? image?.storagePath),
       unitPriceCents: price.priceCents,
       regularUnitPriceCents: price.regularPriceCents,
       subtotalCents: price.priceCents * quantity,
@@ -129,6 +159,7 @@ export function toPublicOrder(order: OrderWithItems) {
     notes: order.notes,
     items: order.items.map((i) => ({
       productName: i.productName,
+      variantLabel: i.variantLabel,
       quantity: i.quantity,
       unitPriceCents: i.unitPriceCents,
       originalUnitPriceCents: i.originalUnitPriceCents,
@@ -141,19 +172,19 @@ export function toPublicOrder(order: OrderWithItems) {
   };
 }
 
-function sameItems(order: OrderWithItems, items: { productId: string; quantity: number }[]) {
+function sameItems(order: OrderWithItems, items: CartLine[]) {
   const a = order.items
-    .map((i) => `${i.productId}:${i.quantity}`)
+    .map((i) => `${lineKey(i)}:${i.quantity}`)
     .sort()
     .join(',');
   const b = items
-    .map((i) => `${i.productId}:${i.quantity}`)
+    .map((i) => `${lineKey(i)}:${i.quantity}`)
     .sort()
     .join(',');
   return a === b;
 }
 
-async function replayIdempotent(idempotencyKey: string, items: { productId: string; quantity: number }[]) {
+async function replayIdempotent(idempotencyKey: string, items: CartLine[]) {
   const existing = await prisma.order.findUnique({ where: { idempotencyKey }, include: { items: true } });
   if (!existing) return null;
   if (!sameItems(existing, items)) {
@@ -185,26 +216,30 @@ export async function createOrder(input: CreateOrderInput, idempotencyKey: strin
     now,
   );
   const problems = items
-    .map((i) => ({ productId: i.productId, issue: lineIssue(products.get(i.productId), i.quantity), product: products.get(i.productId) }))
+    .map((i) => ({ ...i, issue: lineIssue(products.get(i.productId), i.variantId, i.quantity), product: products.get(i.productId) }))
     .filter((p) => p.issue !== null);
   if (problems.length > 0) {
     throw unprocessable(
       'Alguns itens da sacola não estão disponíveis. Revise a sacola.',
       problems.map((p) => ({
         productId: p.productId,
+        variantId: p.variantId,
         name: p.product?.name ?? null,
         issue: p.issue,
-        available: p.product ? Math.max(0, p.product.stockQuantity) : 0,
+        available: p.product ? Math.max(0, lineStock(p.product, p.variantId)?.stock ?? 0) : 0,
       })),
       'ITEMS_UNAVAILABLE',
     );
   }
 
-  const lines = items.map(({ productId, quantity }) => {
+  const lines = items.map(({ productId, variantId, quantity }) => {
     const product = products.get(productId)!;
     const price = priceOf(product, now);
+    const variant = lineStock(product, variantId)?.variant ?? null;
     return {
       productId,
+      variantId: variant?.id ?? null,
+      variantLabel: variant ? variantText(product, variant.label) : null,
       productName: product.name,
       unitPriceCents: price.priceCents,
       originalUnitPriceCents: price.regularPriceCents,
@@ -240,10 +275,11 @@ export async function createOrder(input: CreateOrderInput, idempotencyKey: strin
           },
           include: { items: true },
         });
-        // Ordem fixa por produto evita deadlock entre pedidos simultâneos.
-        for (const line of [...lines].sort((a, b) => a.productId.localeCompare(b.productId))) {
+        // Ordem fixa por produto (e variação) evita deadlock entre pedidos simultâneos.
+        for (const line of [...lines].sort((a, b) => lineKey(a).localeCompare(lineKey(b)))) {
           await applyStockChange(tx, {
             productId: line.productId,
+            variantId: line.variantId,
             delta: -line.quantity,
             type: 'ORDER_RESERVATION',
             reason: `Reserva do pedido ${created.code}`,
@@ -313,9 +349,11 @@ async function closeOrder(
     throw conflict('O pedido foi alterado por outra operação ou não pode mais ser cancelado.', undefined, 'ORDER_STATE_CHANGED');
   }
   const items = await tx.orderItem.findMany({ where: { orderId: order.id, productId: { not: null } } });
-  for (const item of items.sort((a, b) => a.productId!.localeCompare(b.productId!))) {
+  for (const item of items.sort((a, b) => lineKey(a).localeCompare(lineKey(b)))) {
+    // Variação excluída depois do pedido (o produto deixou de ter variações): volta para o estoque único.
     await applyStockChange(tx, {
       productId: item.productId!,
+      variantId: item.variantId,
       delta: item.quantity,
       type: 'ORDER_RELEASE',
       reason: `${toStatus === 'EXPIRED' ? 'Expiração' : 'Cancelamento'} do pedido ${order.code}`,
@@ -449,7 +487,7 @@ export async function listAdminOrders(query: z.infer<typeof adminOrdersQuery>) {
       where,
       include: {
         _count: { select: { items: true } },
-        items: { select: { productName: true, quantity: true }, orderBy: { subtotalCents: 'desc' }, take: 3 },
+        items: { select: { productName: true, variantLabel: true, quantity: true }, orderBy: { subtotalCents: 'desc' }, take: 3 },
       },
       orderBy: { createdAt: 'desc' },
       skip: (query.page - 1) * query.pageSize,
@@ -524,6 +562,8 @@ export async function getAdminOrder(id: string) {
       productId: i.productId,
       productSlug: i.product?.slug ?? null,
       productName: i.productName,
+      variantId: i.variantId,
+      variantLabel: i.variantLabel,
       quantity: i.quantity,
       unitPriceCents: i.unitPriceCents,
       originalUnitPriceCents: i.originalUnitPriceCents,

@@ -8,6 +8,7 @@ import { CategoryGlyph } from '../../components/ui/Icons';
 import { useAdminMutation } from '../../hooks/useAdminMutation';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { adminApi, ApiError, errorMessage } from '../../lib/api';
+import { categoryOptions } from '../../lib/categories';
 import type { AdminCategory } from '../../types/admin';
 import type { CategoryIcon } from '../../types/api';
 
@@ -40,6 +41,8 @@ const schema = z.object({
   sortOrder: z.number({ error: 'Informe um número.' }).int('Use um número inteiro.').min(0, 'Não pode ser negativo.').max(100_000),
   isActive: z.boolean(),
   showOnHome: z.boolean(),
+  /** '' = categoria principal. */
+  parentId: z.string(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -89,7 +92,8 @@ function CategorySwatch({ icon, colorFrom, colorTo, imageUrl, size = 44 }: { ico
 
 export default function CategoriesPage() {
   useDocumentTitle('Categorias');
-  const [editing, setEditing] = useState<AdminCategory | 'new' | null>(null);
+  // 'new' = categoria principal; { parent } = nova subcategoria dentro dela.
+  const [editing, setEditing] = useState<AdminCategory | 'new' | { parent: AdminCategory } | null>(null);
   const [deleting, setDeleting] = useState<AdminCategory | null>(null);
 
   const categories = useQuery({ queryKey: ['admin', 'categories'], queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items) });
@@ -110,8 +114,13 @@ export default function CategoriesPage() {
     onSuccess: () => setDeleting(null),
   });
 
-  const move = (index: number, dir: -1 | 1) => {
-    const patches = reorderPatches(list, index, dir);
+  // Lista em árvore: cada principal seguida das suas subcategorias. A ordem muda só entre irmãs.
+  const tree = categoryOptions(list);
+  const depthOf = new Map(tree.map((t) => [t.category.id, t.depth]));
+  const siblingsOf = (c: AdminCategory) => tree.filter((t) => t.depth === depthOf.get(c.id) && (t.depth === 0 || t.category.parentId === c.parentId)).map((t) => t.category);
+  const move = (c: AdminCategory, dir: -1 | 1) => {
+    const siblings = siblingsOf(c);
+    const patches = reorderPatches(siblings, siblings.indexOf(c), dir);
     if (patches.length) reorder.mutate(patches);
   };
   const nextSortOrder = list.reduce((max, c) => Math.max(max, c.sortOrder), 0) + 10;
@@ -151,19 +160,22 @@ export default function CategoriesPage() {
             {categories.isPending || categories.isError || list.length === 0 ? (
               <TableState colSpan={5} loading={categories.isPending} error={categories.error} empty="Nenhuma categoria cadastrada." onRetry={() => categories.refetch()} />
             ) : (
-              list.map((c, i) => (
+              tree.map(({ category: c, depth }) => {
+                const siblings = siblingsOf(c);
+                const i = siblings.indexOf(c);
+                return (
                 <tr key={c.id}>
                   <td className="num">
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <span>{c.sortOrder}</span>
-                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Mover ${c.name} para cima`}>
+                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(c, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Mover ${c.name} para cima`}>
                         ↑
                       </button>
                       <button
                         type="button"
                         className="btn btn-outline btn-sm btn-icon"
-                        onClick={() => move(i, 1)}
-                        disabled={i === list.length - 1 || reorder.isPending}
+                        onClick={() => move(c, 1)}
+                        disabled={i === siblings.length - 1 || reorder.isPending}
                         aria-label={`Mover ${c.name} para baixo`}
                       >
                         ↓
@@ -171,11 +183,19 @@ export default function CategoriesPage() {
                     </div>
                   </td>
                   <td>
-                    <div className="cell-main">
+                    <div className="cell-main" style={depth ? { paddingLeft: 28 } : undefined}>
+                      {depth > 0 && (
+                        <span className="muted" aria-hidden>
+                          ↳
+                        </span>
+                      )}
                       <CategorySwatch icon={c.icon} colorFrom={c.colorFrom} colorTo={c.colorTo} imageUrl={c.imageUrl} />
                       <div>
                         <b>{c.name}</b>
-                        <div className="muted">/{c.slug}</div>
+                        <div className="muted">
+                          /{c.slug}
+                          {depth > 0 && ' · subcategoria'}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -191,6 +211,11 @@ export default function CategoriesPage() {
                       <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditing(c)}>
                         Editar
                       </button>
+                      {depth === 0 && (
+                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => setEditing({ parent: c })} aria-label={`Nova subcategoria em ${c.name}`}>
+                          + Sub
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="btn btn-danger-outline btn-sm"
@@ -204,13 +229,23 @@ export default function CategoriesPage() {
                     </div>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
-      {editing && <CategoryFormModal key={editing === 'new' ? 'new' : editing.id} category={editing === 'new' ? null : editing} defaultSortOrder={nextSortOrder} onClose={() => setEditing(null)} />}
+      {editing && (
+        <CategoryFormModal
+          key={editing === 'new' ? 'new' : 'parent' in editing ? `sub-${editing.parent.id}` : editing.id}
+          category={editing === 'new' || 'parent' in editing ? null : editing}
+          parent={editing !== 'new' && 'parent' in editing ? editing.parent : null}
+          all={list}
+          defaultSortOrder={nextSortOrder}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
       {deleting && (
         <ConfirmDialog
@@ -276,7 +311,20 @@ function ColorField({ id, label, name, control, error }: { id: string; label: st
   );
 }
 
-function CategoryFormModal({ category, defaultSortOrder, onClose }: { category: AdminCategory | null; defaultSortOrder: number; onClose: () => void }) {
+function CategoryFormModal({
+  category,
+  parent,
+  all,
+  defaultSortOrder,
+  onClose,
+}: {
+  category: AdminCategory | null;
+  /** Nova subcategoria: herda ícone e cores da categoria principal. */
+  parent: AdminCategory | null;
+  all: AdminCategory[];
+  defaultSortOrder: number;
+  onClose: () => void;
+}) {
   const isNew = !category;
   const { register, control, handleSubmit, formState, setError, setValue } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -293,22 +341,27 @@ function CategoryFormModal({ category, defaultSortOrder, onClose }: { category: 
           sortOrder: category.sortOrder,
           isActive: category.isActive,
           showOnHome: category.showOnHome,
+          parentId: category.parentId ?? '',
         }
       : {
           name: '',
           slug: '',
           description: '',
-          icon: 'dumbbell',
-          colorFrom: '#44464d',
-          colorTo: '#121214',
+          icon: parent?.icon ?? 'dumbbell',
+          colorFrom: parent?.colorFrom ?? '#44464d',
+          colorTo: parent?.colorTo ?? '#121214',
           imagePath: null,
           imageUrl: null,
           sortOrder: defaultSortOrder,
           isActive: true,
           showOnHome: false,
+          parentId: parent?.id ?? '',
         },
   });
   const errors = formState.errors;
+  // Só categorias principais podem receber subcategorias (um nível).
+  const hasChildren = !!category && all.some((c) => c.parentId === category.id);
+  const parentChoices = all.filter((c) => !c.parentId && c.id !== category?.id);
   const [icon, colorFrom, colorTo, imageUrl] = useWatch({ control, name: ['icon', 'colorFrom', 'colorTo', 'imageUrl'] });
 
   const save = useAdminMutation(
@@ -323,6 +376,7 @@ function CategoryFormModal({ category, defaultSortOrder, onClose }: { category: 
         sortOrder: v.sortOrder,
         isActive: v.isActive,
         showOnHome: v.showOnHome,
+        parentId: v.parentId || null,
         ...(v.slug ? { slug: v.slug } : {}),
       };
       return isNew ? adminApi.post<AdminCategory>('/categories', body) : adminApi.patch<AdminCategory>(`/categories/${category.id}`, body);
@@ -346,7 +400,7 @@ function CategoryFormModal({ category, defaultSortOrder, onClose }: { category: 
 
   return (
     <Modal
-      title={isNew ? 'Nova categoria' : `Editar categoria`}
+      title={isNew ? (parent ? `Nova subcategoria em ${parent.name}` : 'Nova categoria') : `Editar categoria`}
       onClose={onClose}
       wide
       footer={
@@ -366,6 +420,22 @@ function CategoryFormModal({ category, defaultSortOrder, onClose }: { category: 
         </FormField>
         <FormField id="cat-slug" label="Endereço (slug)" error={errors.slug?.message} hint={isNew ? 'Deixe em branco para gerar a partir do nome.' : 'Usado no link da categoria na loja.'}>
           <input id="cat-slug" className="input" aria-invalid={!!errors.slug} placeholder={isNew ? 'gerado automaticamente' : undefined} {...register('slug')} />
+        </FormField>
+        <FormField
+          id="cat-parent"
+          label="Dentro de"
+          error={errors.parentId?.message}
+          className="full"
+          hint={hasChildren ? 'Esta categoria tem subcategorias, então continua sendo principal.' : 'Escolha uma categoria principal para transformar esta em subcategoria (ex.: Acessórios › Natação).'}
+        >
+          <select id="cat-parent" className="select" disabled={hasChildren} {...register('parentId')}>
+            <option value="">Nenhuma (categoria principal)</option>
+            {parentChoices.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </FormField>
         <FormField id="cat-description" label="Descrição" error={errors.description?.message} className="full">
           <textarea id="cat-description" className="textarea" rows={3} {...register('description')} />

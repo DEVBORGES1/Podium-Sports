@@ -85,6 +85,55 @@ describe('produto e sacola', () => {
     expect(plus).toBeDisabled();
   });
 
+  it('produto com tamanhos exige a escolha e leva a opção para a sacola', async () => {
+    const shoe = product({
+      variantType: 'Tamanho',
+      variants: [
+        { id: 'v38', label: '38', available: false, maxQuantity: 0 },
+        { id: 'v40', label: '40', available: true, maxQuantity: 3 },
+      ],
+    });
+    server.use(http.get(`${API}/products/:slug`, () => HttpResponse.json({ ...shoe, related: [] })));
+    renderStore('/produto/chuteira-f50-messi');
+    await screen.findByRole('heading', { name: 'Chuteira F50 Messi' });
+    expect(screen.getByRole('radio', { name: /^38/ })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar à sacola' }));
+    expect(await screen.findByText('Escolha tamanho para continuar.')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(CART_KEY) ?? '{"items":[]}').items).toEqual([]);
+
+    await userEvent.click(screen.getByRole('radio', { name: '40' }));
+    expect(screen.getByRole('radio', { name: '40' })).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar à sacola' }));
+    expect(await screen.findByText('Chuteira F50 Messi (Tamanho: 40) na sacola')).toBeInTheDocument();
+    const saved = JSON.parse(localStorage.getItem(CART_KEY)!).items;
+    expect(saved).toMatchObject([{ productId: shoe.id, variantId: 'v40', variantLabel: 'Tamanho: 40', quantity: 1 }]);
+  });
+
+  it('no catálogo, produto com tamanhos leva à página para escolher', async () => {
+    server.use(
+      http.get(`${API}/products`, () =>
+        HttpResponse.json({ items: [product({ variantType: 'Numeração', variants: [{ id: 'v40', label: '40', available: true, maxQuantity: 2 }] })], page: 1, pageSize: 20, total: 1, totalPages: 1 }),
+      ),
+    );
+    renderStore('/produtos');
+    const link = await screen.findByRole('link', { name: 'Escolher numeração de Chuteira F50 Messi' });
+    expect(link).toHaveAttribute('href', '/produto/chuteira-f50-messi');
+  });
+
+  it('filtra por marca', async () => {
+    const seen: string[] = [];
+    server.use(
+      http.get(`${API}/products`, ({ request }) => {
+        seen.push(new URL(request.url).search);
+        return HttpResponse.json({ items: [product()], page: 1, pageSize: 20, total: 1, totalPages: 1 });
+      }),
+    );
+    renderStore('/produtos');
+    await userEvent.click(await screen.findByRole('checkbox', { name: /Adidas/ }));
+    await waitFor(() => expect(seen.some((s) => s.includes('brand=Adidas'))).toBe(true));
+    expect(screen.getByRole('button', { name: 'Remover filtro Adidas' })).toBeInTheDocument();
+  });
+
   it('produto inexistente mostra estado de não encontrado', async () => {
     renderStore('/produto/nao-existe');
     expect(await screen.findByText('Produto não encontrado')).toBeInTheDocument();

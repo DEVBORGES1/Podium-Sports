@@ -55,7 +55,8 @@ export default function StoreLayout() {
     );
   }
   const s = settings.data;
-  const cats = categories.data ?? [];
+  // Menu e rodapé: só as categorias principais (as subcategorias aparecem dentro do catálogo).
+  const cats = (categories.data ?? []).filter((c) => !c.parentId);
 
   // No checkout e na confirmação o WhatsApp e a sacola já são a ação principal da página.
   const ordering = /^\/(checkout|pedido\/)/.test(pathname);

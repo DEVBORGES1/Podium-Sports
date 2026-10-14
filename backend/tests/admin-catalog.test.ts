@@ -62,7 +62,7 @@ describe('produtos', () => {
   it('exclui produto sem pedidos e remove imagens do Storage', async () => {
     const p = await createProduct();
     await api(app).post(`/api/v1/admin/products/${p.id}/images`).set('Authorization', admin.auth).attach('images', PNG_1PX, 'a.png');
-    expect(mem.files.size).toBe(1);
+    expect(mem.files.size).toBe(3); // original + miniatura + média
     expect((await api(app).delete(`/api/v1/admin/products/${p.id}`).set('Authorization', admin.auth)).status).toBe(204);
     expect(mem.files.size).toBe(0);
     expect(await prisma.product.count()).toBe(0);
@@ -128,7 +128,7 @@ describe('imagens', () => {
     expect(up.body.images).toHaveLength(2);
     expect(up.body.images[0].isPrimary).toBe(true);
     const [first, second] = up.body.images;
-    for (const path of mem.files.keys()) expect(path).toMatch(/^products\/[0-9a-f-]{36}\.png$/);
+    for (const path of mem.files.keys()) expect(path).toMatch(/^products\/[0-9a-f-]{36}(\.png|-thumb\.webp|-medium\.webp)$/);
 
     const primary = await api(app).patch(`/api/v1/admin/products/${p.id}/images/${second.id}`).set('Authorization', admin.auth).send({ isPrimary: true, altText: 'Lateral' });
     expect(primary.body.images[0]).toMatchObject({ id: second.id, isPrimary: true, altText: 'Lateral' });
@@ -140,7 +140,7 @@ describe('imagens', () => {
     const del = await api(app).delete(`/api/v1/admin/products/${p.id}/images/${second.id}`).set('Authorization', admin.auth);
     expect(del.body.images).toHaveLength(1);
     expect(del.body.images[0]).toMatchObject({ id: first.id, isPrimary: true });
-    expect(mem.files.size).toBe(1);
+    expect(mem.files.size).toBe(3); // a foto restante: original + miniatura + média
 
     const pub = await api(app).get(`/api/v1/products/${p.slug}`);
     expect(pub.body.imageUrl).toMatch(/^https:\/\/storage\.test\/products\//);

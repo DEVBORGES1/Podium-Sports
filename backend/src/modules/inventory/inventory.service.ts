@@ -3,7 +3,7 @@ import type { z } from 'zod';
 import { audit } from '../../lib/audit.js';
 import { notFound, unprocessable } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
-import { applyStockChange, lockStock } from '../../lib/stock.js';
+import { applyStockChange, assertStockTarget, lockStock } from '../../lib/stock.js';
 import { normalizeSearch } from '../../lib/text.js';
 import { paged } from '../../lib/validation.js';
 import { OPEN_ORDER_STATUSES } from '../orders/orders.labels.js';
@@ -50,18 +50,48 @@ export async function listInventory(query: z.infer<typeof inventoryListQuery>) {
        LIMIT ${query.pageSize} OFFSET ${offset}`,
   ]);
 
-  const items = rows.map((r) => ({
-    productId: r.id,
-    name: r.name,
-    slug: r.slug,
-    categoryName: r.category_name,
-    isActive: r.is_active,
-    stockQuantity: r.stock_quantity,
-    minStock: r.min_stock,
-    reservedInOpenOrders: Number(r.reserved),
-    status: availabilityOf(r.stock_quantity, r.min_stock),
-    lastMovementAt: r.last_movement_at,
-  }));
+  // Variações dos produtos da página, com o que está reservado em pedidos abertos de cada uma.
+  const ids = rows.map((r) => r.id);
+  const variantRows = ids.length
+    ? await prisma.$queryRaw<{ id: string; product_id: string; label: string; stock_quantity: number; is_active: boolean; reserved: bigint }[]>`
+        SELECT v.id, v.product_id, v.label, v.stock_quantity, v.is_active,
+               COALESCE((
+                 SELECT SUM(oi.quantity) FROM order_items oi JOIN orders o ON o.id = oi.order_id
+                  WHERE oi.variant_id = v.id
+                    AND o.status::text IN (${Prisma.join([...OPEN_ORDER_STATUSES])})
+               ), 0)::bigint AS reserved
+          FROM product_variants v
+         WHERE v.product_id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+         ORDER BY v.sort_order ASC, v.created_at ASC`
+    : [];
+  const variantsByProduct = new Map<string, typeof variantRows>();
+  for (const v of variantRows) variantsByProduct.set(v.product_id, [...(variantsByProduct.get(v.product_id) ?? []), v]);
+  const typeRows = ids.length ? await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, variantType: true } }) : [];
+  const typeOf = new Map(typeRows.map((t) => [t.id, t.variantType]));
+
+  const items = rows.map((r) => {
+    const variants = variantsByProduct.get(r.id) ?? [];
+    return {
+      productId: r.id,
+      name: r.name,
+      slug: r.slug,
+      categoryName: r.category_name,
+      isActive: r.is_active,
+      stockQuantity: r.stock_quantity,
+      minStock: r.min_stock,
+      reservedInOpenOrders: Number(r.reserved),
+      status: availabilityOf(r.stock_quantity, r.min_stock),
+      lastMovementAt: r.last_movement_at,
+      variantType: variants.length > 0 ? (typeOf.get(r.id) ?? 'Opção') : null,
+      variants: variants.map((v) => ({
+        id: v.id,
+        label: v.label,
+        stockQuantity: v.stock_quantity,
+        isActive: v.is_active,
+        reservedInOpenOrders: Number(v.reserved),
+      })),
+    };
+  });
   return paged(items, Number(countRows[0]?.total ?? 0), query.page, query.pageSize);
 }
 
@@ -77,7 +107,8 @@ export async function listMovements(query: z.infer<typeof movementsQuery>) {
     prisma.inventoryMovement.findMany({
       where,
       include: {
-        product: { select: { id: true, name: true } },
+        product: { select: { id: true, name: true, variantType: true } },
+        variant: { select: { id: true, label: true } },
         profile: { select: { id: true, name: true } },
         order: { select: { id: true, code: true } },
       },
@@ -95,7 +126,9 @@ export async function listMovements(query: z.infer<typeof movementsQuery>) {
       balanceAfter: m.balanceAfter,
       reason: m.reason,
       createdAt: m.createdAt,
-      product: m.product,
+      product: { id: m.product.id, name: m.product.name },
+      /** Saldos antes/depois são os da variação quando houver. */
+      variant: m.variant ? { id: m.variant.id, label: m.variant.label, type: m.product.variantType ?? 'Opção' } : null,
       user: m.profile,
       order: m.order,
     })),
@@ -107,9 +140,10 @@ export async function listMovements(query: z.infer<typeof movementsQuery>) {
 
 export async function createMovement(input: z.infer<typeof createMovementSchema>, profileId: string) {
   return prisma.$transaction(async (tx) => {
+    await assertStockTarget(tx, input.productId, input.variantId);
     let delta: number;
     if (input.type === 'ADJUSTMENT') {
-      const current = await lockStock(tx, input.productId);
+      const current = await lockStock(tx, input.productId, input.variantId);
       delta = input.newBalance - current;
       if (delta === 0) throw unprocessable(`O saldo já é ${current}. Nenhum ajuste necessário.`);
     } else {
@@ -117,6 +151,7 @@ export async function createMovement(input: z.infer<typeof createMovementSchema>
     }
     const movement = await applyStockChange(tx, {
       productId: input.productId,
+      variantId: input.variantId,
       delta,
       type: input.type,
       reason: input.reason || (input.type === 'IN' ? 'Entrada de mercadoria' : null),
@@ -139,13 +174,16 @@ export async function createMovement(input: z.infer<typeof createMovementSchema>
 /** Grava vários ajustes de uma vez (tabela de estoque). Se um falhar (ex.: saldo insuficiente), nenhum é aplicado. */
 export async function createMovementsBatch(input: z.infer<typeof batchMovementsSchema>, profileId: string) {
   // Ordem fixa de travamento das linhas: dois lotes simultâneos nunca se bloqueiam mutuamente.
-  const items = [...input.items].sort((a, b) => a.productId.localeCompare(b.productId));
+  const key = (i: { productId: string; variantId: string | null }) => `${i.productId}:${i.variantId ?? ''}`;
+  const items = [...input.items].sort((a, b) => key(a).localeCompare(key(b)));
   return prisma.$transaction(async (tx) => {
     const movements = [];
     for (const item of items) {
+      await assertStockTarget(tx, item.productId, item.variantId);
       const type = item.delta > 0 ? 'IN' : 'OUT';
       const movement = await applyStockChange(tx, {
         productId: item.productId,
+        variantId: item.variantId,
         delta: item.delta,
         type,
         reason: input.reason || (type === 'IN' ? 'Entrada de mercadoria' : null),

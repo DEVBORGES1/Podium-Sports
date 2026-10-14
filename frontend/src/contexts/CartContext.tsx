@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { cartCount, cartReducer, loadCart, saveCart, snapshotOf, CART_KEY, type CartItem } from '../lib/cart';
+import { cartCount, cartKey, cartReducer, loadCart, saveCart, snapshotOf, variantText, CART_KEY, type CartItem } from '../lib/cart';
 import { storeApi } from '../lib/store-api';
-import type { Product } from '../types/api';
+import type { Product, ProductVariant } from '../types/api';
 import { useToast } from './ToastContext';
 
 interface CartApi {
@@ -11,9 +11,11 @@ interface CartApi {
   isOpen: boolean;
   open: () => void;
   close: () => void;
-  add: (product: Product, quantity?: number, origin?: HTMLElement | null) => boolean;
-  setQuantity: (productId: string, quantity: number) => void;
-  remove: (productId: string) => void;
+  /** Produto com variações exige a opção escolhida (variant). */
+  add: (product: Product, quantity?: number, origin?: HTMLElement | null, variant?: ProductVariant | null) => boolean;
+  /** key = linha da sacola (produto + opção). */
+  setQuantity: (key: string, quantity: number) => void;
+  remove: (key: string) => void;
   clear: () => void;
   cartButtonRef: RefObject<HTMLButtonElement | null>;
 }
@@ -72,8 +74,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const migrated: CartItem[] = [];
         products.forEach((p, idx) => {
           const qty = legacy[map[idx]!.legacyId] ?? 0;
-          if (p && p.maxQuantity > 0 && qty > 0) {
-            migrated.push({ productId: p.id, quantity: Math.min(qty, p.maxQuantity), snapshot: snapshotOf(p) });
+          // Produtos que hoje têm variações ficam de fora: o cliente precisa escolher a opção.
+          if (p && p.maxQuantity > 0 && qty > 0 && !p.variants?.length) {
+            migrated.push({ key: cartKey(p.id), productId: p.id, variantId: null, variantLabel: null, quantity: Math.min(qty, p.maxQuantity), snapshot: snapshotOf(p) });
           }
         });
         dispatch({ type: 'replace', items: migrated });
@@ -87,20 +90,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [initial.legacy]);
 
   const add = useCallback<CartApi['add']>(
-    (product, quantity = 1, origin) => {
-      const current = items.find((i) => i.productId === product.id)?.quantity ?? 0;
-      const limit = Math.min(product.maxQuantity, 20);
+    (product, quantity = 1, origin, variant = null) => {
+      if ((product.variants?.length ?? 0) > 0 && !variant) {
+        toast.show(`Escolha ${(product.variantType ?? 'a opção').toLowerCase()} de ${product.name}`, { tone: 'error' });
+        return false;
+      }
+      const key = cartKey(product.id, variant?.id);
+      const current = items.find((i) => i.key === key)?.quantity ?? 0;
+      const limit = Math.min(variant ? variant.maxQuantity : product.maxQuantity, 20);
+      const label = variant ? `${product.name} (${variantText(product, variant)})` : product.name;
       if (limit <= 0) {
-        toast.show(`${product.name} está esgotado`, { tone: 'error' });
+        toast.show(`${label} está esgotado`, { tone: 'error' });
         return false;
       }
       if (current >= limit) {
         toast.show(`Máximo disponível: ${limit} unidade(s)`, { tone: 'error' });
         return false;
       }
-      dispatch({ type: 'add', product, quantity });
+      dispatch({ type: 'add', product, variant, quantity });
       if (origin && cartButtonRef.current) flyToCart(origin, cartButtonRef.current);
-      toast.show(`${product.name} na sacola`, { action: { label: 'Ver sacola', onClick: () => setOpen(true) } });
+      toast.show(`${label} na sacola`, { action: { label: 'Ver sacola', onClick: () => setOpen(true) } });
       return true;
     },
     [items, toast],
@@ -113,8 +122,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     open: useCallback(() => setOpen(true), []),
     close: useCallback(() => setOpen(false), []),
     add,
-    setQuantity: useCallback((productId, quantity) => dispatch({ type: 'set', productId, quantity }), []),
-    remove: useCallback((productId) => dispatch({ type: 'remove', productId }), []),
+    setQuantity: useCallback((key, quantity) => dispatch({ type: 'set', key, quantity }), []),
+    remove: useCallback((key) => dispatch({ type: 'remove', key }), []),
     clear: useCallback(() => dispatch({ type: 'clear' }), []),
     cartButtonRef,
   };
@@ -131,13 +140,15 @@ export function useCart() {
 /** Preços, disponibilidade e totais oficiais da sacola, recalculados pela API. */
 export function useCartQuote(enabled = true) {
   const { items } = useCart();
-  const payload = items.map((i) => ({ productId: i.productId, quantity: i.quantity }));
+  const payload = items.map((i) => ({ productId: i.productId, ...(i.variantId ? { variantId: i.variantId } : {}), quantity: i.quantity }));
   const query = useQuery({
     queryKey: ['quote', payload],
     queryFn: () => storeApi.quote(payload),
     enabled: enabled && payload.length > 0,
     staleTime: 15_000,
   });
-  const lineFor = (productId: string) => query.data?.lines.find((l) => l.productId === productId);
+  /** Linha oficial do item (mesmo produto e mesma opção). */
+  const lineFor = (item: Pick<CartItem, 'productId' | 'variantId'>) =>
+    query.data?.lines.find((l) => l.productId === item.productId && (l.variantId ?? null) === item.variantId);
   return { ...query, lineFor };
 }

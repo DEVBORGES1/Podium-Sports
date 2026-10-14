@@ -249,7 +249,7 @@ describe('novidades para o painel (consulta periódica)', () => {
     expect(res.body.total).toBe(2);
     const byId = Object.fromEntries(res.body.items.map((o: { id: string }) => [o.id, o]));
     expect(byId[a.id].allowedTransitions).toEqual(['PROCESSING', 'READY', 'COMPLETED', 'CANCELLED']);
-    expect(byId[b.id].itemsPreview).toEqual([{ productName: p.name, quantity: 1 }]);
+    expect(byId[b.id].itemsPreview).toEqual([{ productName: p.name, variantLabel: null, quantity: 1 }]);
     expect((await api(app).get('/api/v1/admin/orders?status=ACCEPTED,XYZ').set('Authorization', admin.auth)).status).toBe(400);
   });
 });

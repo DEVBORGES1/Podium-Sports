@@ -7,6 +7,7 @@ export type MediaFolder = 'products' | 'categories' | 'banners' | 'store';
 
 export interface StorageProvider {
   upload(path: string, data: Buffer, contentType: string): Promise<void>;
+  download(path: string): Promise<Buffer>;
   remove(paths: string[]): Promise<void>;
   publicUrl(path: string): string;
 }
@@ -63,6 +64,11 @@ class SupabaseStorage implements StorageProvider {
       .upload(path, data, { contentType, cacheControl: '31536000', upsert: false });
     if (error) throw new AppError(502, 'STORAGE_ERROR', 'Falha ao enviar a imagem para o armazenamento.');
   }
+  async download(path: string) {
+    const { data, error } = await this.client.storage.from(this.bucket).download(path);
+    if (error || !data) throw new AppError(502, 'STORAGE_ERROR', 'Falha ao ler a imagem do armazenamento.');
+    return Buffer.from(await data.arrayBuffer());
+  }
   async remove(paths: string[]) {
     if (paths.length === 0) return;
     const { error } = await this.client.storage.from(this.bucket).remove(paths);
@@ -79,6 +85,11 @@ export class MemoryStorage implements StorageProvider {
   async upload(path: string, data: Buffer, contentType: string) {
     this.files.set(path, { data, contentType });
   }
+  async download(path: string) {
+    const file = this.files.get(path);
+    if (!file) throw new AppError(502, 'STORAGE_ERROR', 'Falha ao ler a imagem do armazenamento.');
+    return file.data;
+  }
   async remove(paths: string[]) {
     paths.forEach((p) => this.files.delete(p));
   }
@@ -92,6 +103,9 @@ class UnconfiguredStorage implements StorageProvider {
     throw new AppError(503, 'STORAGE_NOT_CONFIGURED', 'Armazenamento de imagens não configurado (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY).');
   }
   async upload() {
+    this.fail();
+  }
+  async download(): Promise<Buffer> {
     this.fail();
   }
   async remove() {

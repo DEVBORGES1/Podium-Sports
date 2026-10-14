@@ -27,13 +27,32 @@ export interface Category {
   imageUrl: string | null;
   sortOrder: number;
   showOnHome: boolean;
+  /** Preenchida = subcategoria (dentro desta categoria principal). Ausente em respostas antigas da API. */
+  parentId?: string | null;
   productCount?: number;
+}
+
+/** Marca com produtos à venda (filtro do catálogo). */
+export interface Brand {
+  name: string;
+  count: number;
 }
 
 export interface ProductImage {
   id: string;
   url: string;
+  /** Versões leves (WEBP): miniatura para listas e média para a página do produto. Caem na original se não existirem. */
+  thumbUrl?: string;
+  mediumUrl?: string;
   altText: string;
+}
+
+/** Opção do produto (ex.: tamanho 40) como a loja vê: só as ativas. */
+export interface ProductVariant {
+  id: string;
+  label: string;
+  available: boolean;
+  maxQuantity: number;
 }
 
 export interface Product {
@@ -42,16 +61,20 @@ export interface Product {
   name: string;
   brand: string | null;
   description: string | null;
-  category: { id: string; name: string; slug: string; icon: CategoryIcon };
+  category: { id: string; name: string; slug: string; icon: CategoryIcon; parent?: { id: string; name: string; slug: string } | null };
   priceCents: number;
   regularPriceCents: number;
   onSale: boolean;
   discountPercent: number;
   promotion: { name: string; endsAt: string } | null;
   imageUrl: string | null;
+  thumbUrl?: string | null;
   images: ProductImage[];
   availability: Availability;
   maxQuantity: number;
+  /** Nome da escolha (ex.: "Tamanho"); null/ausente = produto sem variações. */
+  variantType?: string | null;
+  variants?: ProductVariant[];
   isFeatured: boolean;
   createdAt: string;
 }
@@ -175,10 +198,13 @@ export interface StoreSettings {
   content: StoreContent;
 }
 
-export type LineIssue = 'NOT_FOUND' | 'UNAVAILABLE' | 'OUT_OF_STOCK' | 'INSUFFICIENT_STOCK' | 'QUANTITY_LIMIT' | null;
+export type LineIssue = 'NOT_FOUND' | 'UNAVAILABLE' | 'VARIANT_REQUIRED' | 'OUT_OF_STOCK' | 'INSUFFICIENT_STOCK' | 'QUANTITY_LIMIT' | null;
 
 export interface QuoteLine {
   productId: string;
+  variantId?: string | null;
+  /** Ex.: "Tamanho: 40". */
+  variantLabel?: string | null;
   quantity: number;
   issue: LineIssue;
   available: boolean;
@@ -217,7 +243,7 @@ export interface PublicOrder {
   fulfillment: Fulfillment;
   address: Address | null;
   notes: string | null;
-  items: { productName: string; quantity: number; unitPriceCents: number; originalUnitPriceCents: number; subtotalCents: number }[];
+  items: { productName: string; variantLabel?: string | null; quantity: number; unitPriceCents: number; originalUnitPriceCents: number; subtotalCents: number }[];
   subtotalCents: number;
   discountCents: number;
   totalCents: number;
@@ -229,7 +255,7 @@ export interface CreateOrderInput {
   fulfillment: Fulfillment;
   address?: Address | null;
   notes?: string | null;
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; variantId?: string | null; quantity: number }[];
 }
 
 export interface Me {

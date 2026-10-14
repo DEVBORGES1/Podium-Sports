@@ -24,7 +24,8 @@ export function buildOrderMessage(order: PublicOrder, settings: MessageSettings,
   }
   lines.push('', '*Itens*');
   for (const item of order.items) {
-    lines.push(`• ${item.quantity}x ${item.productName} — ${brl(item.unitPriceCents)} cada = ${brl(item.subtotalCents)}`);
+    const variant = item.variantLabel ? ` (${item.variantLabel})` : '';
+    lines.push(`• ${item.quantity}x ${item.productName}${variant} — ${brl(item.unitPriceCents)} cada = ${brl(item.subtotalCents)}`);
   }
   lines.push('');
   if (order.discountCents > 0) {

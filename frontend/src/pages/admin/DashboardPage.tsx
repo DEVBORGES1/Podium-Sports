@@ -186,7 +186,7 @@ function StageQueue({ stage, now }: { stage: OrderStageId; now: number }) {
                     <b>
                       {o.customerName} <span>· {o.fulfillment === 'DELIVERY' ? 'Entrega' : 'Retirada'}</span>
                     </b>
-                    <small>{o.itemsPreview.map((i) => `${i.quantity}× ${i.productName}`).join(' · ')}</small>
+                    <small>{o.itemsPreview.map((i) => `${i.quantity}× ${i.productName}${i.variantLabel ? ` (${i.variantLabel})` : ''}`).join(' · ')}</small>
                   </span>
                   <b className="q-total">{brl(o.totalCents)}</b>
                 </Link>

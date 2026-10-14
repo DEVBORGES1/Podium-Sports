@@ -7,6 +7,7 @@ import { useCart } from '../../contexts/CartContext';
 import { siteUrl, useJsonLd, usePageMeta } from '../../hooks/usePageMeta';
 import { useProduct, useSettings } from '../../hooks/useStoreData';
 import { ApiError } from '../../lib/api';
+import { cartKey } from '../../lib/cart';
 import { brl, formatDate } from '../../lib/format';
 import { whatsappLink } from '../../lib/whatsapp';
 
@@ -24,6 +25,9 @@ export default function ProductPage() {
   const navigate = useNavigate();
   const [qty, setQty] = useState(1);
   const [imageIndex, setImageIndex] = useState(0);
+  // Opção escolhida, presa ao produto (ao navegar para outro produto a escolha some).
+  const [choice, setChoice] = useState<{ productId: string; variantId: string } | null>(null);
+  const [missingChoice, setMissingChoice] = useState(false);
   const d = product.data;
   usePageMeta({
     title: d?.name,
@@ -76,18 +80,38 @@ export default function ProductPage() {
   }
 
   const p = product.data;
-  const inCart = items.find((i) => i.productId === p.id)?.quantity ?? 0;
-  const max = Math.max(0, p.maxQuantity - inCart);
+  const variants = p.variants ?? [];
+  const hasVariants = variants.length > 0;
+  const variantName = p.variantType ?? 'Opção';
+  const selected = choice?.productId === p.id ? (variants.find((v) => v.id === choice.variantId) ?? null) : null;
+  const inCart = items.find((i) => i.key === cartKey(p.id, selected?.id))?.quantity ?? 0;
+  // Com variações, o limite é o da opção escolhida (sem escolha, ainda não dá para comprar).
+  const limit = hasVariants ? (selected?.maxQuantity ?? 0) : p.maxQuantity;
+  const max = Math.max(0, limit - inCart);
   const soldOut = p.availability === 'OUT_OF_STOCK';
   const image = p.images[imageIndex] ?? p.images[0];
   const availability = AVAILABILITY[p.availability];
   const quantity = Math.min(qty, Math.max(1, max));
+  /** Sem a opção escolhida, avisa em vez de adicionar. */
+  const needsChoice = () => {
+    if (hasVariants && !selected) {
+      setMissingChoice(true);
+      document.getElementById('variant-picker')?.focus();
+      return true;
+    }
+    return false;
+  };
 
   return (
     <div className="wrap">
       <div className="page-head">
         <nav className="breadcrumb" aria-label="Você está em">
           <Link to="/">Início</Link> <span aria-hidden>›</span>
+          {p.category.parent && (
+            <>
+              <Link to={`/produtos?categoria=${p.category.parent.slug}`}>{p.category.parent.name}</Link> <span aria-hidden>›</span>
+            </>
+          )}
           <Link to={`/produtos?categoria=${p.category.slug}`}>{p.category.name}</Link> <span aria-hidden>›</span>
           <span aria-current="page">{p.name}</span>
         </nav>
@@ -98,8 +122,8 @@ export default function ProductPage() {
             {image ? (
               <>
                 {/* Fundo desfocado da própria foto: preenche as laterais quando ela não é quadrada. */}
-                <img className="backdrop" src={image.url} alt="" aria-hidden />
-                <img className="photo" src={image.url} alt={image.altText} />
+                <img className="backdrop" src={image.thumbUrl ?? image.url} alt="" aria-hidden />
+                <img className="photo" src={image.mediumUrl ?? image.url} alt={image.altText} />
               </>
             ) : (
               <CategoryGlyph icon={productGlyph(p.category.icon, p.category.slug)} />
@@ -110,7 +134,7 @@ export default function ProductPage() {
             <div className="thumbs" role="group" aria-label="Fotos do produto">
               {p.images.map((img, i) => (
                 <button key={img.id} type="button" aria-current={i === imageIndex} aria-label={`Ver foto ${i + 1}`} onClick={() => setImageIndex(i)}>
-                  <img src={img.url} alt="" loading="lazy" />
+                  <img src={img.thumbUrl ?? img.url} alt="" loading="lazy" />
                 </button>
               ))}
             </div>
@@ -137,6 +161,41 @@ export default function ProductPage() {
           {p.promotion && <p className="promo-note">{p.promotion.name} · válida até {formatDate(p.promotion.endsAt)}</p>}
           <span className={`availability ${availability.cls}`}>● {availability.label}</span>
 
+          {hasVariants && !soldOut && (
+            <fieldset className="variant-picker" aria-describedby={missingChoice ? 'variant-missing' : undefined}>
+              <legend>
+                {variantName}
+                {selected && <b>: {selected.label}</b>}
+              </legend>
+              <div id="variant-picker" className="variant-options" role="radiogroup" aria-label={variantName} tabIndex={-1}>
+                {variants.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected?.id === v.id}
+                    className={`variant-option${selected?.id === v.id ? ' selected' : ''}`}
+                    disabled={!v.available}
+                    title={v.available ? undefined : 'Esgotado'}
+                    onClick={() => {
+                      setChoice({ productId: p.id, variantId: v.id });
+                      setMissingChoice(false);
+                      setQty(1);
+                    }}
+                  >
+                    {v.label}
+                    {!v.available && <span className="sr-only"> (esgotado)</span>}
+                  </button>
+                ))}
+              </div>
+              {missingChoice && (
+                <p id="variant-missing" className="err" role="alert">
+                  Escolha {variantName.toLowerCase()} para continuar.
+                </p>
+              )}
+            </fieldset>
+          )}
+
           {!soldOut && (
             <div className="buy-row">
               <div className="qty" role="group" aria-label="Quantidade">
@@ -148,15 +207,24 @@ export default function ProductPage() {
                   +
                 </button>
               </div>
-              <button type="button" className="btn btn-gold" disabled={max === 0} onClick={(e) => add(p, quantity, e.currentTarget) && setQty(1)}>
+              <button
+                type="button"
+                className="btn btn-gold"
+                disabled={max === 0 && !(hasVariants && !selected)}
+                onClick={(e) => {
+                  if (needsChoice()) return;
+                  if (add(p, quantity, e.currentTarget, selected)) setQty(1);
+                }}
+              >
                 Adicionar à sacola
               </button>
               <button
                 type="button"
                 className="btn btn-wa"
-                disabled={max === 0 && inCart === 0}
+                disabled={max === 0 && inCart === 0 && !(hasVariants && !selected)}
                 onClick={() => {
-                  if (max > 0) add(p, quantity);
+                  if (needsChoice()) return;
+                  if (max > 0) add(p, quantity, null, selected);
                   navigate('/checkout');
                 }}
               >
@@ -179,9 +247,11 @@ export default function ProductPage() {
           )}
           {p.description && <div className="product-desc">{p.description}</div>}
           <ul className="product-meta">
-            <li>
-              <b>Tamanho, cor e sabor:</b> confirmados no atendimento pelo WhatsApp.
-            </li>
+            {!hasVariants && (
+              <li>
+                <b>Tamanho, cor e sabor:</b> confirmados no atendimento pelo WhatsApp.
+              </li>
+            )}
             <li>
               <b>Pagamento:</b> combinado na conversa (Pix ou cartão).
             </li>

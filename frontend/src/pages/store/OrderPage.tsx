@@ -109,6 +109,7 @@ export default function OrderPage() {
               <li key={idx}>
                 <span>
                   {i.quantity}x {i.productName}
+                  {i.variantLabel && <span className="muted"> ({i.variantLabel})</span>}
                   <span className="muted" style={{ display: 'block' }}>
                     {brl(i.unitPriceCents)} cada
                   </span>

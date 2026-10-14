@@ -782,3 +782,26 @@ details.advanced[open] summary { margin-bottom: 4px; }
 .podium-top { list-style: none; display: grid; }
 .podium-top li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .podium-top li:last-child { border-bottom: 0; }
+
+/* Variações do produto (tamanho, sabor…): uma linha por opção, com estoque próprio. */
+.variant-table { display: grid; gap: 6px; }
+.vt-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 64px auto; gap: 8px; align-items: center; }
+.vt-row.off .input { opacity: 0.55; }
+.vt-head { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.vt-check { display: flex; justify-content: center; }
+.vt-check input { width: 18px; height: 18px; accent-color: var(--gold); }
+.vt-tools { display: flex; gap: 4px; }
+.vt-tools .btn-icon { min-width: 32px; padding: 4px; }
+.variant-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.variant-actions { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.oi-variant { font-weight: 600; }
+@media (max-width: 479px) {
+  .vt-row { grid-template-columns: minmax(0, 1fr) 72px 44px; }
+  .vt-tools { grid-column: 1 / -1; justify-content: flex-end; }
+  .vt-head span:last-child { display: none; }
+}
+.variant-table + .err, .adm-card .err { color: var(--danger); font-size: 13px; }
+.stock-table .variant-row td { background: color-mix(in srgb, var(--soft) 55%, transparent); font-size: 13px; }
+.stock-table .variant-row td:first-child { padding-left: 24px; }
+.stepper.total { display: inline-flex; align-items: center; gap: 8px; }
+.stepper.total .muted { font-size: 12px; }

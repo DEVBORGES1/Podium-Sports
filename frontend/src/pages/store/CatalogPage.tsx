@@ -7,7 +7,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDialog } from '../../hooks/useDialog';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { usePageMeta } from '../../hooks/usePageMeta';
-import { useCategories, useProducts, useSettings } from '../../hooks/useStoreData';
+import { useBrands, useCategories, useProducts, useSettings } from '../../hooks/useStoreData';
 import { brl, parseMoneyToCents } from '../../lib/format';
 import type { ProductQuery } from '../../lib/store-api';
 import { whatsappLink } from '../../lib/whatsapp';
@@ -46,6 +46,8 @@ export default function CatalogPage() {
   const settings = useSettings();
   const category = params.get('categoria') ?? '';
   const onSale = params.get('ofertas') === '1';
+  // Marcas escolhidas (várias, separadas por vírgula na URL).
+  const brands = (params.get('marca') ?? '').split(',').map((b) => b.trim()).filter(Boolean);
   const sort = (SORTS.find((s) => s.value === params.get('ordem'))?.value ?? 'relevance') as ProductQuery['sort'];
   const page = Math.max(1, Number(params.get('pagina')) || 1);
   const min = params.get('min') ?? '';
@@ -105,12 +107,18 @@ export default function CatalogPage() {
     sort,
     ...(params.get('q') ? { q: params.get('q')! } : {}),
     ...(category ? { category } : {}),
+    ...(brands.length ? { brand: brands.join(',') } : {}),
     ...(onSale ? { onSale: true } : {}),
     ...(minCents !== null ? { minPrice: minCents } : {}),
     ...(maxCents !== null ? { maxPrice: maxCents } : {}),
   };
   const products = useProducts(query);
-  const currentCategory = categories.data?.find((c) => c.slug === category);
+  const allCategories = categories.data ?? [];
+  const currentCategory = allCategories.find((c) => c.slug === category);
+  // Subcategoria escolhida: a mãe continua aberta na lista, com as irmãs à vista.
+  const parentCategory = currentCategory?.parentId ? allCategories.find((c) => c.id === currentCategory.parentId) : undefined;
+  const openParentId = parentCategory?.id ?? currentCategory?.id;
+  const brandOptions = useBrands(category || undefined);
   const urlSearch = params.get('q');
   const title = currentCategory?.name ?? (onSale ? 'Ofertas' : urlSearch ? `“${urlSearch}”` : 'Catálogo completo');
   usePageMeta({
@@ -125,19 +133,35 @@ export default function CatalogPage() {
 
   // Filtros ativos, cada um removível.
   const chips: { label: string; remove: () => void }[] = [];
-  if (currentCategory) chips.push({ label: currentCategory.name, remove: () => update({ categoria: null }) });
+  if (currentCategory) chips.push({ label: currentCategory.name, remove: () => update({ categoria: parentCategory ? parentCategory.slug : null }) });
+  for (const b of brands) chips.push({ label: b, remove: () => update({ marca: brands.filter((x) => x !== b).join(',') || null }) });
   if (urlSearch) chips.push({ label: `“${urlSearch}”`, remove: () => update({ q: null }) });
   if (onSale) chips.push({ label: 'Só ofertas', remove: () => update({ ofertas: null }) });
   if (minCents !== null) chips.push({ label: `A partir de ${brl(minCents)}`, remove: () => update({ min: null }) });
   if (maxCents !== null) chips.push({ label: `Até ${brl(maxCents)}`, remove: () => update({ max: null }) });
   // Contador do botão "Filtrar e ordenar": só o que fica dentro da folha (categoria e busca já estão à vista).
-  const filterBadge = [onSale, minCents !== null, maxCents !== null, sort !== 'relevance'].filter(Boolean).length;
+  const filterBadge = [onSale, minCents !== null, maxCents !== null, sort !== 'relevance'].filter(Boolean).length + brands.length;
+  const toggleBrand = (name: string) => {
+    const has = brands.some((b) => b.toLowerCase() === name.toLowerCase());
+    const next = has ? brands.filter((b) => b.toLowerCase() !== name.toLowerCase()) : [...brands, name];
+    update({ marca: next.join(',') || null });
+  };
 
   const total = products.data?.total;
   const wa = settings.data ? whatsappLink(settings.data.whatsappNumber, settings.data.whatsappGreeting) : null;
   const catButtons = [
     { key: 'todos', name: 'Todos', count: undefined as number | undefined, active: !category && !onSale, select: () => update({ categoria: null, ofertas: null }) },
-    ...(categories.data ?? []).map((c) => ({ key: c.slug, name: c.name, count: c.productCount, active: category === c.slug, select: () => update({ categoria: c.slug }) })),
+    ...allCategories
+      .filter((c) => !c.parentId)
+      .flatMap((c) => [
+        { key: c.slug, name: c.name, count: c.productCount, active: category === c.slug, select: () => update({ categoria: c.slug }) },
+        // Subcategorias aparecem logo abaixo da categoria aberta.
+        ...(c.id === openParentId
+          ? allCategories
+              .filter((sub) => sub.parentId === c.id)
+              .map((sub) => ({ key: sub.slug, name: sub.name, count: sub.productCount, active: category === sub.slug, sub: true, select: () => update({ categoria: sub.slug }) }))
+          : []),
+      ]),
     { key: 'ofertas', name: 'Ofertas', count: undefined, active: onSale && !category, select: () => update({ ofertas: '1', categoria: null }) },
   ];
 
@@ -148,6 +172,12 @@ export default function CatalogPage() {
           <div>
             <nav className="crumbs" aria-label="Você está em">
               <Link to="/">Início</Link> <span aria-hidden>/</span> <Link to="/produtos">Catálogo</Link>
+              {parentCategory && (
+                <>
+                  {' '}
+                  <span aria-hidden>/</span> <Link to={`/produtos?categoria=${parentCategory.slug}`}>{parentCategory.name}</Link>
+                </>
+              )}
               {title !== 'Catálogo completo' && (
                 <>
                   {' '}
@@ -183,7 +213,7 @@ export default function CatalogPage() {
               Categoria
             </span>
             {catButtons.map((c) => (
-              <button key={c.key} type="button" className={c.active ? 'active' : ''} aria-pressed={c.active} onClick={c.select}>
+              <button key={c.key} type="button" className={[c.active ? 'active' : '', 'sub' in c ? 'sub' : ''].filter(Boolean).join(' ')} aria-pressed={c.active} onClick={c.select}>
                 {c.name}
                 {c.count !== undefined && <span aria-hidden>{c.count}</span>}
               </button>
@@ -233,6 +263,19 @@ export default function CatalogPage() {
                 <span>Sem limite</span>
               </div>
             </div>
+            {(brandOptions.data?.length ?? 0) > 1 && (
+              <div className="f-group f-brands" role="group" aria-label="Filtrar por marca">
+                <span className="f-title">Marca</span>
+                {brandOptions.data!.map((b) => (
+                  <label key={b.name} className="f-check">
+                    <span>
+                      {b.name} <span className="muted">({b.count})</span>
+                    </span>
+                    <input type="checkbox" checked={brands.some((x) => x.toLowerCase() === b.name.toLowerCase())} onChange={() => toggleBrand(b.name)} />
+                  </label>
+                ))}
+              </div>
+            )}
             <div className="f-group">
               <span className="f-title">Mostrar</span>
               <label className="f-check">
@@ -268,7 +311,7 @@ export default function CatalogPage() {
                 </button>
               ))}
               {chips.length > 1 && (
-                <button type="button" className="clear-all" onClick={() => update({ categoria: null, q: null, ofertas: null, min: null, max: null })}>
+                <button type="button" className="clear-all" onClick={() => update({ categoria: null, marca: null, q: null, ofertas: null, min: null, max: null })}>
                   Limpar tudo
                 </button>
               )}

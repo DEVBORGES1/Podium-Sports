@@ -125,7 +125,7 @@ export default function CheckoutPage() {
               ? { street: v.street, number: v.number, district: v.district, city: v.city, complement: v.complement || null }
               : null,
           notes: v.notes || null,
-          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          items: items.map((i) => ({ productId: i.productId, ...(i.variantId ? { variantId: i.variantId } : {}), quantity: i.quantity })),
         },
         idempotencyKey,
       );
@@ -165,20 +165,22 @@ export default function CheckoutPage() {
         <>
           <ul className="summary-list">
             {items.map((item) => {
-              const line = quote.lineFor(item.productId);
+              const line = quote.lineFor(item);
+              const variantLabel = line?.variantLabel ?? item.variantLabel;
               return (
-                <li key={item.productId}>
+                <li key={item.key}>
                   <span>
                     {item.quantity}x {line?.name ?? item.snapshot.name}
+                    {variantLabel && <span className="muted"> ({variantLabel})</span>}
                     {line?.issue && (
                       <span className="err" style={{ display: 'block' }}>
                         {ISSUE_TEXT[line.issue]}{' '}
                         {line.issue === 'INSUFFICIENT_STOCK' && (line.maxQuantity ?? 0) > 0 ? (
-                          <button type="button" className="remove" onClick={() => setQuantity(item.productId, line.maxQuantity!)}>
+                          <button type="button" className="remove" onClick={() => setQuantity(item.key, line.maxQuantity!)}>
                             Ajustar para {line.maxQuantity}
                           </button>
                         ) : (
-                          <button type="button" className="remove" onClick={() => remove(item.productId)}>
+                          <button type="button" className="remove" onClick={() => remove(item.key)}>
                             Remover
                           </button>
                         )}
