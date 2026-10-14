@@ -95,7 +95,15 @@ export default function ProductPage() {
       <div className="product-page">
         <div className="gallery">
           <div className="main">
-            {image ? <img src={image.url} alt={image.altText} /> : <CategoryGlyph icon={productGlyph(p.category.icon, p.category.slug)} />}
+            {image ? (
+              <>
+                {/* Fundo desfocado da própria foto: preenche as laterais quando ela não é quadrada. */}
+                <img className="backdrop" src={image.url} alt="" aria-hidden />
+                <img className="photo" src={image.url} alt={image.altText} />
+              </>
+            ) : (
+              <CategoryGlyph icon={productGlyph(p.category.icon, p.category.slug)} />
+            )}
             {p.onSale && <span className="off">-{p.discountPercent}%</span>}
           </div>
           {p.images.length > 1 && (
