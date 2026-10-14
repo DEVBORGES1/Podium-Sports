@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://podium-sports-api.onrender.com/api/:path*" },
-    { "source": "/sitemap.xml", "destination": "https://podium-sports-api.onrender.com/api/v1/sitemap.xml" },
+    { "source": "/api/:path*", "destination": "https://srv1388438.hstgr.cloud/api/:path*" },
+    { "source": "/sitemap.xml", "destination": "https://srv1388438.hstgr.cloud/api/v1/sitemap.xml" },
     { "source": "/((?!assets/|favicon\\.png|og-image\\.jpg|robots\\.txt).*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -16,7 +16,7 @@
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://srv1388438.hstgr.cloud; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
         }
       ]
     },

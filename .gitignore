@@ -11,3 +11,7 @@ frontend/playwright-report/
 frontend/e2e/.auth/
 !frontend/.env.production
 !frontend/.env.development
+
+# env de produção local
+podium.env
+*.env
