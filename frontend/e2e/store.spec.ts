@@ -5,14 +5,15 @@ test.describe('loja pública', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: /Supere/ })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Destaques' }).getByRole('link', { name: 'Chuteira F50 Messi' })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Suplementos Ver produtos/ })).toBeVisible();
+    // "Ver produtos →" só aparece no desktop; no celular o nome do link é só a contagem e a categoria.
+    await expect(page.getByRole('region', { name: 'Escolha sua modalidade' }).getByRole('link', { name: /produtos Suplementos/ })).toBeVisible();
   });
 
   test('busca sem acento e filtro por categoria', async ({ page }) => {
     await page.goto('/produtos?q=pre treino');
     await expect(page.getByRole('link', { name: 'Pré-treino Night Train 300g' })).toBeVisible();
     await page.goto('/produtos?categoria=goleiro');
-    await expect(page.getByText('3 produtos')).toBeVisible();
+    await expect(page.getByText('3 produtos', { exact: true })).toBeVisible();
   });
 
   test('migra a sacola salva pela versão HTML antiga', async ({ page }) => {
