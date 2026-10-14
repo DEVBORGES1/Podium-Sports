@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import logo from '../../assets/logo.png';
 import { useCart } from '../../contexts/CartContext';
@@ -27,6 +27,30 @@ function useNavItems(categories: Category[]): NavItem[] {
     })),
     { to: '/produtos?ofertas=1', label: 'Ofertas', sale: true, active: onCatalog && params.get('ofertas') === '1' },
   ];
+}
+
+// Esconde as últimas categorias que não cabem na linha, inteiras (nunca cortadas ao meio).
+// Ofertas fica sempre visível. Refaz a conta quando a barra muda de largura (janela, total da sacola).
+function useFitNav(navRef: RefObject<HTMLElement | null>, items: NavItem[]) {
+  const labels = items.map((i) => i.label).join('|');
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const fit = () => {
+      const cats = [...nav.querySelectorAll<HTMLElement>('a:not(.sale)')];
+      cats.forEach((a) => (a.hidden = false));
+      for (const a of cats.reverse()) {
+        if (nav.scrollWidth <= nav.clientWidth) break;
+        a.hidden = true;
+      }
+    };
+    fit();
+    void document.fonts?.ready.then(fit);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(fit);
+    ro.observe(nav);
+    return () => ro.disconnect();
+  }, [navRef, labels]);
 }
 
 function SearchForm({ id, autoFocus, onDone, shortcut }: { id: string; autoFocus?: boolean; onDone?: () => void; shortcut?: boolean }) {
@@ -67,7 +91,9 @@ export function SiteHeader({ categories, logoUrl, storeName }: { categories: Cat
   const setMenuOpen = (open: boolean) => setMenuKey(open ? location.key : null);
   const setSearchOpen = (open: boolean) => setSearchKey(open ? location.key : null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   const items = useNavItems(categories);
+  useFitNav(navRef, items);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -103,7 +129,7 @@ export function SiteHeader({ categories, logoUrl, storeName }: { categories: Cat
           <Link className="logo" to="/" aria-label={`${storeName} — página inicial`}>
             <img src={logoUrl ?? logo} alt={storeName} width={98} height={40} />
           </Link>
-          <nav className="main-nav" aria-label="Categorias">
+          <nav className="main-nav" aria-label="Categorias" ref={navRef}>
             {items.map((item) => (
               // Link (não NavLink): o NavLink compara só o caminho e marcaria todas as categorias em /produtos.
               <Link key={item.to} to={item.to} className={`${item.sale ? 'sale' : ''} ${item.active ? 'active' : ''}`} aria-current={item.active ? 'page' : undefined}>
