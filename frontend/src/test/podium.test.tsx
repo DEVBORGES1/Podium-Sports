@@ -75,6 +75,33 @@ describe('tela Pódio do painel', () => {
     await waitFor(() => expect(puts.at(-1)).toEqual([whey.id, product().id]));
   });
 
+  it('mostra a nova ordem na hora e envia cliques seguidos em fila, na ordem', async () => {
+    const user = userEvent.setup();
+    const camisa = admin(product({ id: '33333333-3333-4333-8333-333333333333', slug: 'camisa', name: 'Camisa Podium' }));
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const puts: string[][] = [];
+    setup([admin(product()), admin(whey), camisa]);
+    server.use(
+      http.put(`${API}/admin/products/podium`, async ({ request }) => {
+        const { productIds } = (await request.json()) as { productIds: string[] };
+        puts.push(productIds);
+        await gate;
+        return HttpResponse.json({ items: productIds.map((id) => [admin(product()), admin(whey), camisa].find((p) => p.id === id)) });
+      }),
+    );
+    const names = () => screen.getAllByRole('listitem').map((li) => li.querySelector('b')?.textContent);
+
+    await user.click(await screen.findByRole('button', { name: 'Subir Camisa Podium para o 2º lugar' }));
+    await user.click(screen.getByRole('button', { name: 'Subir Camisa Podium para o 1º lugar' }));
+    // Já na tela antes de a API responder; a segunda gravação espera a primeira.
+    expect(names().slice(0, 3)).toEqual(['Camisa Podium', 'Chuteira F50 Messi', whey.name]);
+    await waitFor(() => expect(puts).toHaveLength(1));
+    release();
+    await waitFor(() => expect(puts).toEqual([[product().id, camisa.id, whey.id], [camisa.id, product().id, whey.id]]));
+    await waitFor(() => expect(names().slice(0, 3)).toEqual(['Camisa Podium', 'Chuteira F50 Messi', whey.name]));
+  });
+
   it('avisa quando o produto do pódio não aparece na loja', async () => {
     setup([admin(product(), { isActive: false })]);
     expect(await screen.findByText('Produto inativo: não aparece na loja.')).toBeInTheDocument();

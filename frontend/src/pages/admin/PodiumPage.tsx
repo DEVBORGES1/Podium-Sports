@@ -1,24 +1,27 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ProductPickerModal, ProductThumb } from '../../components/admin/ButtonTargetField';
 import { ConfirmDialog, FormField, PageHeader, Switch, Tag } from '../../components/admin/ui';
 import { ErrorState, LoadingState } from '../../components/ui/States';
+import { useToast } from '../../contexts/ToastContext';
 import { useAdminMutation } from '../../hooks/useAdminMutation';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
-import { adminApi } from '../../lib/api';
+import { adminApi, errorMessage } from '../../lib/api';
 import { brl, lastDaysRange } from '../../lib/format';
+import { refreshQueries } from '../../lib/query';
 import type { AdminProduct, AdminSettings, TopProducts } from '../../types/admin';
 
 /** Mesmo limite do backend (PODIUM_SIZE). */
 const SIZE = 5;
 const PLACES = ['Ouro', 'Prata', 'Bronze', '4º lugar', '5º lugar'];
 const SETTINGS_KEY = ['admin', 'settings'];
-const PODIUM_KEY = ['admin', 'products', 'podium'];
-/** Destaques mudam a vitrine da loja e a lista de produtos do painel. */
-const INVALIDATE = [PODIUM_KEY, ['admin', 'products'], ['products']];
+const PODIUM_KEY = ['admin', 'podium'];
+const SAVE_KEY = ['admin', 'podium', 'save'];
+/** Destaques mudam a vitrine da loja e a lista de produtos do painel (o pódio já volta na resposta). */
+const INVALIDATE = [['admin', 'products'], ['products']];
 
 type PodiumItem = AdminProduct & { categoryActive: boolean };
 
@@ -31,27 +34,59 @@ function warnings(p: PodiumItem) {
   return out;
 }
 
+/**
+ * Grava o pódio mostrando a mudança na hora (`preview`). Cliques seguidos entram numa fila e são
+ * enviados na ordem; só a resposta da última gravação substitui a lista. Em caso de erro, recarrega.
+ */
+function usePodiumSave(onSaved: () => void) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationKey: SAVE_KEY,
+    scope: { id: 'podium' },
+    mutationFn: ({ ids }: { ids: string[]; preview?: PodiumItem[] }) => adminApi.put<{ items: PodiumItem[] }>('/products/podium', { productIds: ids }).then((r) => r.items),
+    onMutate: async ({ preview }) => {
+      await qc.cancelQueries({ queryKey: PODIUM_KEY, exact: true });
+      if (preview) qc.setQueryData(PODIUM_KEY, preview);
+    },
+    onSuccess: (items) => {
+      onSaved();
+      if (qc.isMutating({ mutationKey: SAVE_KEY }) > 1) return;
+      qc.setQueryData(PODIUM_KEY, items);
+      refreshQueries(qc, INVALIDATE);
+      toast.show('Pódio atualizado. A loja já exibe a nova ordem.');
+    },
+    onError: (err) => {
+      toast.show(errorMessage(err), { tone: 'error' });
+      void qc.invalidateQueries({ queryKey: PODIUM_KEY, exact: true });
+    },
+  });
+}
+
 export default function PodiumPage() {
   useDocumentTitle('Pódio');
   const [picking, setPicking] = useState(false);
   const [replacing, setReplacing] = useState<string[] | null>(null);
   const podium = useQuery({ queryKey: PODIUM_KEY, queryFn: () => adminApi.get<{ items: PodiumItem[] }>('/products/podium').then((r) => r.items) });
-  const save = useAdminMutation((productIds: string[]) => adminApi.put<{ items: PodiumItem[] }>('/products/podium', { productIds }), {
-    success: 'Pódio atualizado. A loja já exibe a nova ordem.',
-    invalidate: INVALIDATE,
-    onSuccess: () => setReplacing(null),
-  });
+  const save = usePodiumSave(() => setReplacing(null));
+  // Gravação sem prévia (vinda dos mais pedidos): a lista na tela ainda não tem o produto novo, então
+  // novos cliques esperam a resposta para não calcularem a ordem sem ele.
+  const waiting = useIsMutating({ mutationKey: SAVE_KEY, predicate: (m) => !(m.state.variables as { preview?: unknown } | undefined)?.preview }) > 0;
 
   const list = podium.data ?? [];
   const ids = list.map((p) => p.id);
   const full = ids.length >= SIZE;
+  const commit = (next: PodiumItem[]) => save.mutate({ ids: next.map((p) => p.id), preview: next });
   const move = (index: number, dir: -1 | 1) => {
-    const next = [...ids];
+    const next = [...list];
     [next[index], next[index + dir]] = [next[index + dir]!, next[index]!];
-    save.mutate(next);
+    commit(next);
   };
-  const add = (id: string) => {
-    if (!ids.includes(id) && !full) save.mutate([...ids, id]);
+  /** Do seletor vem o produto completo (aparece na hora); da lista de mais pedidos, só o id. */
+  const add = (id: string, product?: AdminProduct) => {
+    if (ids.includes(id) || full || waiting) return;
+    if (product) commit([...list, { ...product, categoryActive: true }]);
+    else save.mutate({ ids: [...ids, id] });
   };
 
   return (
@@ -66,17 +101,19 @@ export default function PodiumPage() {
         }
       />
 
-      {podium.isPending ? (
-        <LoadingState />
-      ) : podium.isError ? (
-        <ErrorState error={podium.error} onRetry={() => podium.refetch()} />
-      ) : (
-        <div className="podium-admin">
-          <section className="adm-card" aria-labelledby="podium-places">
-            <h2 id="podium-places">
-              Lugares <small>{list.length === 0 ? 'Vazio: a seção não aparece na loja.' : `${list.length} de ${SIZE} ocupados`}</small>
-            </h2>
-            <ol className="podium-slots" aria-busy={save.isPending}>
+      {/* Os três blocos carregam ao mesmo tempo. */}
+      <div className="podium-admin">
+        <section className="adm-card" aria-labelledby="podium-places">
+          <h2 id="podium-places">
+            Lugares{' '}
+            {podium.isSuccess && <small>{list.length === 0 ? 'Vazio: a seção não aparece na loja.' : `${list.length} de ${SIZE} ocupados`}</small>}
+          </h2>
+          {podium.isPending ? (
+            <LoadingState />
+          ) : podium.isError ? (
+            <ErrorState error={podium.error} onRetry={() => podium.refetch()} />
+          ) : (
+            <ol className="podium-slots" aria-busy={waiting}>
               {Array.from({ length: SIZE }, (_, i) => {
                 const p = list[i];
                 if (!p) {
@@ -87,7 +124,7 @@ export default function PodiumPage() {
                         {i + 1}
                       </span>
                       {next ? (
-                        <button type="button" className="pick-empty" onClick={() => setPicking(true)} disabled={save.isPending}>
+                        <button type="button" className="pick-empty" onClick={() => setPicking(true)} disabled={waiting}>
                           <span>
                             <b>+ Escolher produto</b>
                             <small>{PLACES[i]}</small>
@@ -118,19 +155,19 @@ export default function PodiumPage() {
                       ))}
                     </div>
                     <div className="podium-actions">
-                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || save.isPending} aria-label={`Subir ${p.name} para o ${i}º lugar`}>
+                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || waiting} aria-label={`Subir ${p.name} para o ${i}º lugar`}>
                         ↑
                       </button>
                       <button
                         type="button"
                         className="btn btn-outline btn-sm btn-icon"
                         onClick={() => move(i, 1)}
-                        disabled={i === list.length - 1 || save.isPending}
+                        disabled={i === list.length - 1 || waiting}
                         aria-label={`Descer ${p.name} para o ${i + 2}º lugar`}
                       >
                         ↓
                       </button>
-                      <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => save.mutate(ids.filter((id) => id !== p.id))} disabled={save.isPending}>
+                      <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => commit(list.filter((x) => x.id !== p.id))} disabled={waiting}>
                         Tirar
                       </button>
                     </div>
@@ -138,15 +175,15 @@ export default function PodiumPage() {
                 );
               })}
             </ol>
-            <p className="notice" style={{ marginTop: 12 }}>
-              A posição usa a “Ordem de exibição” do produto (0 a 4), então os produtos do pódio também aparecem primeiro no catálogo.
-            </p>
-          </section>
+          )}
+          <p className="notice" style={{ marginTop: 12 }}>
+            A posição usa a “Ordem de exibição” do produto (0 a 4), então os produtos do pódio também aparecem primeiro no catálogo.
+          </p>
+        </section>
 
-          <TopSellers podiumIds={ids} full={full} busy={save.isPending} onAdd={add} onReplace={setReplacing} />
-          <PodiumTexts />
-        </div>
-      )}
+        <TopSellers podiumIds={ids} full={full} ready={podium.isSuccess && !waiting} onAdd={add} onReplace={setReplacing} />
+        <PodiumTexts />
+      </div>
 
       {picking && (
         <ProductPickerModal
@@ -156,7 +193,7 @@ export default function PodiumPage() {
           selectedIds={ids}
           onClose={() => setPicking(false)}
           onPick={(p) => {
-            add(p.id);
+            add(p.id, p);
             setPicking(false);
           }}
         />
@@ -167,7 +204,7 @@ export default function PodiumPage() {
           message="Os produtos atuais saem do pódio e os mais pedidos da semana entram, na ordem de quantidade vendida."
           confirmLabel="Montar pódio"
           busy={save.isPending}
-          onConfirm={() => save.mutate(replacing)}
+          onConfirm={() => save.mutate({ ids: replacing })}
           onCancel={() => setReplacing(null)}
         />
       )}
@@ -176,7 +213,7 @@ export default function PodiumPage() {
 }
 
 /** Sugestão a partir das vendas: itens de pedidos aceitos nos últimos 7 dias. */
-function TopSellers({ podiumIds, full, busy, onAdd, onReplace }: { podiumIds: string[]; full: boolean; busy: boolean; onAdd: (id: string) => void; onReplace: (ids: string[]) => void }) {
+function TopSellers({ podiumIds, full, ready, onAdd, onReplace }: { podiumIds: string[]; full: boolean; ready: boolean; onAdd: (id: string) => void; onReplace: (ids: string[]) => void }) {
   const [range] = useState(() => lastDaysRange(7));
   const top = useQuery({ queryKey: ['admin', 'dashboard', 'top', range], queryFn: () => adminApi.get<TopProducts>('/dashboard/top-products', range) });
   // Itens de produtos excluídos (sem id) não podem ir para o pódio.
@@ -215,7 +252,7 @@ function TopSellers({ podiumIds, full, busy, onAdd, onReplace }: { podiumIds: st
                   {inPodium ? (
                     <Tag tone="gold">No pódio</Tag>
                   ) : (
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => onAdd(t.productId)} disabled={full || busy} title={full ? 'O pódio está cheio: tire um produto antes.' : undefined}>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => onAdd(t.productId)} disabled={full || !ready} title={full ? 'O pódio está cheio: tire um produto antes.' : undefined}>
                       Colocar no pódio
                     </button>
                   )}
@@ -224,7 +261,7 @@ function TopSellers({ podiumIds, full, busy, onAdd, onReplace }: { podiumIds: st
             })}
           </ol>
           <div className="row-actions" style={{ marginTop: 12 }}>
-            <button type="button" className="btn btn-gold btn-sm" onClick={() => onReplace(items.map((t) => t.productId))} disabled={same || busy}>
+            <button type="button" className="btn btn-gold btn-sm" onClick={() => onReplace(items.map((t) => t.productId))} disabled={same || !ready}>
               {same ? 'O pódio já segue os mais pedidos' : 'Montar o pódio com estes'}
             </button>
           </div>

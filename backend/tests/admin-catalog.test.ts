@@ -84,12 +84,17 @@ describe('pódio', () => {
 
   it('define produtos e ordem de uma vez e reflete na vitrine da loja', async () => {
     const antigo = await createProduct({ name: 'Antigo', isFeatured: true });
+    await prisma.product.update({ where: { id: antigo.id }, data: { sortOrder: 37 } });
     const a = await createProduct({ name: 'A' });
     const b = await createProduct({ name: 'B' });
     const res = await api(app).put('/api/v1/admin/products/podium').set('Authorization', admin.auth).send({ productIds: [b.id, a.id] });
     expect(res.status).toBe(200);
     expect(names(res.body)).toEqual(['B', 'A']);
-    expect((await prisma.product.findUniqueOrThrow({ where: { id: antigo.id } })).isFeatured).toBe(false);
+    // Quem sai do pódio deixa de ser destaque, mas mantém a ordem que tinha no catálogo.
+    expect(await prisma.product.findUniqueOrThrow({ where: { id: antigo.id } })).toMatchObject({ isFeatured: false, sortOrder: 37 });
+    const saved = await prisma.product.findMany({ where: { id: { in: [a.id, b.id] } }, orderBy: { sortOrder: 'asc' } });
+    expect(saved.map((p) => [p.name, p.isFeatured, p.sortOrder])).toEqual([['B', true, 0], ['A', true, 1]]);
+    expect(saved[0]!.updatedAt.getTime()).toBeGreaterThan(b.updatedAt.getTime());
     const store = await api(app).get('/api/v1/products?featured=true');
     expect(names(store.body)).toEqual(['B', 'A']);
     const log = await prisma.auditLog.findFirstOrThrow({ where: { action: 'product.podium' } });
@@ -104,7 +109,10 @@ describe('pódio', () => {
     expect((await send(ps.map((p) => p.id))).status).toBe(400);
     expect((await send([ps[0]!.id, ps[0]!.id])).status).toBe(400);
     expect((await send(['00000000-0000-4000-8000-000000000000'])).status).toBe(404);
+    expect(await prisma.product.count({ where: { isFeatured: true } })).toBe(0);
+    await send([ps[0]!.id, ps[1]!.id]);
     expect((await send([])).status).toBe(200);
+    expect(await prisma.product.count({ where: { isFeatured: true } })).toBe(0);
   });
 });
 

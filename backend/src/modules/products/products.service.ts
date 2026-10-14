@@ -346,15 +346,25 @@ export async function listPodium() {
  * (a mesma "Ordem de exibição" do catálogo) e os demais destaques deixam de ser.
  */
 export async function setPodium(productIds: string[], profileId: string) {
+  // Poucas idas ao banco (a API e o banco ficam em regiões diferentes): uma leitura e uma escrita.
   await prisma.$transaction(async (tx) => {
-    const found = await tx.product.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true } });
-    if (found.length !== productIds.length) throw notFound('Produto não encontrado.');
-    const before = await tx.product.findMany({ where: { isFeatured: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }], select: { name: true } });
-    await tx.product.updateMany({ where: { isFeatured: true, id: { notIn: productIds } }, data: { isFeatured: false } });
-    for (const [index, id] of productIds.entries()) {
-      await tx.product.update({ where: { id }, data: { isFeatured: true, sortOrder: index } });
-    }
-    const names = new Map(found.map((p) => [p.id, p.name]));
+    const rows = await tx.product.findMany({
+      where: { OR: [{ id: { in: productIds } }, { isFeatured: true }] },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true, isFeatured: true },
+    });
+    const names = new Map(rows.map((p) => [p.id, p.name]));
+    if (productIds.some((id) => !names.has(id))) throw notFound('Produto não encontrado.');
+    const before = rows.filter((p) => p.isFeatured);
+    // Posição = ordem na lista (0, 1, 2…); quem não está na lista deixa de ser destaque.
+    await tx.$executeRaw`
+      UPDATE products p
+         SET is_featured = v.ord IS NOT NULL,
+             sort_order = COALESCE(v.ord - 1, p.sort_order),
+             updated_at = now()
+        FROM products p2
+        LEFT JOIN unnest(${productIds}::uuid[]) WITH ORDINALITY AS v(id, ord) ON v.id = p2.id
+       WHERE p.id = p2.id AND (p2.is_featured OR v.id IS NOT NULL)`;
     await audit(
       {
         profileId,
