@@ -47,6 +47,12 @@ export const ImageIcon = icon(
     <path d="M21 16l-5-5-9 9" />
   </>,
 );
+export const PodiumIcon = icon(
+  <>
+    <path d="M9 21V9h6v12M3 21v-7h6M15 21v-9h6v9M2 21h20" />
+    <path d="M12 3l.9 1.8 2 .3-1.4 1.4.3 2-1.8-1-1.8 1 .3-2-1.4-1.4 2-.3z" />
+  </>,
+);
 export const PercentIcon = icon(
   <>
     <path d="M19 5L5 19" />

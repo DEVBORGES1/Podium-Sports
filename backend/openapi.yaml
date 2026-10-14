@@ -478,6 +478,29 @@ paths:
         '201': { description: Criado }
         '400': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+  /admin/products/podium:
+    get:
+      tags: [Admin · Produtos]
+      summary: Produtos do pódio da página inicial (destaques), na ordem exibida na loja
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: OK }
+    put:
+      tags: [Admin · Produtos]
+      summary: Define o pódio inteiro (até 5 produtos, 1º = ouro); os demais deixam de ser destaque
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productIds]
+              properties: { productIds: { type: array, maxItems: 5, items: { type: string, format: uuid } } }
+      responses:
+        '200': { description: OK }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /admin/products/{id}:
     get:
       tags: [Admin · Produtos]

@@ -25,6 +25,7 @@ const OrdersPage = lazy(() => import('./pages/admin/OrdersPage'));
 const OrderDetailPage = lazy(() => import('./pages/admin/OrderDetailPage'));
 const BannersPage = lazy(() => import('./pages/admin/BannersPage'));
 const BannerFormPage = lazy(() => import('./pages/admin/BannerFormPage'));
+const PodiumPage = lazy(() => import('./pages/admin/PodiumPage'));
 const PromotionsPage = lazy(() => import('./pages/admin/PromotionsPage'));
 const PromotionFormPage = lazy(() => import('./pages/admin/PromotionFormPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
@@ -69,6 +70,7 @@ export const routes = [
               { path: 'banners', element: page(<BannersPage />) },
               { path: 'banners/new', element: page(<BannerFormPage />) },
               { path: 'banners/:id', element: page(<BannerFormPage />) },
+              { path: 'podium', element: page(<PodiumPage />) },
               { path: 'promotions', element: page(<PromotionsPage />) },
               { path: 'promotions/new', element: page(<PromotionFormPage />) },
               { path: 'promotions/:id', element: page(<PromotionFormPage />) },

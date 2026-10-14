@@ -79,6 +79,35 @@ describe('produtos', () => {
   });
 });
 
+describe('pódio', () => {
+  const names = (body: { items: { name: string }[] }) => body.items.map((p) => p.name);
+
+  it('define produtos e ordem de uma vez e reflete na vitrine da loja', async () => {
+    const antigo = await createProduct({ name: 'Antigo', isFeatured: true });
+    const a = await createProduct({ name: 'A' });
+    const b = await createProduct({ name: 'B' });
+    const res = await api(app).put('/api/v1/admin/products/podium').set('Authorization', admin.auth).send({ productIds: [b.id, a.id] });
+    expect(res.status).toBe(200);
+    expect(names(res.body)).toEqual(['B', 'A']);
+    expect((await prisma.product.findUniqueOrThrow({ where: { id: antigo.id } })).isFeatured).toBe(false);
+    const store = await api(app).get('/api/v1/products?featured=true');
+    expect(names(store.body)).toEqual(['B', 'A']);
+    const log = await prisma.auditLog.findFirstOrThrow({ where: { action: 'product.podium' } });
+    expect(log.metadata).toMatchObject({ from: ['Antigo'], to: ['B', 'A'] });
+    const get = await api(app).get('/api/v1/admin/products/podium').set('Authorization', admin.auth);
+    expect(names(get.body)).toEqual(['B', 'A']);
+  });
+
+  it('recusa mais de 5 lugares, repetidos e produtos inexistentes', async () => {
+    const ps = await Promise.all([1, 2, 3, 4, 5, 6].map(() => createProduct()));
+    const send = (productIds: string[]) => api(app).put('/api/v1/admin/products/podium').set('Authorization', admin.auth).send({ productIds });
+    expect((await send(ps.map((p) => p.id))).status).toBe(400);
+    expect((await send([ps[0]!.id, ps[0]!.id])).status).toBe(400);
+    expect((await send(['00000000-0000-4000-8000-000000000000'])).status).toBe(404);
+    expect((await send([])).status).toBe(200);
+  });
+});
+
 describe('imagens', () => {
   it('envia várias imagens, define principal, reordena e remove', async () => {
     const p = await createProduct();

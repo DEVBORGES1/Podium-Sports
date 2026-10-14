@@ -10,6 +10,7 @@ import {
   LogoutIcon,
   OrdersIcon,
   PercentIcon,
+  PodiumIcon,
   ProductIcon,
   SettingsIcon,
   StockIcon,
@@ -45,6 +46,7 @@ const GROUPS: { title?: string; items: NavItem[]; superOnly?: boolean }[] = [
     title: 'Vitrine',
     items: [
       { to: '/admin/banners', label: 'Banners', icon: ImageIcon },
+      { to: '/admin/podium', label: 'Pódio', icon: PodiumIcon },
       { to: '/admin/promotions', label: 'Promoções', icon: PercentIcon },
     ],
   },

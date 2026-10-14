@@ -9,7 +9,7 @@ import { useOrderAlerts } from '../../contexts/OrderAlertsContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useNow } from '../../hooks/useNow';
 import { adminApi } from '../../lib/api';
-import { brl, formatTime, timeAgo } from '../../lib/format';
+import { brl, formatTime, lastDaysRange, timeAgo } from '../../lib/format';
 import { ORDER_STAGES, startOfTodayIso, type OrderStageId } from '../../lib/labels';
 import type { AdminOrderRow, DashboardSummary, SalesSeries, TopProducts } from '../../types/admin';
 import type { Page } from '../../types/api';
@@ -21,13 +21,7 @@ const PRESETS = [
   { days: 90, label: '90 dias' },
 ];
 
-const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-function presetRange(days: number) {
-  const to = new Date();
-  const from = new Date();
-  from.setDate(to.getDate() - (days - 1));
-  return { from: iso(from), to: iso(to) };
-}
+const presetRange = lastDaysRange;
 const shortDate = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 const pad2 = (n: number) => String(n).padStart(2, '0');
 

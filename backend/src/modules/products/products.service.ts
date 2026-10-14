@@ -330,6 +330,45 @@ export async function updateProduct(id: string, input: z.infer<typeof updateProd
   return getAdminProduct(id);
 }
 
+/** Produtos do pódio (destaques) na ordem em que aparecem na loja. */
+export async function listPodium() {
+  const now = new Date();
+  const rows = await prisma.product.findMany({
+    where: { isFeatured: true },
+    include: productInclude(now),
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
+  return { items: rows.map((p) => ({ ...toAdminProduct(p, now), categoryActive: p.category.isActive })) };
+}
+
+/**
+ * Define o pódio inteiro de uma vez: os produtos listados viram destaque com ordem 0, 1, 2…
+ * (a mesma "Ordem de exibição" do catálogo) e os demais destaques deixam de ser.
+ */
+export async function setPodium(productIds: string[], profileId: string) {
+  await prisma.$transaction(async (tx) => {
+    const found = await tx.product.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true } });
+    if (found.length !== productIds.length) throw notFound('Produto não encontrado.');
+    const before = await tx.product.findMany({ where: { isFeatured: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }], select: { name: true } });
+    await tx.product.updateMany({ where: { isFeatured: true, id: { notIn: productIds } }, data: { isFeatured: false } });
+    for (const [index, id] of productIds.entries()) {
+      await tx.product.update({ where: { id }, data: { isFeatured: true, sortOrder: index } });
+    }
+    const names = new Map(found.map((p) => [p.id, p.name]));
+    await audit(
+      {
+        profileId,
+        action: 'product.podium',
+        entityType: 'product',
+        entityId: null,
+        metadata: { from: before.map((p) => p.name), to: productIds.map((id) => names.get(id)!) } as Prisma.InputJsonValue,
+      },
+      tx,
+    );
+  });
+  return listPodium();
+}
+
 export async function deleteProduct(id: string, profileId: string) {
   const product = await prisma.product.findUnique({
     where: { id },

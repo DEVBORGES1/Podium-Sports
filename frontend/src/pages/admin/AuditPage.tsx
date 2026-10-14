@@ -25,6 +25,7 @@ const ACTIONS: Record<string, { label: string; tone: Tone }> = {
   'product.create': { label: 'Produto criado', tone: 'ok' },
   'product.update': { label: 'Produto editado', tone: 'info' },
   'product.price_change': { label: 'Preço alterado', tone: 'gold' },
+  'product.podium': { label: 'Pódio alterado', tone: 'gold' },
   'product.delete': { label: 'Produto excluído', tone: 'danger' },
   'product.images_add': { label: 'Imagens adicionadas', tone: 'info' },
   'product.image_update': { label: 'Imagem editada', tone: 'info' },

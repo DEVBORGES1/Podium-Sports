@@ -104,7 +104,7 @@ export default function HomePage() {
       )}
       <div ref={mainRef} className="home">
         <InfoStrip items={s.content.benefits} className="benefits" label="Vantagens" />
-        <Podium title={home.featuredTitle} />
+        {s.content.podium.enabled && <Podium eyebrow={home.featuredTitle} title={s.content.podium.title} text={s.content.podium.text} />}
         {home.showCategories && tiles.length > 0 && <CategoriesSection tiles={tiles} others={all.filter((c) => !c.showOnHome)} />}
         <BrandBanner data={s.content.brandBanner} />
         {tabs.length > 0 && <Showcase tabs={tabs} />}

@@ -67,6 +67,14 @@ export const contentSchema = z.object({
       showCatalog: z.boolean().default(true),
     })
     .prefault({}),
+  /** Seção "Pódio" da página inicial; os produtos e a ordem vêm dos destaques (tela Pódio do painel). */
+  podium: z
+    .object({
+      enabled: z.boolean().default(true),
+      title: z.string().trim().max(60).default('Pódio da semana'),
+      text: z.string().trim().max(200).default('Os mais pedidos pelo WhatsApp. Adicione na sacola e confirme tamanho e sabor na conversa.'),
+    })
+    .prefault({}),
   footerAbout: z
     .string()
     .trim()

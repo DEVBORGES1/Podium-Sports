@@ -133,6 +133,8 @@ export interface StoreContent {
   };
   cta: { enabled: boolean; title: string; text: string; buttonLabel: string };
   home: { featuredTitle: string; showNewArrivals: boolean; showOnSale: boolean; showCategories: boolean; showCatalog: boolean };
+  /** Pódio da página inicial: os produtos e a ordem vêm dos destaques (tela Pódio do painel). */
+  podium: { enabled: boolean; title: string; text: string };
   footerAbout: string;
   serviceNotes: string[];
   cartNote: string;

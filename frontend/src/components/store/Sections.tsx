@@ -76,20 +76,20 @@ function podiumOrder(n: number) {
 const RANK_LABEL: Record<number, string> = { 1: 'Ouro', 2: 'Prata', 3: 'Bronze' };
 
 /** Destaques no formato de pódio: os produtos sobem em degraus conforme a posição. */
-export function Podium({ title }: { title: string }) {
+export function Podium({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
   const products = useProducts({ featured: true, pageSize: 5 });
   if (products.isSuccess && products.data.items.length === 0) return null;
   const items = products.data?.items ?? [];
   const order = podiumOrder(items.length);
   return (
-    <section className="sec" aria-label={title}>
+    <section className="sec" aria-label={eyebrow || title}>
       <div className="wrap">
         <SectionHead
-          eyebrow={title}
-          title="Pódio da semana"
+          eyebrow={eyebrow}
+          title={title}
           aside={
             <>
-              <p>Os mais pedidos pelo WhatsApp. Adicione na sacola e confirme tamanho e sabor na conversa.</p>
+              {text && <p>{text}</p>}
               <Link to="/produtos" className="link-arrow">
                 Ver catálogo completo →
               </Link>

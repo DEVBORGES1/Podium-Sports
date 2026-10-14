@@ -57,3 +57,12 @@ export function timeAgo(iso: string | Date, now = Date.now()) {
   const days = Math.floor(hours / 24);
   return days === 1 ? 'há 1 dia' : `há ${days} dias`;
 }
+
+const isoDate = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+/** Período dos últimos `days` dias (inclui hoje) em datas locais AAAA-MM-DD. */
+export function lastDaysRange(days: number) {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(to.getDate() - (days - 1));
+  return { from: isoDate(from), to: isoDate(to) };
+}

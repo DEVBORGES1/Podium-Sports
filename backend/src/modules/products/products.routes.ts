@@ -7,6 +7,7 @@ import {
   adminListQuery,
   createProductSchema,
   legacyMapQuery,
+  podiumSchema,
   publicListQuery,
   reorderImagesSchema,
   updateImageSchema,
@@ -34,6 +35,13 @@ const imageParams = z.object({ id: z.uuid(), imageId: z.uuid() });
 
 adminProductsRouter.get('/products', async (req, res) => {
   res.json(await service.listAdminProducts(parse(adminListQuery, req.query)));
+});
+adminProductsRouter.get('/products/podium', async (_req, res) => {
+  res.json(await service.listPodium());
+});
+adminProductsRouter.put('/products/podium', async (req, res) => {
+  const { productIds } = parse(podiumSchema, req.body);
+  res.json(await service.setPodium(productIds, currentProfile(req).id));
 });
 adminProductsRouter.get('/products/:id', async (req, res) => {
   const { id } = parse(uuidParam, req.params);

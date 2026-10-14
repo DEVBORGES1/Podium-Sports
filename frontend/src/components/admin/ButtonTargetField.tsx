@@ -36,7 +36,7 @@ function useProduct(id: string) {
   });
 }
 
-function ProductThumb({ product }: { product: Pick<AdminProduct, 'imageUrl' | 'name' | 'category'> }) {
+export function ProductThumb({ product }: { product: Pick<AdminProduct, 'imageUrl' | 'name' | 'category'> }) {
   return (
     <span className="pick-thumb">
       {product.imageUrl ? <img src={product.imageUrl} alt="" loading="lazy" /> : <CategoryGlyph icon={product.category.icon} strokeWidth={1.3} />}
@@ -53,7 +53,21 @@ function Price({ product }: { product: AdminProduct }) {
 }
 
 /** Seletor visual de produto: busca por nome/marca, com foto e preço. */
-function ProductPickerModal({ selectedId, onPick, onClose }: { selectedId: string; onPick: (p: AdminProduct) => void; onClose: () => void }) {
+export function ProductPickerModal({
+  selectedIds,
+  onPick,
+  onClose,
+  title = 'Escolher produto',
+  actionLabel = 'Selecionar',
+  selectedLabel = 'Selecionado',
+}: {
+  selectedIds: string[];
+  onPick: (p: AdminProduct) => void;
+  onClose: () => void;
+  title?: string;
+  actionLabel?: string;
+  selectedLabel?: string;
+}) {
   const [term, setTerm] = useState('');
   const [query, setQuery] = useState('');
   useEffect(() => {
@@ -67,7 +81,7 @@ function ProductPickerModal({ selectedId, onPick, onClose }: { selectedId: strin
   });
   const items = results.data?.items ?? [];
   return (
-    <Modal title="Escolher produto" onClose={onClose} wide>
+    <Modal title={title} onClose={onClose} wide>
       <div className="pick-search">
         <SearchIcon />
         <label htmlFor="product-picker-search" className="sr-only">
@@ -93,16 +107,19 @@ function ProductPickerModal({ selectedId, onPick, onClose }: { selectedId: strin
       ) : (
         <>
           <ul className="pick-grid" aria-busy={results.isFetching}>
-            {items.map((p) => (
-              <li key={p.id}>
-                <button type="button" className={`pick-card ${p.id === selectedId ? 'selected' : ''}`} onClick={() => onPick(p)} aria-pressed={p.id === selectedId}>
-                  <ProductThumb product={p} />
-                  <span className="pick-name">{p.name}</span>
-                  <Price product={p} />
-                  <span className="pick-action">{p.id === selectedId ? 'Selecionado' : 'Selecionar'}</span>
-                </button>
-              </li>
-            ))}
+            {items.map((p) => {
+              const selected = selectedIds.includes(p.id);
+              return (
+                <li key={p.id}>
+                  <button type="button" className={`pick-card ${selected ? 'selected' : ''}`} onClick={() => onPick(p)} aria-pressed={selected}>
+                    <ProductThumb product={p} />
+                    <span className="pick-name">{p.name}</span>
+                    <Price product={p} />
+                    <span className="pick-action">{selected ? selectedLabel : actionLabel}</span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           {results.data && results.data.total > items.length && <p className="notice">Mostrando {items.length} de {results.data.total}. Digite parte do nome para encontrar outros.</p>}
         </>
@@ -161,7 +178,7 @@ function ProductChoice({ value, onChange, onProduct }: { value: string; onChange
       )}
       {open && (
         <ProductPickerModal
-          selectedId={value}
+          selectedIds={value ? [value] : []}
           onClose={() => setOpen(false)}
           onPick={(p) => {
             onChange(p.id);

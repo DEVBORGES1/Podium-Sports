@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FormEventHandler, type ReactNode } from 'react';
 import { Controller, useFieldArray, useForm, useWatch, type Control, type FieldErrors, type FieldValues, type Path, type UseFormRegister, type UseFormSetError } from 'react-hook-form';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { FormField, ImageUpload, PageHeader, Switch, Tag } from '../../components/admin/ui';
 import { InfoGlyph } from '../../components/ui/Icons';
@@ -773,7 +773,7 @@ const toContentValues = (s: AdminSettings): ContentValues => {
   };
 };
 
-const toContent = (v: ContentValues): StoreContent => ({
+const toContent = (v: ContentValues): Omit<StoreContent, 'podium'> => ({
   topbarMessages: splitLines(v.topbarText),
   benefits: v.benefits,
   trustItems: v.trustItems,
@@ -812,7 +812,7 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
   const save = useSaveSettings();
 
   const onSubmit = handleSubmit((v) =>
-    save.mutate({ content: { ...toContent(v), customerMessages: settings.content.customerMessages } }, { onSuccess: (s) => reset(toContentValues(s)), onError: (err) => applyServerIssues(err, setError, mapContentField) }),
+    save.mutate({ content: { ...toContent(v), podium: settings.content.podium, customerMessages: settings.content.customerMessages } }, { onSuccess: (s) => reset(toContentValues(s)), onError: (err) => applyServerIssues(err, setError, mapContentField) }),
   );
 
   const homeSwitches = [
@@ -835,10 +835,18 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
         </FormField>
       </Group>
 
-      <Group legend="Seções da página inicial">
-        <FormField id="featuredTitle" label="Título da vitrine de destaques" error={errors.home?.featuredTitle?.message} hint="Produtos marcados como destaque aparecem nesta vitrine.">
-          <input id="featuredTitle" className="input" aria-invalid={!!errors.home?.featuredTitle} {...register('home.featuredTitle')} />
-        </FormField>
+      <Group
+        legend="Seções da página inicial"
+        hint={
+          <>
+            Os produtos, a ordem e os textos do pódio de destaques ficam em{' '}
+            <Link to="/admin/podium" className="link-btn">
+              Pódio
+            </Link>
+            .
+          </>
+        }
+      >
         <div className="form-cols two">
           {homeSwitches.map((s) => (
             <Controller key={s.name} control={control} name={s.name} render={({ field }) => <Switch label={s.label} checked={field.value} onChange={field.onChange} />} />

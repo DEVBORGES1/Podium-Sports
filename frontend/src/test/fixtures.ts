@@ -27,6 +27,7 @@ export const settings: StoreSettings = {
     brandBanner: { enabled: false, kicker: '', title: '', highlight: '', text: '', buttonLabel: '', buttonUrl: '/produtos', brands: [] },
     cta: { enabled: false, title: '', text: '', buttonLabel: '' },
     home: { featuredTitle: 'Destaques', showNewArrivals: false, showOnSale: false, showCategories: true, showCatalog: true },
+    podium: { enabled: true, title: 'Pódio da semana', text: 'Os mais pedidos pelo WhatsApp.' },
     footerAbout: 'Loja de artigos esportivos.',
     serviceNotes: [],
     cartNote: 'Tamanho, cor e sabor a gente confirma no WhatsApp.',

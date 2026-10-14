@@ -78,6 +78,15 @@ export const updateImageSchema = z
 
 export const reorderImagesSchema = z.object({ imageIds: z.array(z.uuid()).min(1).max(10) });
 
+/** Lugares do pódio da página inicial (1º = ouro). */
+export const PODIUM_SIZE = 5;
+export const podiumSchema = z.object({
+  productIds: z
+    .array(z.uuid())
+    .max(PODIUM_SIZE, `O pódio tem no máximo ${PODIUM_SIZE} lugares.`)
+    .refine((ids) => new Set(ids).size === ids.length, 'Um produto só pode ocupar um lugar no pódio.'),
+});
+
 export const legacyMapQuery = z.object({
   ids: z
     .string()
