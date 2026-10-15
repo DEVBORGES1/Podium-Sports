@@ -96,7 +96,7 @@
 .mobile-menu { position: fixed; inset: 0 auto 0 0; width: min(320px, 86%); background: var(--inv); color: var(--inv-ink); z-index: 50; transform: translateX(-100%); transition: transform 0.25s; display: flex; flex-direction: column; font-family: var(--font-sans); }
 .mobile-menu.open { transform: none; }
 .mobile-menu-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--inv-line); }
-.mobile-menu-head img { height: 34px; }
+.mobile-menu-head img { height: 34px; width: auto; }
 .mobile-menu nav { display: grid; padding: 8px 0; overflow: auto; }
 .mobile-menu nav a { padding: 14px 20px; font-stretch: 110%; font-weight: 700; text-transform: uppercase; font-size: 13px; letter-spacing: 0.08em; border-bottom: 1px solid var(--inv-line); }
 .mobile-menu nav a:hover, .mobile-menu nav a.active, .mobile-menu nav a.sale { color: var(--gold); }
@@ -196,7 +196,7 @@
 @container hero (min-width: 760px) { .hero-art { --k: 1; min-height: 100%; } }
 .art-glow { position: absolute; left: 50%; top: 46%; width: calc(440px * var(--k)); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(247, 170, 24, 0.22), rgba(247, 170, 24, 0) 66%); animation: glow 4s ease-in-out infinite; }
 @keyframes glow { 50% { opacity: 0.6; } }
-.art-trophy { position: relative; width: calc(360px * var(--k)); display: block; margin-bottom: -2px; }
+.art-trophy { position: relative; width: calc(360px * var(--k)); height: auto; display: block; margin-bottom: -2px; }
 .art-podium { position: relative; display: flex; align-items: flex-end; gap: calc(8px * var(--k)); }
 .art-step { width: calc(150px * var(--k)); display: flex; justify-content: center; padding-top: calc(12px * var(--k)); font-family: var(--font-mono); font-weight: 600; font-size: calc(22px * var(--k)); color: #a6a39c; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); border-bottom: 0; }
 .art-step.s1 { width: calc(176px * var(--k)); height: calc(178px * var(--k)); background: var(--gold); border-color: var(--gold); color: #141311; position: relative; }

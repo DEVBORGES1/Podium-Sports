@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router';
+import RouteError from './components/ui/RouteError';
 import { LoadingState } from './components/ui/States';
 import StoreLayout from './layouts/StoreLayout';
 import HomePage from './pages/store/HomePage';
@@ -38,6 +39,7 @@ export const routes = [
   {
     path: '/',
     element: <StoreLayout />,
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <HomePage /> },
       { path: 'produtos', element: page(<CatalogPage />) },
@@ -50,6 +52,7 @@ export const routes = [
   {
     path: '/admin',
     element: page(<AdminRoot />),
+    errorElement: <RouteError />,
     children: [
       { path: 'login', element: page(<LoginPage />) },
       { path: 'definir-senha', element: page(<SetPasswordPage />) },

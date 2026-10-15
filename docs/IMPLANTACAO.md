@@ -156,7 +156,20 @@ O workflow `.github/workflows/ci.yml` roda lint, typecheck, testes, build e E2E 
 
 **Banco**
 - Supabase Pro faz backup diário automático (7 dias); para recuperar um momento exato, ative *Point in Time Recovery*.
-- Faça também um backup lógico próprio, fora do Supabase (ex.: diário, guardado por 30 dias):
+- Backup lógico próprio, fora do Supabase, feito na VPS por `backend/scripts/backup-db.sh` (vai junto com o deploy para `/opt/podium-sports/scripts/`). Ele usa o `pg_dump` da imagem Docker `postgres:17-alpine`, lê `DIRECT_URL` do `.env`, confere o arquivo com `pg_restore --list` e guarda 14 dias em `/var/backups/podium`.
+- Teste de restauração automático por `backend/scripts/restore-test.sh`: sobe um Postgres descartável em Docker, restaura o backup mais recente e falha se as tabelas essenciais vierem vazias. Não toca no banco de produção.
+- Instalação na VPS (como root). Os scripts são copiados para uma pasta do root: o cron do root nunca executa arquivos que o usuário `podium` pode alterar.
+  ```bash
+  install -m 750 -o root -g root /opt/podium-sports/scripts/backup-db.sh   /usr/local/sbin/podium-backup-db
+  install -m 750 -o root -g root /opt/podium-sports/scripts/restore-test.sh /usr/local/sbin/podium-restore-test
+  ```
+  Agendamento (`crontab -e`):
+  ```cron
+  30 3 * * *  /usr/local/sbin/podium-backup-db    >> /var/log/podium-backup.log 2>&1
+  0  5 * * 1  /usr/local/sbin/podium-restore-test >> /var/log/podium-backup.log 2>&1
+  ```
+- Copie os backups para fora da VPS de tempos em tempos (ex.: `scp root@VPS:/var/backups/podium/*.dump .`): se a VPS cair, o backup cai junto.
+- Backup manual de qualquer máquina com o cliente do Postgres:
   ```bash
   pg_dump "$DIRECT_URL" --format=custom --no-owner --schema=public -f podium-$(date +%F).dump
   ```
@@ -168,6 +181,8 @@ O workflow `.github/workflows/ci.yml` roda lint, typecheck, testes, build e E2E 
 - Teste a restauração periodicamente em um projeto separado — backup não testado não é backup.
 
 **Imagens (Storage)**: o bucket `store-media` é compatível com S3. Habilite as *S3 access keys* no Supabase e sincronize com `rclone sync supabase:store-media backup:podium-media` (ou `aws s3 sync`). O banco guarda apenas os caminhos (`products/<uuid>.jpg`), então restaurar os arquivos no mesmo caminho basta.
+
+**Monitoramento de disponibilidade**: o workflow `.github/workflows/uptime.yml` verifica a cada 10 minutos a saúde da API (incluindo o banco), a loja, o rewrite `/api` da Vercel e o sitemap. Quando falha, o GitHub envia e-mail (em *Settings → Notifications → Actions*, deixe marcado “Only notify for failed workflows”). O agendamento do GitHub pode atrasar alguns minutos; para alertas em tempo real, cadastre `https://srv1388438.hstgr.cloud/api/v1/health` também num serviço externo (UptimeRobot, Better Stack).
 
 ## 9. Operação do dia a dia
 

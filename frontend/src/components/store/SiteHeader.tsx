@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
-import logo from '../../assets/logo.png';
+import logo from '../../assets/logo.webp';
 import { useCart } from '../../contexts/CartContext';
 import { useDialog } from '../../hooks/useDialog';
 import { estimatedTotal } from '../../lib/cart';
@@ -170,7 +170,7 @@ export function SiteHeader({ categories, logoUrl, storeName }: { categories: Cat
       <div className={`overlay ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(false)} aria-hidden />
       <div ref={menuRef} className={`mobile-menu ${menuOpen ? 'open' : ''}`} role="dialog" aria-modal="true" aria-label="Menu" hidden={!menuOpen} tabIndex={-1}>
         <div className="mobile-menu-head">
-          <img src={logoUrl ?? logo} alt={storeName} />
+          <img src={logoUrl ?? logo} alt={storeName} width={236} height={96} />
           <button type="button" className="x" aria-label="Fechar menu" onClick={() => setMenuOpen(false)}>
             ×
           </button>

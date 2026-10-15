@@ -1,0 +1,33 @@
+name: Uptime
+
+# Verifica a cada 10 minutos se a loja e a API estão no ar.
+# Quando falha, o GitHub envia e-mail para quem alterou este agendamento por último
+# (Settings → Notifications → Actions: "Only notify for failed workflows").
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: API (saúde e banco)
+        run: |
+          body=$(curl -fsS -m 20 --retry 2 --retry-delay 10 --retry-all-errors https://srv1388438.hstgr.cloud/api/v1/health)
+          echo "$body"
+          echo "$body" | grep -q '"database":"ok"'
+      - name: Loja
+        run: curl -fsS -m 20 --retry 2 --retry-delay 10 --retry-all-errors https://podiumsports.vercel.app/ | grep -q 'Podium Sports'
+      - name: API pela Vercel (rewrite /api)
+        run: curl -fsS -m 20 --retry 2 --retry-delay 10 --retry-all-errors -o /dev/null https://podiumsports.vercel.app/api/v1/store/settings
+      - name: Sitemap
+        run: curl -fsS -m 20 --retry 2 --retry-delay 10 --retry-all-errors https://podiumsports.vercel.app/sitemap.xml | grep -q '<urlset'

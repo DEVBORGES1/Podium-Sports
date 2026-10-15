@@ -3,7 +3,7 @@
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://srv1388438.hstgr.cloud/api/:path*" },
     { "source": "/sitemap.xml", "destination": "https://srv1388438.hstgr.cloud/api/v1/sitemap.xml" },
-    { "source": "/((?!assets/|favicon\\.png|og-image\\.jpg|robots\\.txt).*)", "destination": "/index.html" }
+    { "source": "/((?!assets/|favicon\\.png|apple-touch-icon\\.png|og-image\\.jpg|robots\\.txt).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

@@ -154,3 +154,9 @@ img { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Tela de erro das rotas (fica fora dos layouts da loja e do painel). */
+.route-error { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 14px; padding: 40px 16px; text-align: center; }
+.route-error h1 { font-size: clamp(28px, 6vw, 44px); line-height: 1.1; }
+.route-error p { max-width: 440px; opacity: 0.8; }
+.route-error-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }

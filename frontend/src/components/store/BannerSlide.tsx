@@ -1,5 +1,5 @@
 import type { HTMLAttributes, ReactNode, Ref } from 'react';
-import trophy from '../../assets/trophy.png';
+import trophy from '../../assets/trophy.webp';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { deviceLook, discountPercent, slideStyle, type SlideData } from '../../lib/banner';
 import { brl } from '../../lib/format';
@@ -14,7 +14,7 @@ function SlideArt({ data }: { data: SlideData }) {
     <div className="hero-art" aria-hidden>
       <div className="art-glow" />
       {data.icon === 'trophy' ? (
-        <img className="art-trophy" src={trophy} alt="" />
+        <img className="art-trophy" src={trophy} alt="" width={220} height={260} />
       ) : (
         // Pódio: o ícone da categoria fica sobre o degrau dourado.
         <div className="art-podium">

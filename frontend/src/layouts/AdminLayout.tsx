@@ -1,6 +1,6 @@
 import { useCallback, useState, type ComponentType, type SVGProps } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.webp';
 import {
   CategoryIcon,
   ExternalIcon,

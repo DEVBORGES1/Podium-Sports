@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import logo from '../../assets/logo.png';
+import logo from '../../assets/logo.webp';
 import { whatsappLink } from '../../lib/whatsapp';
 import type { Category, StoreSettings } from '../../types/api';
 import { FacebookIcon, InfoGlyph, InstagramIcon, TikTokIcon } from '../ui/Icons';
@@ -29,7 +29,7 @@ export function SiteFooter({ settings, categories }: { settings: StoreSettings; 
       )}
       <div className="wrap foot">
         <div className="brand">
-          <img src={settings.logoUrl ?? logo} alt={settings.storeName} />
+          <img src={settings.logoUrl ?? logo} alt={settings.storeName} width={236} height={96} loading="lazy" decoding="async" />
           <p>{settings.content.footerAbout}</p>
           {social.length > 0 && (
             <div className="social">

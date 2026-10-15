@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import logo from '../../assets/logo.png';
+import logo from '../../assets/logo.webp';
 import { LoadingState } from '../../components/ui/States';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';

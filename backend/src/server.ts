@@ -30,3 +30,8 @@ async function shutdown(signal: string) {
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('unhandledRejection', (err) => logger.error({ err }, 'unhandled rejection'));
+// Estado do processo é desconhecido após uma exceção não tratada: registra e sai (o systemd reinicia).
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'uncaught exception');
+  process.exit(1);
+});
