@@ -1,0 +1,38 @@
+name: Deploy API
+
+# Deploy automático da API para a VPS Hostinger após o CI passar na main.
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Configurar SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "72.60.243.98 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK7EI/+xWOIIilwdEZ4gGrsIM9J6elf1Kryl/3mFEiNU" > ~/.ssh/known_hosts
+      - name: Enviar backend e publicar
+        # A chave só executa /usr/local/bin/podium-deploy na VPS (forced command).
+        run: git archive HEAD:backend | ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes root@72.60.243.98
+      - name: Health check
+        run: curl -fsS -m 15 https://srv1388438.hstgr.cloud/api/v1/health
