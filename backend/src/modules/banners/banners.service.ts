@@ -148,7 +148,12 @@ type ButtonFields = 'buttonTarget' | 'buttonUrl' | 'secondaryButtonTarget' | 'se
  * vale o link informado e o destino estruturado é descartado.
  */
 async function normalizeButtons(input: Partial<Pick<CreateInput, ButtonFields>>) {
-  const out: { buttonTarget?: ButtonTarget | null; buttonUrl?: string | null; secondaryButtonTarget?: ButtonTarget | null; secondaryButtonUrl?: string | null } = {};
+  const out: {
+    buttonTarget?: ButtonTarget | null;
+    buttonUrl?: string | null;
+    secondaryButtonTarget?: ButtonTarget | null;
+    secondaryButtonUrl?: string | null;
+  } = {};
   const pairs = [
     ['buttonTarget', 'buttonUrl'],
     ['secondaryButtonTarget', 'secondaryButtonUrl'],
@@ -161,7 +166,12 @@ async function normalizeButtons(input: Partial<Pick<CreateInput, ButtonFields>>)
     if (target) {
       const r = resolveTarget(target, refs!);
       if (r.issue === 'PRODUCT_REMOVED' || r.issue === 'CATEGORY_REMOVED' || r.issue === 'WHATSAPP_MISSING') {
-        const message = r.issue === 'PRODUCT_REMOVED' ? 'O produto escolhido não existe mais.' : r.issue === 'CATEGORY_REMOVED' ? 'A categoria escolhida não existe mais.' : 'Cadastre o número do WhatsApp nas configurações.';
+        const message =
+          r.issue === 'PRODUCT_REMOVED'
+            ? 'O produto escolhido não existe mais.'
+            : r.issue === 'CATEGORY_REMOVED'
+              ? 'A categoria escolhida não existe mais.'
+              : 'Cadastre o número do WhatsApp nas configurações.';
         throw unprocessable(message, [{ field: targetKey, message }], 'BANNER_TARGET_INVALID');
       }
       out[targetKey] = target;
@@ -179,7 +189,15 @@ async function normalizeButtons(input: Partial<Pick<CreateInput, ButtonFields>>)
 
 type Merged = Pick<
   Banner,
-  'buttonLabel' | 'buttonUrl' | 'secondaryButtonLabel' | 'secondaryButtonUrl' | 'secondaryButtonEnabled' | 'startsAt' | 'endsAt' | 'priceOriginalCents' | 'priceSaleCents'
+  | 'buttonLabel'
+  | 'buttonUrl'
+  | 'secondaryButtonLabel'
+  | 'secondaryButtonUrl'
+  | 'secondaryButtonEnabled'
+  | 'startsAt'
+  | 'endsAt'
+  | 'priceOriginalCents'
+  | 'priceSaleCents'
 >;
 
 /** Regras entre campos, conferidas sobre o estado final (criação ou edição parcial). */
@@ -250,10 +268,15 @@ export async function updateBanner(id: string, input: UpdateInput, profileId: st
     return b;
   });
   // Arquivos trocados ou removidos saem do Storage (falha aqui não desfaz o salvamento).
-  const replaced = [current.imagePath !== saved.imagePath && current.imagePath, current.mobileImagePath !== saved.mobileImagePath && current.mobileImagePath].filter(
-    (path): path is string => !!path,
-  );
-  if (replaced.length) await storage.get().remove(replaced).catch(() => undefined);
+  const replaced = [
+    current.imagePath !== saved.imagePath && current.imagePath,
+    current.mobileImagePath !== saved.mobileImagePath && current.mobileImagePath,
+  ].filter((path): path is string => !!path);
+  if (replaced.length)
+    await storage
+      .get()
+      .remove(replaced)
+      .catch(() => undefined);
   return saved;
 }
 
@@ -265,5 +288,9 @@ export async function deleteBanner(id: string, profileId: string) {
     await audit({ profileId, action: 'banner.delete', entityType: 'banner', entityId: id, metadata: { title: current.title } }, tx);
   });
   const files = [current.imagePath, current.mobileImagePath].filter((path): path is string => !!path);
-  if (files.length) await storage.get().remove(files).catch(() => undefined);
+  if (files.length)
+    await storage
+      .get()
+      .remove(files)
+      .catch(() => undefined);
 }

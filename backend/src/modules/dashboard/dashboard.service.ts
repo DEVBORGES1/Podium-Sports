@@ -41,9 +41,7 @@ export async function summary(query: z.infer<typeof periodQuery>) {
   const todayStart = Prisma.sql`(${p.today}::date::timestamp AT TIME ZONE ${p.timezone})`;
 
   const [orders, paid, current, products, today, completedInPeriod] = await Promise.all([
-    prisma.$queryRaw<
-      { total: bigint; valid: bigint; completed: bigint; cancelled: bigint; expired: bigint; whatsapp: bigint; registered: bigint }[]
-    >`
+    prisma.$queryRaw<{ total: bigint; valid: bigint; completed: bigint; cancelled: bigint; expired: bigint; whatsapp: bigint; registered: bigint }[]>`
       SELECT count(*) AS total,
              count(*) FILTER (WHERE ${VALID}) AS valid,
              count(*) FILTER (WHERE status = 'COMPLETED') AS completed,

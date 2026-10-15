@@ -36,7 +36,10 @@ export default function ProductsPage() {
     setParams(next, { replace: true });
   };
 
-  const categories = useQuery({ queryKey: ['admin', 'categories'], queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items) });
+  const categories = useQuery({
+    queryKey: ['admin', 'categories'],
+    queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items),
+  });
   const products = useQuery({
     queryKey: ['admin', 'products', filters],
     queryFn: () => adminApi.get<Page<AdminProduct>>('/products', filters),
@@ -114,7 +117,13 @@ export default function ProductsPage() {
           </thead>
           <tbody>
             {products.isPending || products.isError || products.data.items.length === 0 ? (
-              <TableState colSpan={6} loading={products.isPending} error={products.error} empty="Nenhum produto encontrado." onRetry={() => products.refetch()} />
+              <TableState
+                colSpan={6}
+                loading={products.isPending}
+                error={products.error}
+                empty="Nenhum produto encontrado."
+                onRetry={() => products.refetch()}
+              />
             ) : (
               products.data.items.map((p) => {
                 const stock = AVAILABILITY_LABEL[p.availability];
@@ -122,7 +131,9 @@ export default function ProductsPage() {
                   <tr key={p.id} className="clickable" onClick={() => navigate(`/admin/products/${p.id}`)}>
                     <td>
                       <div className="cell-main">
-                        <div className="thumb-sm">{p.imageUrl ? <img src={p.imageUrl} alt="" /> : <CategoryGlyph icon={productGlyph(p.category.icon, p.category.slug)} />}</div>
+                        <div className="thumb-sm">
+                          {p.imageUrl ? <img src={p.imageUrl} alt="" /> : <CategoryGlyph icon={productGlyph(p.category.icon, p.category.slug)} />}
+                        </div>
                         <div>
                           <Link to={`/admin/products/${p.id}`} onClick={(e) => e.stopPropagation()}>
                             <b>{p.name}</b>
@@ -135,7 +146,11 @@ export default function ProductsPage() {
                     </td>
                     <td>{p.category.name}</td>
                     <td className="num">
-                      {p.effectivePriceCents < p.priceCents && <div className="muted"><s>{brl(p.priceCents)}</s></div>}
+                      {p.effectivePriceCents < p.priceCents && (
+                        <div className="muted">
+                          <s>{brl(p.priceCents)}</s>
+                        </div>
+                      )}
                       {brl(p.effectivePriceCents)}
                     </td>
                     <td className="num">

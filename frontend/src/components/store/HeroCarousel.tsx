@@ -65,7 +65,6 @@ export function HeroCarousel({ banners, intervalSeconds, storeName }: { banners:
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-
   if (count === 0) {
     // Sem banners ativos: slide institucional coerente com o layout.
     return (

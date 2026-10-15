@@ -64,10 +64,25 @@ function reorderPatches<T extends { id: string; sortOrder: number }>(list: T[], 
   const next = [...list];
   next[index] = b;
   next[target] = a;
-  return next.map((item, i) => ({ id: item.id, sortOrder: (i + 1) * 10, prev: item.sortOrder })).filter((p) => p.sortOrder !== p.prev).map(({ id, sortOrder }) => ({ id, sortOrder }));
+  return next
+    .map((item, i) => ({ id: item.id, sortOrder: (i + 1) * 10, prev: item.sortOrder }))
+    .filter((p) => p.sortOrder !== p.prev)
+    .map(({ id, sortOrder }) => ({ id, sortOrder }));
 }
 
-function CategorySwatch({ icon, colorFrom, colorTo, imageUrl, size = 44 }: { icon: CategoryIcon; colorFrom: string; colorTo: string; imageUrl: string | null; size?: number }) {
+function CategorySwatch({
+  icon,
+  colorFrom,
+  colorTo,
+  imageUrl,
+  size = 44,
+}: {
+  icon: CategoryIcon;
+  colorFrom: string;
+  colorTo: string;
+  imageUrl: string | null;
+  size?: number;
+}) {
   const style: CSSProperties = {
     width: size,
     height: size,
@@ -96,17 +111,26 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<AdminCategory | 'new' | { parent: AdminCategory } | null>(null);
   const [deleting, setDeleting] = useState<AdminCategory | null>(null);
 
-  const categories = useQuery({ queryKey: ['admin', 'categories'], queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items) });
+  const categories = useQuery({
+    queryKey: ['admin', 'categories'],
+    queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items),
+  });
   const list = categories.data ?? [];
 
-  const reorder = useAdminMutation((patches: { id: string; sortOrder: number }[]) => Promise.all(patches.map((p) => adminApi.patch(`/categories/${p.id}`, { sortOrder: p.sortOrder }))), {
-    invalidate: INVALIDATE,
-  });
-  const toggle = useAdminMutation((v: { id: string; body: Partial<Pick<AdminCategory, 'isActive' | 'showOnHome'>> }) => adminApi.patch<AdminCategory>(`/categories/${v.id}`, v.body), {
-    success: 'Categoria atualizada.',
-    invalidate: INVALIDATE,
-    onSuccess: () => setDeleting(null),
-  });
+  const reorder = useAdminMutation(
+    (patches: { id: string; sortOrder: number }[]) => Promise.all(patches.map((p) => adminApi.patch(`/categories/${p.id}`, { sortOrder: p.sortOrder }))),
+    {
+      invalidate: INVALIDATE,
+    },
+  );
+  const toggle = useAdminMutation(
+    (v: { id: string; body: Partial<Pick<AdminCategory, 'isActive' | 'showOnHome'>> }) => adminApi.patch<AdminCategory>(`/categories/${v.id}`, v.body),
+    {
+      success: 'Categoria atualizada.',
+      invalidate: INVALIDATE,
+      onSuccess: () => setDeleting(null),
+    },
+  );
   const remove = useAdminMutation((id: string) => adminApi.delete(`/categories/${id}`), {
     success: 'Categoria excluída.',
     invalidate: INVALIDATE,
@@ -117,7 +141,8 @@ export default function CategoriesPage() {
   // Lista em árvore: cada principal seguida das suas subcategorias. A ordem muda só entre irmãs.
   const tree = categoryOptions(list);
   const depthOf = new Map(tree.map((t) => [t.category.id, t.depth]));
-  const siblingsOf = (c: AdminCategory) => tree.filter((t) => t.depth === depthOf.get(c.id) && (t.depth === 0 || t.category.parentId === c.parentId)).map((t) => t.category);
+  const siblingsOf = (c: AdminCategory) =>
+    tree.filter((t) => t.depth === depthOf.get(c.id) && (t.depth === 0 || t.category.parentId === c.parentId)).map((t) => t.category);
   const move = (c: AdminCategory, dir: -1 | 1) => {
     const siblings = siblingsOf(c);
     const patches = reorderPatches(siblings, siblings.indexOf(c), dir);
@@ -139,8 +164,8 @@ export default function CategoriesPage() {
         }
       />
       <p className="notice" style={{ marginBottom: 12 }}>
-        A ordem define a sequência na loja (menor número primeiro). Alterar ou desativar uma categoria não afeta pedidos já realizados — eles guardam o nome e o preço dos itens no momento da
-        compra.
+        A ordem define a sequência na loja (menor número primeiro). Alterar ou desativar uma categoria não afeta pedidos já realizados — eles guardam o nome e o
+        preço dos itens no momento da compra.
       </p>
 
       <div className="table-wrap">
@@ -158,77 +183,94 @@ export default function CategoriesPage() {
           </thead>
           <tbody>
             {categories.isPending || categories.isError || list.length === 0 ? (
-              <TableState colSpan={5} loading={categories.isPending} error={categories.error} empty="Nenhuma categoria cadastrada." onRetry={() => categories.refetch()} />
+              <TableState
+                colSpan={5}
+                loading={categories.isPending}
+                error={categories.error}
+                empty="Nenhuma categoria cadastrada."
+                onRetry={() => categories.refetch()}
+              />
             ) : (
               tree.map(({ category: c, depth }) => {
                 const siblings = siblingsOf(c);
                 const i = siblings.indexOf(c);
                 return (
-                <tr key={c.id}>
-                  <td className="num">
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span>{c.sortOrder}</span>
-                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(c, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Mover ${c.name} para cima`}>
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-sm btn-icon"
-                        onClick={() => move(c, 1)}
-                        disabled={i === siblings.length - 1 || reorder.isPending}
-                        aria-label={`Mover ${c.name} para baixo`}
-                      >
-                        ↓
-                      </button>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="cell-main" style={depth ? { paddingLeft: 28 } : undefined}>
-                      {depth > 0 && (
-                        <span className="muted" aria-hidden>
-                          ↳
-                        </span>
-                      )}
-                      <CategorySwatch icon={c.icon} colorFrom={c.colorFrom} colorTo={c.colorTo} imageUrl={c.imageUrl} />
-                      <div>
-                        <b>{c.name}</b>
-                        <div className="muted">
-                          /{c.slug}
-                          {depth > 0 && ' · subcategoria'}
+                  <tr key={c.id}>
+                    <td className="num">
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span>{c.sortOrder}</span>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm btn-icon"
+                          onClick={() => move(c, -1)}
+                          disabled={i === 0 || reorder.isPending}
+                          aria-label={`Mover ${c.name} para cima`}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm btn-icon"
+                          onClick={() => move(c, 1)}
+                          disabled={i === siblings.length - 1 || reorder.isPending}
+                          aria-label={`Mover ${c.name} para baixo`}
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="cell-main" style={depth ? { paddingLeft: 28 } : undefined}>
+                        {depth > 0 && (
+                          <span className="muted" aria-hidden>
+                            ↳
+                          </span>
+                        )}
+                        <CategorySwatch icon={c.icon} colorFrom={c.colorFrom} colorTo={c.colorTo} imageUrl={c.imageUrl} />
+                        <div>
+                          <b>{c.name}</b>
+                          <div className="muted">
+                            /{c.slug}
+                            {depth > 0 && ' · subcategoria'}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="num">{c.productCount}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {c.isActive ? <Tag tone="ok">Ativa</Tag> : <Tag>Inativa</Tag>}
-                      {c.showOnHome && <Tag tone="gold">Na home</Tag>}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditing(c)}>
-                        Editar
-                      </button>
-                      {depth === 0 && (
-                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => setEditing({ parent: c })} aria-label={`Nova subcategoria em ${c.name}`}>
-                          + Sub
+                    </td>
+                    <td className="num">{c.productCount}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {c.isActive ? <Tag tone="ok">Ativa</Tag> : <Tag>Inativa</Tag>}
+                        {c.showOnHome && <Tag tone="gold">Na home</Tag>}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditing(c)}>
+                          Editar
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn btn-danger-outline btn-sm"
-                        onClick={() => {
-                          remove.reset();
-                          setDeleting(c);
-                        }}
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        {depth === 0 && (
+                          <button
+                            type="button"
+                            className="btn btn-quiet btn-sm"
+                            onClick={() => setEditing({ parent: c })}
+                            aria-label={`Nova subcategoria em ${c.name}`}
+                          >
+                            + Sub
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-danger-outline btn-sm"
+                          onClick={() => {
+                            remove.reset();
+                            setDeleting(c);
+                          }}
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 );
               })
             )}
@@ -272,7 +314,12 @@ export default function CategoriesPage() {
               {errorMessage(removeError)}
               {inUse && deleting.isActive && (
                 <div style={{ marginTop: 10 }}>
-                  <button type="button" className="btn btn-outline btn-sm" disabled={toggle.isPending} onClick={() => toggle.mutate({ id: deleting.id, body: { isActive: false } })}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    disabled={toggle.isPending}
+                    onClick={() => toggle.mutate({ id: deleting.id, body: { isActive: false } })}
+                  >
                     Desativar categoria
                   </button>
                 </div>
@@ -282,7 +329,12 @@ export default function CategoriesPage() {
           {!removeError && deleting.productCount > 0 && deleting.isActive && (
             <p className="notice" style={{ marginTop: 12 }}>
               Sugestão: mova os produtos para outra categoria ou{' '}
-              <button type="button" className="link-btn" onClick={() => toggle.mutate({ id: deleting.id, body: { isActive: false } })} disabled={toggle.isPending}>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => toggle.mutate({ id: deleting.id, body: { isActive: false } })}
+                disabled={toggle.isPending}
+              >
                 desative a categoria
               </button>{' '}
               para ocultá-la da loja.
@@ -294,7 +346,19 @@ export default function CategoriesPage() {
   );
 }
 
-function ColorField({ id, label, name, control, error }: { id: string; label: string; name: 'colorFrom' | 'colorTo'; control: Control<FormValues>; error?: string }) {
+function ColorField({
+  id,
+  label,
+  name,
+  control,
+  error,
+}: {
+  id: string;
+  label: string;
+  name: 'colorFrom' | 'colorTo';
+  control: Control<FormValues>;
+  error?: string;
+}) {
   return (
     <FormField id={id} label={label} error={error}>
       <Controller
@@ -302,8 +366,21 @@ function ColorField({ id, label, name, control, error }: { id: string; label: st
         name={name}
         render={({ field }) => (
           <div className="color-row">
-            <input type="color" aria-label={`${label} (seletor)`} value={HEX.test(field.value) ? field.value : '#000000'} onChange={(e) => field.onChange(e.target.value)} />
-            <input id={id} className="input" maxLength={7} aria-invalid={!!error} value={field.value} onChange={(e) => field.onChange(e.target.value.trim())} onBlur={field.onBlur} />
+            <input
+              type="color"
+              aria-label={`${label} (seletor)`}
+              value={HEX.test(field.value) ? field.value : '#000000'}
+              onChange={(e) => field.onChange(e.target.value)}
+            />
+            <input
+              id={id}
+              className="input"
+              maxLength={7}
+              aria-invalid={!!error}
+              value={field.value}
+              onChange={(e) => field.onChange(e.target.value.trim())}
+              onBlur={field.onBlur}
+            />
           </div>
         )}
       />
@@ -418,15 +495,30 @@ function CategoryFormModal({
         <FormField id="cat-name" label="Nome" error={errors.name?.message}>
           <input id="cat-name" className="input" aria-invalid={!!errors.name} {...register('name')} />
         </FormField>
-        <FormField id="cat-slug" label="Endereço (slug)" error={errors.slug?.message} hint={isNew ? 'Deixe em branco para gerar a partir do nome.' : 'Usado no link da categoria na loja.'}>
-          <input id="cat-slug" className="input" aria-invalid={!!errors.slug} placeholder={isNew ? 'gerado automaticamente' : undefined} {...register('slug')} />
+        <FormField
+          id="cat-slug"
+          label="Endereço (slug)"
+          error={errors.slug?.message}
+          hint={isNew ? 'Deixe em branco para gerar a partir do nome.' : 'Usado no link da categoria na loja.'}
+        >
+          <input
+            id="cat-slug"
+            className="input"
+            aria-invalid={!!errors.slug}
+            placeholder={isNew ? 'gerado automaticamente' : undefined}
+            {...register('slug')}
+          />
         </FormField>
         <FormField
           id="cat-parent"
           label="Dentro de"
           error={errors.parentId?.message}
           className="full"
-          hint={hasChildren ? 'Esta categoria tem subcategorias, então continua sendo principal.' : 'Escolha uma categoria principal para transformar esta em subcategoria (ex.: Acessórios › Natação).'}
+          hint={
+            hasChildren
+              ? 'Esta categoria tem subcategorias, então continua sendo principal.'
+              : 'Escolha uma categoria principal para transformar esta em subcategoria (ex.: Acessórios › Natação).'
+          }
         >
           <select id="cat-parent" className="select" disabled={hasChildren} {...register('parentId')}>
             <option value="">Nenhuma (categoria principal)</option>
@@ -452,7 +544,13 @@ function CategoryFormModal({
         <div className="field">
           <span className="label">Prévia</span>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <CategorySwatch icon={icon} colorFrom={HEX.test(colorFrom) ? colorFrom : '#44464d'} colorTo={HEX.test(colorTo) ? colorTo : '#121214'} imageUrl={imageUrl} size={64} />
+            <CategorySwatch
+              icon={icon}
+              colorFrom={HEX.test(colorFrom) ? colorFrom : '#44464d'}
+              colorTo={HEX.test(colorTo) ? colorTo : '#121214'}
+              imageUrl={imageUrl}
+              size={64}
+            />
             <span className="notice">Sem imagem, a loja usa o gradiente com o ícone.</span>
           </div>
         </div>
@@ -483,8 +581,16 @@ function CategoryFormModal({
           <input id="cat-sortOrder" className="input" type="number" min={0} {...register('sortOrder', { setValueAs: toInt })} />
         </FormField>
         <div style={{ display: 'grid', gap: 12, alignContent: 'center' }}>
-          <Controller control={control} name="isActive" render={({ field }) => <Switch label="Ativa (visível na loja)" checked={field.value} onChange={field.onChange} />} />
-          <Controller control={control} name="showOnHome" render={({ field }) => <Switch label="Mostrar nos destaques da página inicial" checked={field.value} onChange={field.onChange} />} />
+          <Controller
+            control={control}
+            name="isActive"
+            render={({ field }) => <Switch label="Ativa (visível na loja)" checked={field.value} onChange={field.onChange} />}
+          />
+          <Controller
+            control={control}
+            name="showOnHome"
+            render={({ field }) => <Switch label="Mostrar nos destaques da página inicial" checked={field.value} onChange={field.onChange} />}
+          />
         </div>
         <p className="notice full">Alterações em categorias não afetam pedidos já realizados.</p>
       </form>

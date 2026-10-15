@@ -44,7 +44,15 @@ const ICON_LABELS: Record<BannerIcon, string> = {
   dumbbell: 'Halter',
   shoe: 'Tênis / chuteira',
 };
-const CTA_SUGGESTIONS = ['Quero a minha', 'Comprar agora', 'Ver oferta', 'Aproveitar desconto', 'Ver todas as chuteiras', 'Ver todos os produtos', 'Falar no WhatsApp'];
+const CTA_SUGGESTIONS = [
+  'Quero a minha',
+  'Comprar agora',
+  'Ver oferta',
+  'Aproveitar desconto',
+  'Ver todas as chuteiras',
+  'Ver todos os produtos',
+  'Falar no WhatsApp',
+];
 
 const text = (max: number) => z.string().trim().max(max, `Máximo de ${max} caracteres.`);
 const cents = z.number().int().positive('O preço deve ser maior que zero.').nullable();
@@ -312,12 +320,28 @@ const TABS: { id: TabId; label: string; fields: (keyof FormValues)[] }[] = [
   { id: 'content', label: 'Conteúdo', fields: ['kicker', 'title', 'highlight', 'subtitle', 'footnote', 'priceOriginalCents', 'priceSaleCents'] },
   { id: 'buttons', label: 'Botões', fields: ['buttonLabel', 'buttonTarget', 'secondaryButtonLabel', 'secondaryButtonTarget'] },
   { id: 'image', label: 'Imagem', fields: ['imagePath', 'mobileImagePath', 'layout', 'mobileLayout', 'frameDesktop', 'frameMobile'] },
-  { id: 'look', label: 'Aparência', fields: ['colorFrom', 'colorTo', 'overlay', 'mobileOverlay', 'imageBg', 'mobileImageBg', 'icon', 'badgeTop', 'badgeMain', 'badgeBottom', 'contentAlign'] },
+  {
+    id: 'look',
+    label: 'Aparência',
+    fields: ['colorFrom', 'colorTo', 'overlay', 'mobileOverlay', 'imageBg', 'mobileImageBg', 'icon', 'badgeTop', 'badgeMain', 'badgeBottom', 'contentAlign'],
+  },
   { id: 'publish', label: 'Publicação', fields: ['isActive', 'sortOrder', 'startsAt', 'endsAt'] },
 ];
 const tabWithError = (errors: FieldErrors<FormValues>) => TABS.find((t) => t.fields.some((f) => errors[f]))?.id;
 
-function Segmented<T extends string>({ label, value, options, onChange, name }: { label: string; name: string; value: T; options: { value: T; label: string; hint?: string }[]; onChange: (v: T) => void }) {
+function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  name,
+}: {
+  label: string;
+  name: string;
+  value: T;
+  options: { value: T; label: string; hint?: string }[];
+  onChange: (v: T) => void;
+}) {
   return (
     <div className="field" role="radiogroup" aria-label={label}>
       <span className="label">{label}</span>
@@ -336,7 +360,21 @@ function Segmented<T extends string>({ label, value, options, onChange, name }: 
   );
 }
 
-function ColorField({ id, label, name, control, error, hint }: { id: string; label: string; name: 'colorFrom' | 'colorTo' | 'imageBg' | 'mobileImageBg'; control: Control<FormValues>; error?: string; hint?: string }) {
+function ColorField({
+  id,
+  label,
+  name,
+  control,
+  error,
+  hint,
+}: {
+  id: string;
+  label: string;
+  name: 'colorFrom' | 'colorTo' | 'imageBg' | 'mobileImageBg';
+  control: Control<FormValues>;
+  error?: string;
+  hint?: string;
+}) {
   return (
     <FormField id={id} label={label} error={error} hint={hint}>
       <Controller
@@ -344,8 +382,22 @@ function ColorField({ id, label, name, control, error, hint }: { id: string; lab
         name={name}
         render={({ field }) => (
           <div className="color-row">
-            <input type="color" aria-label={`${label} (seletor)`} value={HEX.test(field.value) ? field.value : '#000000'} onChange={(e) => field.onChange(e.target.value)} />
-            <input id={id} className="input" maxLength={7} placeholder={name === 'imageBg' || name === 'mobileImageBg' ? 'Sem cor' : undefined} aria-invalid={!!error} value={field.value} onChange={(e) => field.onChange(e.target.value.trim())} onBlur={field.onBlur} />
+            <input
+              type="color"
+              aria-label={`${label} (seletor)`}
+              value={HEX.test(field.value) ? field.value : '#000000'}
+              onChange={(e) => field.onChange(e.target.value)}
+            />
+            <input
+              id={id}
+              className="input"
+              maxLength={7}
+              placeholder={name === 'imageBg' || name === 'mobileImageBg' ? 'Sem cor' : undefined}
+              aria-invalid={!!error}
+              value={field.value}
+              onChange={(e) => field.onChange(e.target.value.trim())}
+              onBlur={field.onBlur}
+            />
           </div>
         )}
       />
@@ -398,7 +450,11 @@ function ContentTab({ form, product }: { form: Form; product: AdminProduct | nul
             <input id="kicker" className="input" placeholder="Oferta especial" aria-invalid={!!errors.kicker} {...register('kicker')} />
           </FormField>
           <div className="field switch-cell">
-            <Controller control={control} name="showKicker" render={({ field }) => <Switch label="Mostrar o selo" checked={field.value} onChange={field.onChange} />} />
+            <Controller
+              control={control}
+              name="showKicker"
+              render={({ field }) => <Switch label="Mostrar o selo" checked={field.value} onChange={field.onChange} />}
+            />
             {!showKicker && <span className="hint">Oculto na loja. O texto fica guardado.</span>}
           </div>
         </div>
@@ -433,11 +489,19 @@ function ContentTab({ form, product }: { form: Form; product: AdminProduct | nul
             />
           </FormField>
           <FormField id="priceSaleCents" label="Preço promocional (Por)" error={errors.priceSaleCents?.message}>
-            <Controller control={control} name="priceSaleCents" render={({ field }) => <MoneyInput id="priceSaleCents" value={field.value} onChange={field.onChange} invalid={!!errors.priceSaleCents} />} />
+            <Controller
+              control={control}
+              name="priceSaleCents"
+              render={({ field }) => <MoneyInput id="priceSaleCents" value={field.value} onChange={field.onChange} invalid={!!errors.priceSaleCents} />}
+            />
           </FormField>
         </div>
         <div className="row-actions start" style={{ marginTop: 10, alignItems: 'center' }}>
-          <Controller control={control} name="showPrices" render={({ field }) => <Switch label="Mostrar preços no banner" checked={field.value} onChange={field.onChange} />} />
+          <Controller
+            control={control}
+            name="showPrices"
+            render={({ field }) => <Switch label="Mostrar preços no banner" checked={field.value} onChange={field.onChange} />}
+          />
           {product && (
             <button
               type="button"
@@ -461,7 +525,13 @@ function ContentTab({ form, product }: { form: Form; product: AdminProduct | nul
       </Section>
       <Section title="Texto complementar" hint="Opcional. Aparece em letras menores abaixo dos botões.">
         <FormField id="footnote" label="Texto complementar" error={errors.footnote?.message}>
-          <input id="footnote" className="input" placeholder="Confirme o tamanho pelo WhatsApp antes de finalizar." aria-invalid={!!errors.footnote} {...register('footnote')} />
+          <input
+            id="footnote"
+            className="input"
+            placeholder="Confirme o tamanho pelo WhatsApp antes de finalizar."
+            aria-invalid={!!errors.footnote}
+            {...register('footnote')}
+          />
         </FormField>
       </Section>
     </>
@@ -483,25 +553,47 @@ function ButtonsTab({ form, onProduct }: { form: Form; onProduct: (p: AdminProdu
       </datalist>
       <Section title="Botão principal" hint="O botão em destaque. Deixe o texto em branco para não exibir botão.">
         <FormField id="buttonLabel" label="Texto do botão" error={errors.buttonLabel?.message} hint="Comece digitando para ver sugestões.">
-          <input id="buttonLabel" className="input" list="cta-suggestions" placeholder="Quero a minha" aria-invalid={!!errors.buttonLabel} {...register('buttonLabel')} />
+          <input
+            id="buttonLabel"
+            className="input"
+            list="cta-suggestions"
+            placeholder="Quero a minha"
+            aria-invalid={!!errors.buttonLabel}
+            {...register('buttonLabel')}
+          />
         </FormField>
         <Controller
           control={control}
           name="buttonTarget"
-          render={({ field }) => <ButtonTargetField id="buttonTarget" value={field.value} onChange={field.onChange} error={errors.buttonTarget?.message} onProduct={onProduct} />}
+          render={({ field }) => (
+            <ButtonTargetField id="buttonTarget" value={field.value} onChange={field.onChange} error={errors.buttonTarget?.message} onProduct={onProduct} />
+          )}
         />
       </Section>
       <Section title="Botão secundário">
-        <Controller control={control} name="secondaryButtonEnabled" render={({ field }) => <Switch label="Mostrar botão secundário" checked={field.value} onChange={field.onChange} />} />
+        <Controller
+          control={control}
+          name="secondaryButtonEnabled"
+          render={({ field }) => <Switch label="Mostrar botão secundário" checked={field.value} onChange={field.onChange} />}
+        />
         {secondaryOn ? (
           <div style={{ marginTop: 12 }}>
             <FormField id="secondaryButtonLabel" label="Texto do botão secundário" error={errors.secondaryButtonLabel?.message}>
-              <input id="secondaryButtonLabel" className="input" list="cta-suggestions" placeholder="Ver todas as chuteiras" aria-invalid={!!errors.secondaryButtonLabel} {...register('secondaryButtonLabel')} />
+              <input
+                id="secondaryButtonLabel"
+                className="input"
+                list="cta-suggestions"
+                placeholder="Ver todas as chuteiras"
+                aria-invalid={!!errors.secondaryButtonLabel}
+                {...register('secondaryButtonLabel')}
+              />
             </FormField>
             <Controller
               control={control}
               name="secondaryButtonTarget"
-              render={({ field }) => <ButtonTargetField id="secondaryButtonTarget" value={field.value} onChange={field.onChange} error={errors.secondaryButtonTarget?.message} />}
+              render={({ field }) => (
+                <ButtonTargetField id="secondaryButtonTarget" value={field.value} onChange={field.onChange} error={errors.secondaryButtonTarget?.message} />
+              )}
             />
           </div>
         ) : (
@@ -546,7 +638,8 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
     if (prev === next) return;
     setValue(layoutField, next, dirty);
     // Ajustes ainda no padrão acompanham o novo formato; ajustes feitos à mão são mantidos.
-    const isDefault = (f: BannerFrame | null) => !f || JSON.stringify(f) === JSON.stringify(defaultFrame(prev)) || JSON.stringify(f) === JSON.stringify(CENTER_FRAME);
+    const isDefault = (f: BannerFrame | null) =>
+      !f || JSON.stringify(f) === JSON.stringify(defaultFrame(prev)) || JSON.stringify(f) === JSON.stringify(CENTER_FRAME);
     if (isMobile) {
       // Sem ajuste salvo, o celular usa o padrão do próprio formato (ou o do computador, quando foto e formato são os mesmos).
       if (getValues('frameMobile') && isDefault(getValues('frameMobile'))) setValue('frameMobile', null, dirty);
@@ -625,7 +718,11 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
                   setValue('frameMobile', null, dirty);
                 }}
               />
-              <span className="hint">{mobileImageUrl ? 'O celular mostra esta foto; o computador continua com a foto acima.' : 'Nenhuma foto exclusiva: o celular usa a foto do computador.'}</span>
+              <span className="hint">
+                {mobileImageUrl
+                  ? 'O celular mostra esta foto; o computador continua com a foto acima.'
+                  : 'Nenhuma foto exclusiva: o celular usa a foto do computador.'}
+              </span>
             </div>
           </div>
           {formState.errors.mobileImagePath && (
@@ -696,7 +793,9 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
                 onChange={(on) => setValue('frameMobile', on ? { ...frameDesktop } : null, dirty)}
               />
               <span className="hint" style={{ display: 'block', marginTop: 4 }}>
-                {frameMobile ? 'O celular usa um enquadramento separado.' : 'Usando o mesmo ajuste do computador. Arrastar a imagem aqui cria um ajuste só para o celular.'}
+                {frameMobile
+                  ? 'O celular usa um enquadramento separado.'
+                  : 'Usando o mesmo ajuste do computador. Arrastar a imagem aqui cria um ajuste só para o celular.'}
               </span>
             </div>
           )}
@@ -713,7 +812,13 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
           <div className="field" style={{ marginTop: 12 }}>
             <label htmlFor="frame-zoom">Zoom: {Math.round(current.zoom * 100)}%</label>
             <div className="range-row">
-              <button type="button" className="btn btn-outline btn-sm btn-icon" aria-label="Diminuir zoom" onClick={() => setFrame({ ...current, zoom: current.zoom - 0.1 })} disabled={current.zoom <= MIN_ZOOM}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm btn-icon"
+                aria-label="Diminuir zoom"
+                onClick={() => setFrame({ ...current, zoom: current.zoom - 0.1 })}
+                disabled={current.zoom <= MIN_ZOOM}
+              >
                 −
               </button>
               <input
@@ -725,7 +830,13 @@ function ImageTab({ form, device, setDevice }: { form: Form; device: PreviewDevi
                 value={Math.round(current.zoom * 100)}
                 onChange={(e) => setFrame({ ...current, zoom: Number(e.target.value) / 100 })}
               />
-              <button type="button" className="btn btn-outline btn-sm btn-icon" aria-label="Aumentar zoom" onClick={() => setFrame({ ...current, zoom: current.zoom + 0.1 })} disabled={current.zoom >= MAX_ZOOM}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm btn-icon"
+                aria-label="Aumentar zoom"
+                onClick={() => setFrame({ ...current, zoom: current.zoom + 0.1 })}
+                disabled={current.zoom >= MAX_ZOOM}
+              >
                 +
               </button>
             </div>
@@ -787,13 +898,41 @@ function LookTab({ form, device, setDevice }: { form: Form; device: PreviewDevic
     <>
       <Section title="Cores">
         <div className="form-cols two">
-          <ColorField id="colorFrom" label="Cor de destaque" name="colorFrom" control={control} error={errors.colorFrom?.message} hint="Brilho do degradê de fundo." />
-          <ColorField id="colorTo" label="Cor de fundo" name="colorTo" control={control} error={errors.colorTo?.message} hint="Base do banner, atrás do texto." />
+          <ColorField
+            id="colorFrom"
+            label="Cor de destaque"
+            name="colorFrom"
+            control={control}
+            error={errors.colorFrom?.message}
+            hint="Brilho do degradê de fundo."
+          />
+          <ColorField
+            id="colorTo"
+            label="Cor de fundo"
+            name="colorTo"
+            control={control}
+            error={errors.colorTo?.message}
+            hint="Base do banner, atrás do texto."
+          />
           {imageUrl && (
-            <ColorField id="imageBg" label={mobileImageUrl ? 'Cor atrás da foto (computador)' : 'Cor atrás da foto'} name="imageBg" control={control} error={errors.imageBg?.message} hint="Preenche as sobras quando a imagem aparece inteira." />
+            <ColorField
+              id="imageBg"
+              label={mobileImageUrl ? 'Cor atrás da foto (computador)' : 'Cor atrás da foto'}
+              name="imageBg"
+              control={control}
+              error={errors.imageBg?.message}
+              hint="Preenche as sobras quando a imagem aparece inteira."
+            />
           )}
           {imageUrl && mobileImageUrl && (
-            <ColorField id="mobileImageBg" label="Cor atrás da foto (celular)" name="mobileImageBg" control={control} error={errors.mobileImageBg?.message} hint="Detectada automaticamente ao enviar a foto do celular." />
+            <ColorField
+              id="mobileImageBg"
+              label="Cor atrás da foto (celular)"
+              name="mobileImageBg"
+              control={control}
+              error={errors.mobileImageBg?.message}
+              hint="Detectada automaticamente ao enviar a foto do celular."
+            />
           )}
         </div>
         {lowContrast && (
@@ -835,7 +974,9 @@ function LookTab({ form, device, setDevice }: { form: Form; device: PreviewDevic
               key={overlayField}
               control={control}
               name={overlayField}
-              render={({ field }) => <input id="overlay" type="range" min={0} max={90} step={5} value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />}
+              render={({ field }) => (
+                <input id="overlay" type="range" min={0} max={90} step={5} value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+              )}
             />
           </div>
           {!isMobile && layout === 'full' && overlay < 40 && (
@@ -886,7 +1027,11 @@ function PublishTab({ form }: { form: Form }) {
   return (
     <Section title="Publicação" hint="Sem datas, o banner fica no ar enquanto estiver ativo. Fora do período ele sai da página inicial automaticamente.">
       <div style={{ display: 'grid', gap: 12 }}>
-        <Controller control={control} name="isActive" render={({ field }) => <Switch label="Ativo (publicado na loja)" checked={field.value} onChange={field.onChange} />} />
+        <Controller
+          control={control}
+          name="isActive"
+          render={({ field }) => <Switch label="Ativo (publicado na loja)" checked={field.value} onChange={field.onChange} />}
+        />
         <FormField id="sortOrder" label="Ordem de exibição" error={errors.sortOrder?.message} hint="Menor número aparece primeiro.">
           <input id="sortOrder" className="input" type="number" min={0} {...register('sortOrder', { setValueAs: toInt })} />
         </FormField>
@@ -922,7 +1067,8 @@ function LivePreview({ form, device, setDevice }: { form: Form; device: PreviewD
       </div>
       <BannerSlidePreview data={toSlide(v)} device={device} onFrameChange={onFrameChange} />
       <p className="notice" style={{ marginTop: 10 }}>
-        É assim que o banner aparece na loja{device === 'desktop' ? ' em uma tela de notebook; telas maiores mostram um pouco mais das laterais da foto de fundo' : ' em um celular'}.
+        É assim que o banner aparece na loja
+        {device === 'desktop' ? ' em uma tela de notebook; telas maiores mostram um pouco mais das laterais da foto de fundo' : ' em um celular'}.
         {v.imageUrl ? ' Arraste a imagem para ajustar o enquadramento.' : ''}
       </p>
     </section>
@@ -967,7 +1113,9 @@ export default function BannerFormPage() {
   }, [isNew, list, getFieldState, setValue]);
 
   // Aviso de alterações não salvas: navegação interna (diálogo) e fechar/recarregar a aba (navegador).
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => formState.isDirty && !leaving.current && currentLocation.pathname !== nextLocation.pathname);
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) => formState.isDirty && !leaving.current && currentLocation.pathname !== nextLocation.pathname,
+  );
   useEffect(() => {
     if (!formState.isDirty) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -975,15 +1123,22 @@ export default function BannerFormPage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [formState.isDirty]);
 
-  const save = useAdminMutation((v: FormValues) => (isNew ? adminApi.post<AdminBanner>('/banners', toBody(v)) : adminApi.patch<AdminBanner>(`/banners/${id}`, toBody(v))), {
-    success: (b: AdminBanner) =>
-      b.state === 'LIVE' ? 'Banner publicado: já aparece na página inicial.' : b.state === 'SCHEDULED' ? 'Banner salvo e agendado.' : 'Banner salvo (fora do ar).',
-    invalidate: [['admin', 'banners'], ['banners']],
-    onSuccess: () => {
-      leaving.current = true;
-      navigate('/admin/banners');
+  const save = useAdminMutation(
+    (v: FormValues) => (isNew ? adminApi.post<AdminBanner>('/banners', toBody(v)) : adminApi.patch<AdminBanner>(`/banners/${id}`, toBody(v))),
+    {
+      success: (b: AdminBanner) =>
+        b.state === 'LIVE'
+          ? 'Banner publicado: já aparece na página inicial.'
+          : b.state === 'SCHEDULED'
+            ? 'Banner salvo e agendado.'
+            : 'Banner salvo (fora do ar).',
+      invalidate: [['admin', 'banners'], ['banners']],
+      onSuccess: () => {
+        leaving.current = true;
+        navigate('/admin/banners');
+      },
     },
-  });
+  );
 
   const goToErrors = (errs: FieldErrors<FormValues>) => {
     const t = tabWithError(errs);

@@ -57,9 +57,12 @@ export default function BannersPage() {
   const [deleting, setDeleting] = useState<AdminBanner | null>(null);
   const banners = useQuery({ queryKey: ['admin', 'banners'], queryFn: () => adminApi.get<{ items: AdminBanner[] }>('/banners').then((r) => r.items) });
 
-  const reorder = useAdminMutation((patches: { id: string; sortOrder: number }[]) => Promise.all(patches.map((p) => adminApi.patch(`/banners/${p.id}`, { sortOrder: p.sortOrder }))), {
-    invalidate: INVALIDATE,
-  });
+  const reorder = useAdminMutation(
+    (patches: { id: string; sortOrder: number }[]) => Promise.all(patches.map((p) => adminApi.patch(`/banners/${p.id}`, { sortOrder: p.sortOrder }))),
+    {
+      invalidate: INVALIDATE,
+    },
+  );
   const toggle = useAdminMutation((v: { id: string; isActive: boolean }) => adminApi.patch<AdminBanner>(`/banners/${v.id}`, { isActive: v.isActive }), {
     success: (b) => (b.isActive ? 'Banner ativado.' : 'Banner desativado.'),
     invalidate: INVALIDATE,
@@ -89,7 +92,8 @@ export default function BannersPage() {
         }
       />
       <p className="notice" style={{ marginBottom: 14 }}>
-        Os banners ativos e dentro do período aparecem em sequência no topo da página inicial (menor ordem primeiro). O tempo de troca entre os slides é configurado em{' '}
+        Os banners ativos e dentro do período aparecem em sequência no topo da página inicial (menor ordem primeiro). O tempo de troca entre os slides é
+        configurado em{' '}
         <Link to="/admin/settings" className="link-btn">
           Configurações
         </Link>
@@ -122,7 +126,12 @@ export default function BannersPage() {
             {list.map((b, i) => {
               const state = CONTENT_STATE[b.state] ?? { label: b.state, tone: 'neutral' as const };
               return (
-                <article key={b.id} className="adm-card" style={{ marginTop: 0, display: 'grid', gap: 12, alignContent: 'start' }} aria-label={`Banner ${b.title}`}>
+                <article
+                  key={b.id}
+                  className="adm-card"
+                  style={{ marginTop: 0, display: 'grid', gap: 12, alignContent: 'start' }}
+                  aria-label={`Banner ${b.title}`}
+                >
                   <BannerSlidePreview data={adminSlideData(b)} />
                   {buttonWarnings(b).map((w) => (
                     <p key={w.text} className={`alert ${w.tone === 'danger' ? 'alert-error' : 'alert-warn'}`} role="status" style={{ margin: 0 }}>
@@ -143,7 +152,13 @@ export default function BannersPage() {
                     <Switch label="Ativo" checked={b.isActive} disabled={toggle.isPending} onChange={(v) => toggle.mutate({ id: b.id, isActive: v })} />
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                       <span className="notice">Ordem {b.sortOrder}</span>
-                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Mover banner ${b.title} para cima`}>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm btn-icon"
+                        onClick={() => move(i, -1)}
+                        disabled={i === 0 || reorder.isPending}
+                        aria-label={`Mover banner ${b.title} para cima`}
+                      >
                         ↑
                       </button>
                       <button
@@ -177,7 +192,8 @@ export default function BannersPage() {
           title="Excluir banner?"
           message={
             <>
-              O banner <b>{deleting.title}</b> e sua imagem serão removidos. Esta ação não pode ser desfeita. Para tirá-lo do ar temporariamente, apenas desative-o.
+              O banner <b>{deleting.title}</b> e sua imagem serão removidos. Esta ação não pode ser desfeita. Para tirá-lo do ar temporariamente, apenas
+              desative-o.
             </>
           }
           confirmLabel="Excluir"

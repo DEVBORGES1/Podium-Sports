@@ -73,7 +73,14 @@ const statusList = z
   .string()
   .trim()
   .max(200)
-  .transform((v) => [...new Set(v.split(',').map((s) => s.trim()).filter(Boolean))])
+  .transform((v) => [
+    ...new Set(
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ])
   .pipe(z.array(z.enum(ORDER_STATUSES, 'Status inválido.')).min(1).max(ORDER_STATUSES.length));
 
 export const adminOrdersQuery = z.object({

@@ -27,7 +27,8 @@ const PAYMENT_ACTION: Record<PaymentStatus, { button: string; title: string; mes
   PAID: {
     button: 'Marcar como pago',
     title: 'Confirmar pagamento?',
-    message: 'Marque como pago somente depois de a loja conferir o recebimento (Pix, cartão ou dinheiro). Esta confirmação é manual e fica registrada no histórico.',
+    message:
+      'Marque como pago somente depois de a loja conferir o recebimento (Pix, cartão ou dinheiro). Esta confirmação é manual e fica registrada no histórico.',
     confirm: 'Marcar como pago',
   },
   UNPAID: {
@@ -68,7 +69,10 @@ export function OrderDetail({ id, onNavigateAway, showTitle = true }: { id: stri
   });
   const changePayment = useAdminMutation((v: { paymentStatus: PaymentStatus; note: string | null }) => adminApi.patch<AdminOrder>(`/orders/${id}/payment`, v), {
     success: (r) => `Pagamento: ${PAYMENT_STATUS[r.paymentStatus].label}.`,
-    invalidate: [['admin', 'orders'], ['admin', 'dashboard']],
+    invalidate: [
+      ['admin', 'orders'],
+      ['admin', 'dashboard'],
+    ],
     onSuccess: (updated) => {
       qc.setQueryData(['admin', 'order', id], updated);
       setPending(null);
@@ -116,7 +120,10 @@ export function OrderDetail({ id, onNavigateAway, showTitle = true }: { id: stri
     if (text.length > 300) return setNoteError('Máximo de 300 caracteres.');
     if (pending.kind === 'status') {
       if (pending.to === 'CANCELLED' && text.length < 3) return setNoteError('Informe o motivo do cancelamento (mínimo 3 caracteres).');
-      changeStatus.mutate({ id: o.id, code: o.code, fulfillment: o.fulfillment, from: o.status, to: pending.to, note: text || null }, { onError: () => setPending(null) });
+      changeStatus.mutate(
+        { id: o.id, code: o.code, fulfillment: o.fulfillment, from: o.status, to: pending.to, note: text || null },
+        { onError: () => setPending(null) },
+      );
     } else {
       changePayment.mutate({ paymentStatus: pending.to, note: text || null }, { onError: () => setPending(null) });
     }
@@ -158,14 +165,27 @@ export function OrderDetail({ id, onNavigateAway, showTitle = true }: { id: stri
         {primary || canCancel ? (
           <>
             {primary && (
-              <button type="button" className="btn btn-gold od-primary" onClick={() => runStatus(primary)} disabled={busy} aria-busy={changeStatus.isPending && changeStatus.variables?.to === primary}>
+              <button
+                type="button"
+                className="btn btn-gold od-primary"
+                onClick={() => runStatus(primary)}
+                disabled={busy}
+                aria-busy={changeStatus.isPending && changeStatus.variables?.to === primary}
+              >
                 {primary === 'COMPLETED' ? <CheckIcon /> : null}
                 {orderActionLabel(primary, o.fulfillment)}
               </button>
             )}
             <div className="od-actions">
               {others.map((to) => (
-                <button key={to} type="button" className="btn btn-outline btn-sm" onClick={() => runStatus(to)} disabled={busy} aria-busy={changeStatus.isPending && changeStatus.variables?.to === to}>
+                <button
+                  key={to}
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => runStatus(to)}
+                  disabled={busy}
+                  aria-busy={changeStatus.isPending && changeStatus.variables?.to === to}
+                >
                   {orderActionLabel(to, o.fulfillment)}
                 </button>
               ))}
@@ -264,7 +284,10 @@ export function OrderDetail({ id, onNavigateAway, showTitle = true }: { id: stri
                 )}
                 {i.variantLabel && <b className="oi-variant"> · {i.variantLabel}</b>}
                 <small>
-                  {i.originalUnitPriceCents !== i.unitPriceCents && <s aria-label={`Preço original ${brl(i.originalUnitPriceCents)}`}>{brl(i.originalUnitPriceCents)}</s>} {brl(i.unitPriceCents)} cada
+                  {i.originalUnitPriceCents !== i.unitPriceCents && (
+                    <s aria-label={`Preço original ${brl(i.originalUnitPriceCents)}`}>{brl(i.originalUnitPriceCents)}</s>
+                  )}{' '}
+                  {brl(i.unitPriceCents)} cada
                   {!i.productId && ' · produto removido do catálogo'}
                 </small>
               </span>
@@ -315,7 +338,9 @@ export function OrderDetail({ id, onNavigateAway, showTitle = true }: { id: stri
           </div>
         ) : (
           <p className="notice">
-            {o.paymentStatus === 'REFUNDED' ? 'Pagamento reembolsado. Nenhuma outra alteração disponível.' : 'Pedidos cancelados ou expirados não podem ser marcados como pagos.'}
+            {o.paymentStatus === 'REFUNDED'
+              ? 'Pagamento reembolsado. Nenhuma outra alteração disponível.'
+              : 'Pedidos cancelados ou expirados não podem ser marcados como pagos.'}
           </p>
         )}
       </section>
@@ -420,7 +445,13 @@ function CustomerComms({ order, highlight, sectionRef }: { order: AdminOrder; hi
               <WhatsAppIcon /> {current ? 'Abrir no WhatsApp novamente' : 'Enviar atualização pelo WhatsApp'}
             </a>
             {current && current.state === 'WHATSAPP_OPENED' && (
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => confirmSent.mutate(current.id)} disabled={confirmSent.isPending} aria-busy={confirmSent.isPending}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => confirmSent.mutate(current.id)}
+                disabled={confirmSent.isPending}
+                aria-busy={confirmSent.isPending}
+              >
                 <CheckIcon /> Já enviei esta mensagem
               </button>
             )}
@@ -448,11 +479,17 @@ function CustomerComms({ order, highlight, sectionRef }: { order: AdminOrder; hi
               <li key={m.id}>
                 <div className="msg-head">
                   <b>{orderStatusLabel(m.status, order.fulfillment)}</b>
-                  <Tag tone={m.state === 'CONFIRMED_BY_STAFF' ? 'ok' : 'info'}>{m.state === 'CONFIRMED_BY_STAFF' ? 'Enviada (informado pela loja)' : 'WhatsApp aberto · envio não confirmado'}</Tag>
+                  <Tag tone={m.state === 'CONFIRMED_BY_STAFF' ? 'ok' : 'info'}>
+                    {m.state === 'CONFIRMED_BY_STAFF' ? 'Enviada (informado pela loja)' : 'WhatsApp aberto · envio não confirmado'}
+                  </Tag>
                 </div>
                 <small>
                   Aberto em {formatDateTime(m.openedAt)}
-                  {m.openCount > 1 ? ` · ${m.openCount}× (último ${formatDateTime(m.lastOpenedAt)} por ${m.lastOpenedBy?.name ?? '—'})` : m.lastOpenedBy ? ` por ${m.lastOpenedBy.name}` : ''}
+                  {m.openCount > 1
+                    ? ` · ${m.openCount}× (último ${formatDateTime(m.lastOpenedAt)} por ${m.lastOpenedBy?.name ?? '—'})`
+                    : m.lastOpenedBy
+                      ? ` por ${m.lastOpenedBy.name}`
+                      : ''}
                   {m.confirmedAt ? ` · envio informado por ${m.confirmedBy?.name ?? '—'} em ${formatDateTime(m.confirmedAt)}` : ''}
                 </small>
               </li>
@@ -500,7 +537,9 @@ function ActionDialog({
             O pedido será cancelado e <b>as unidades reservadas voltarão ao estoque</b>. Esta ação não pode ser desfeita.
           </p>
           {order.paymentStatus === 'PAID' && (
-            <p className="alert alert-warn">Este pedido está marcado como pago. Depois de devolver o valor ao cliente, registre o reembolso na seção Pagamento.</p>
+            <p className="alert alert-warn">
+              Este pedido está marcado como pago. Depois de devolver o valor ao cliente, registre o reembolso na seção Pagamento.
+            </p>
           )}
         </>
       );
@@ -510,10 +549,12 @@ function ActionDialog({
       message = (
         <>
           <p>
-            O pedido {order.code} passará de <b>{orderStatusLabel(order.status, order.fulfillment)}</b> para <b>{orderStatusLabel(action.to, order.fulfillment)}</b>. Depois
-            de concluído, ele não volta para etapas anteriores.
+            O pedido {order.code} passará de <b>{orderStatusLabel(order.status, order.fulfillment)}</b> para{' '}
+            <b>{orderStatusLabel(action.to, order.fulfillment)}</b>. Depois de concluído, ele não volta para etapas anteriores.
           </p>
-          {order.paymentStatus === 'UNPAID' && <p className="alert alert-warn">O pagamento ainda consta como não pago. Se já recebeu, marque como pago na seção Pagamento.</p>}
+          {order.paymentStatus === 'UNPAID' && (
+            <p className="alert alert-warn">O pagamento ainda consta como não pago. Se já recebeu, marque como pago na seção Pagamento.</p>
+          )}
         </>
       );
     }
@@ -533,7 +574,15 @@ function ActionDialog({
         error={noteError ?? undefined}
         hint={isCancel ? 'Fica registrado no histórico do pedido. Não é enviado ao cliente.' : 'Aparece no histórico do pedido.'}
       >
-        <textarea id="action-note" className="textarea" rows={3} maxLength={300} value={note} aria-invalid={!!noteError} onChange={(e) => onNote(e.target.value)} />
+        <textarea
+          id="action-note"
+          className="textarea"
+          rows={3}
+          maxLength={300}
+          value={note}
+          aria-invalid={!!noteError}
+          onChange={(e) => onNote(e.target.value)}
+        />
       </FormField>
     </ConfirmDialog>
   );
@@ -571,14 +620,28 @@ function buildTimeline(o: AdminOrder): TimelineEvent[] {
       who: m.lastOpenedBy?.name,
       tone: 'muted',
     });
-    if (m.confirmedAt) events.push({ key: `mc-${m.id}`, at: m.confirmedAt, title: `Mensagem “${orderStatusLabel(m.status, o.fulfillment)}”: envio informado`, who: m.confirmedBy?.name, tone: 'muted' });
+    if (m.confirmedAt)
+      events.push({
+        key: `mc-${m.id}`,
+        at: m.confirmedAt,
+        title: `Mensagem “${orderStatusLabel(m.status, o.fulfillment)}”: envio informado`,
+        who: m.confirmedBy?.name,
+        tone: 'muted',
+      });
   }
   for (const p of o.paymentHistory) {
     const from = p.from && PAYMENT_STATUS[p.from] ? PAYMENT_STATUS[p.from].label : null;
     const to = p.to && PAYMENT_STATUS[p.to] ? PAYMENT_STATUS[p.to].label : 'alterado';
-    events.push({ key: `p-${p.id}`, at: p.createdAt, title: `Pagamento: ${from ? `${from} → ` : ''}${to}`, detail: p.note ?? undefined, who: p.user?.name ?? 'Sistema' });
+    events.push({
+      key: `p-${p.id}`,
+      at: p.createdAt,
+      title: `Pagamento: ${from ? `${from} → ` : ''}${to}`,
+      detail: p.note ?? undefined,
+      who: p.user?.name ?? 'Sistema',
+    });
   }
-  if (o.stockReleasedAt) events.push({ key: 'stock', at: o.stockReleasedAt, title: 'Estoque devolvido', detail: 'A reserva dos itens voltou ao saldo dos produtos.' });
+  if (o.stockReleasedAt)
+    events.push({ key: 'stock', at: o.stockReleasedAt, title: 'Estoque devolvido', detail: 'A reserva dos itens voltou ao saldo dos produtos.' });
   return events
     .map((e, index) => ({ e, index, t: new Date(e.at).getTime() }))
     .sort((a, b) => a.t - b.t || a.index - b.index)

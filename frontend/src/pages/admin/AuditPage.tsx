@@ -112,9 +112,13 @@ export default function AuditPage() {
 
   return (
     <>
-      <PageHeader title="Histórico de alterações" description={logs.data ? `${logs.data.total} registro(s) · mais recentes primeiro` : 'Histórico das ações feitas no painel.'} />
+      <PageHeader
+        title="Histórico de alterações"
+        description={logs.data ? `${logs.data.total} registro(s) · mais recentes primeiro` : 'Histórico das ações feitas no painel.'}
+      />
       <p className="notice" style={{ marginBottom: 12 }}>
-        Registro somente leitura das alterações feitas no painel: não pode ser editado nem apagado por aqui. Os registros nunca contêm senhas, tokens de acesso ou dados de contato de clientes.
+        Registro somente leitura das alterações feitas no painel: não pode ser editado nem apagado por aqui. Os registros nunca contêm senhas, tokens de acesso
+        ou dados de contato de clientes.
       </p>
 
       <div className="filters-bar">
@@ -131,7 +135,15 @@ export default function AuditPage() {
         </div>
         <div className="field grow">
           <label htmlFor="audit-action">Ação (começa com)</label>
-          <input id="audit-action" className="input" list="audit-action-prefixes" placeholder="Ex.: product. ou order.status_change" maxLength={60} value={actionInput} onChange={(e) => set({ action: e.target.value })} />
+          <input
+            id="audit-action"
+            className="input"
+            list="audit-action-prefixes"
+            placeholder="Ex.: product. ou order.status_change"
+            maxLength={60}
+            value={actionInput}
+            onChange={(e) => set({ action: e.target.value })}
+          />
           <datalist id="audit-action-prefixes">
             {ACTION_PREFIXES.map((p) => (
               <option key={p} value={p} />
@@ -145,7 +157,14 @@ export default function AuditPage() {
         </div>
         <div className="field grow">
           <label htmlFor="audit-entity-id">ID do registro</label>
-          <input id="audit-entity-id" className="input" placeholder="Identificador exato" maxLength={80} value={entityIdInput} onChange={(e) => set({ entityId: e.target.value })} />
+          <input
+            id="audit-entity-id"
+            className="input"
+            placeholder="Identificador exato"
+            maxLength={80}
+            value={entityIdInput}
+            onChange={(e) => set({ entityId: e.target.value })}
+          />
         </div>
         {hasFilters && (
           <div className="field">
@@ -172,7 +191,13 @@ export default function AuditPage() {
           </thead>
           <tbody>
             {logs.isPending || logs.isError || logs.data.items.length === 0 ? (
-              <TableState colSpan={5} loading={logs.isPending} error={logs.error} empty={hasFilters ? 'Nenhum registro para estes filtros.' : 'Nenhuma ação registrada ainda.'} onRetry={() => logs.refetch()} />
+              <TableState
+                colSpan={5}
+                loading={logs.isPending}
+                error={logs.error}
+                empty={hasFilters ? 'Nenhum registro para estes filtros.' : 'Nenhuma ação registrada ainda.'}
+                onRetry={() => logs.refetch()}
+              />
             ) : (
               logs.data.items.map((log) => {
                 const known = ACTIONS[log.action];

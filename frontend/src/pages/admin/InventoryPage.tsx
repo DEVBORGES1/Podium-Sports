@@ -64,7 +64,10 @@ export default function InventoryPage() {
 
   return (
     <>
-      <PageHeader title="Estoque" description="Quanto há de cada produto. Use + e − na tabela e salve os ajustes de uma vez, ou “Lançar” para entrada, saída ou ajuste com motivo." />
+      <PageHeader
+        title="Estoque"
+        description="Quanto há de cada produto. Use + e − na tabela e salve os ajustes de uma vez, ou “Lançar” para entrada, saída ou ajuste com motivo."
+      />
       <p className="notice" style={{ marginBottom: 14 }}>
         Pedidos reservam as unidades automaticamente e devolvem se forem cancelados. Toda alteração fica no histórico com data, responsável e motivo.
       </p>
@@ -112,7 +115,12 @@ interface PendingAdjust {
 /** O que recebe a movimentação: o produto (estoque único) ou uma das suas opções. */
 type StockTarget = { productId: string; variantId?: string | null; name: string; stockQuantity: number; reservedInOpenOrders: number };
 const targetKey = (t: Pick<StockTarget, 'productId' | 'variantId'>) => (t.variantId ? `${t.productId}:${t.variantId}` : t.productId);
-const productTarget = (r: InventoryRow): StockTarget => ({ productId: r.productId, name: r.name, stockQuantity: r.stockQuantity, reservedInOpenOrders: r.reservedInOpenOrders });
+const productTarget = (r: InventoryRow): StockTarget => ({
+  productId: r.productId,
+  name: r.name,
+  stockQuantity: r.stockQuantity,
+  reservedInOpenOrders: r.reservedInOpenOrders,
+});
 const variantTarget = (r: InventoryRow, v: NonNullable<InventoryRow['variants']>[number]): StockTarget => ({
   productId: r.productId,
   variantId: v.id,
@@ -154,7 +162,10 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
     pageSize: 25,
   };
 
-  const categories = useQuery({ queryKey: ['admin', 'categories'], queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items) });
+  const categories = useQuery({
+    queryKey: ['admin', 'categories'],
+    queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items),
+  });
   const rows = useQuery({
     queryKey: ['admin', 'inventory', 'balances', filters],
     queryFn: () => adminApi.get<Page<InventoryRow>>('/inventory', filters),
@@ -237,7 +248,9 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
             ) : (
               rows.data.items.flatMap((r) => {
                 const variants = r.variants ?? [];
-                const delta = variants.length ? variants.reduce((sum, v) => sum + (adjust[targetKey(variantTarget(r, v))]?.delta ?? 0), 0) : (adjust[r.productId]?.delta ?? 0);
+                const delta = variants.length
+                  ? variants.reduce((sum, v) => sum + (adjust[targetKey(variantTarget(r, v))]?.delta ?? 0), 0)
+                  : (adjust[r.productId]?.delta ?? 0);
                 const n = r.stockQuantity + delta;
                 const status = n === 0 ? 'OUT_OF_STOCK' : n <= r.minStock ? 'LOW_STOCK' : 'IN_STOCK';
                 const st = AVAILABILITY_LABEL[delta ? status : r.status];
@@ -335,7 +348,12 @@ function BalancesTab({ params, set, onHistory }: { params: URLSearchParams; set:
                         <td />
                         <td>
                           <div className="row-actions nowrap">
-                            <button type="button" className="btn btn-outline btn-sm" onClick={() => setMoving(t)} aria-label={`Lançar movimentação de ${t.name}`}>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={() => setMoving(t)}
+                              aria-label={`Lançar movimentação de ${t.name}`}
+                            >
                               Lançar…
                             </button>
                           </div>
@@ -378,7 +396,11 @@ function AdjustBar({ adjust, onDone }: { adjust: Record<string, PendingAdjust>; 
     () =>
       adminApi.post<{ items: CreatedMovement[] }>('/inventory/movements/batch', {
         ...(reason.trim() ? { reason: reason.trim() } : {}),
-        items: ids.map((key) => ({ productId: adjust[key]!.productId, ...(adjust[key]!.variantId ? { variantId: adjust[key]!.variantId } : {}), delta: adjust[key]!.delta })),
+        items: ids.map((key) => ({
+          productId: adjust[key]!.productId,
+          ...(adjust[key]!.variantId ? { variantId: adjust[key]!.variantId } : {}),
+          delta: adjust[key]!.delta,
+        })),
       }),
     {
       success: (r) => {
@@ -699,7 +721,9 @@ function MovementModal({ row, initialType, onClose }: { row: StockTarget; initia
           {preview === null ? (
             <>Saldo atual: {current}. Preencha a quantidade para ver o saldo resultante.</>
           ) : preview < 0 ? (
-            <>Saldo insuficiente: a saída deixaria o saldo em {preview}. Disponível: {current}.</>
+            <>
+              Saldo insuficiente: a saída deixaria o saldo em {preview}. Disponível: {current}.
+            </>
           ) : (
             <>
               Saldo resultante: <b>{current}</b> → <b>{preview}</b> ({preview - current >= 0 ? '+' : '−'}
@@ -788,7 +812,13 @@ function MovementsTab({ params, set }: { params: URLSearchParams; set: SetParam 
           </thead>
           <tbody>
             {movements.isPending || movements.isError || movements.data.items.length === 0 ? (
-              <TableState colSpan={8} loading={movements.isPending} error={movements.error} empty="Nenhuma movimentação encontrada." onRetry={() => movements.refetch()} />
+              <TableState
+                colSpan={8}
+                loading={movements.isPending}
+                error={movements.error}
+                empty="Nenhuma movimentação encontrada."
+                onRetry={() => movements.refetch()}
+              />
             ) : (
               movements.data.items.map((m) => {
                 const t = MOVEMENT_TYPE[m.type];

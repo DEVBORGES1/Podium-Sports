@@ -1,7 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FormEventHandler, type ReactNode } from 'react';
-import { Controller, useFieldArray, useForm, useWatch, type Control, type FieldErrors, type FieldValues, type Path, type UseFormRegister, type UseFormSetError } from 'react-hook-form';
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+  type Control,
+  type FieldErrors,
+  type FieldValues,
+  type Path,
+  type UseFormRegister,
+  type UseFormSetError,
+} from 'react-hook-form';
 import { Link, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { FormField, ImageUpload, PageHeader, Switch, Tag } from '../../components/admin/ui';
@@ -77,7 +88,25 @@ function useSaveSettings() {
 /* Estrutura visual                                                    */
 /* ------------------------------------------------------------------ */
 
-function SectionForm({ id, title, description, onSubmit, children, dirty, pending, onDiscard }: { id: string; title: string; description?: ReactNode; onSubmit: FormEventHandler<HTMLFormElement>; children: ReactNode; dirty: boolean; pending: boolean; onDiscard: () => void }) {
+function SectionForm({
+  id,
+  title,
+  description,
+  onSubmit,
+  children,
+  dirty,
+  pending,
+  onDiscard,
+}: {
+  id: string;
+  title: string;
+  description?: ReactNode;
+  onSubmit: FormEventHandler<HTMLFormElement>;
+  children: ReactNode;
+  dirty: boolean;
+  pending: boolean;
+  onDiscard: () => void;
+}) {
   return (
     <form className="adm-card" onSubmit={onSubmit} noValidate aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`}>
@@ -254,7 +283,10 @@ const toStoreValues = (s: AdminSettings): StoreValues => ({
 });
 
 function StoreSection({ settings }: { settings: AdminSettings }) {
-  const { register, control, handleSubmit, formState, reset, setError, setValue } = useForm<StoreValues>({ resolver: zodResolver(storeSchema), defaultValues: toStoreValues(settings) });
+  const { register, control, handleSubmit, formState, reset, setError, setValue } = useForm<StoreValues>({
+    resolver: zodResolver(storeSchema),
+    defaultValues: toStoreValues(settings),
+  });
   const errors = formState.errors;
   useEffect(() => {
     reset(toStoreValues(settings), { keepDirtyValues: true });
@@ -280,7 +312,15 @@ function StoreSection({ settings }: { settings: AdminSettings }) {
   );
 
   return (
-    <SectionForm id="sec-loja" title="Loja" description="Nome, logotipo e contatos exibidos no site." onSubmit={onSubmit} dirty={formState.isDirty} pending={save.isPending} onDiscard={() => reset()}>
+    <SectionForm
+      id="sec-loja"
+      title="Loja"
+      description="Nome, logotipo e contatos exibidos no site."
+      onSubmit={onSubmit}
+      dirty={formState.isDirty}
+      pending={save.isPending}
+      onDiscard={() => reset()}
+    >
       <div className="form-cols two">
         <FormField id="storeName" label="Nome da loja" error={errors.storeName?.message} className="full">
           <input id="storeName" className="input" aria-invalid={!!errors.storeName} {...register('storeName')} />
@@ -306,7 +346,16 @@ function StoreSection({ settings }: { settings: AdminSettings }) {
         </div>
         <div className="field">
           <label htmlFor="whatsappNumber">Número do WhatsApp</label>
-          <input id="whatsappNumber" className="input" inputMode="numeric" autoComplete="off" placeholder="5549998090818" aria-invalid={!!errors.whatsappNumber} aria-describedby="whatsappNumber-hint" {...register('whatsappNumber')} />
+          <input
+            id="whatsappNumber"
+            className="input"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="5549998090818"
+            aria-invalid={!!errors.whatsappNumber}
+            aria-describedby="whatsappNumber-hint"
+            {...register('whatsappNumber')}
+          />
           <span className="hint" id="whatsappNumber-hint">
             Somente números, com DDI (55) e DDD. Ex.: 5549998090818. Recebe os pedidos e as mensagens do site.{' '}
             {/^[0-9]{12,13}$/.test(whatsapp) && (
@@ -317,7 +366,12 @@ function StoreSection({ settings }: { settings: AdminSettings }) {
           </span>
           <FieldError message={errors.whatsappNumber?.message} />
         </div>
-        <FormField id="phoneDisplay" label="Telefone exibido (opcional)" error={errors.phoneDisplay?.message} hint="Como aparece no rodapé, ex.: (49) 99809-0818.">
+        <FormField
+          id="phoneDisplay"
+          label="Telefone exibido (opcional)"
+          error={errors.phoneDisplay?.message}
+          hint="Como aparece no rodapé, ex.: (49) 99809-0818."
+        >
           <input id="phoneDisplay" className="input" aria-invalid={!!errors.phoneDisplay} {...register('phoneDisplay')} />
         </FormField>
         <FormField id="email" label="E-mail (opcional)" error={errors.email?.message}>
@@ -329,7 +383,13 @@ function StoreSection({ settings }: { settings: AdminSettings }) {
         <FormField id="address" label="Endereço (opcional)" error={errors.address?.message} className="full">
           <input id="address" className="input" aria-invalid={!!errors.address} {...register('address')} />
         </FormField>
-        <FormField id="openingHours" label="Horário de atendimento (opcional)" error={errors.openingHours?.message} className="full" hint="Exibido no rodapé, ex.: Seg a sex, 9h às 19h · Sáb, 9h às 13h.">
+        <FormField
+          id="openingHours"
+          label="Horário de atendimento (opcional)"
+          error={errors.openingHours?.message}
+          className="full"
+          hint="Exibido no rodapé, ex.: Seg a sex, 9h às 19h · Sáb, 9h às 13h."
+        >
           <textarea id="openingHours" className="textarea" rows={2} aria-invalid={!!errors.openingHours} {...register('openingHours')} />
         </FormField>
       </div>
@@ -362,7 +422,10 @@ const toFulfillmentValues = (s: AdminSettings): FulfillmentValues => ({
 });
 
 function FulfillmentSection({ settings }: { settings: AdminSettings }) {
-  const { register, control, handleSubmit, formState, reset, setError } = useForm<FulfillmentValues>({ resolver: zodResolver(fulfillmentSchema), defaultValues: toFulfillmentValues(settings) });
+  const { register, control, handleSubmit, formState, reset, setError } = useForm<FulfillmentValues>({
+    resolver: zodResolver(fulfillmentSchema),
+    defaultValues: toFulfillmentValues(settings),
+  });
   const errors = formState.errors;
   useEffect(() => {
     reset(toFulfillmentValues(settings), { keepDirtyValues: true });
@@ -377,14 +440,35 @@ function FulfillmentSection({ settings }: { settings: AdminSettings }) {
   );
 
   return (
-    <SectionForm id="sec-recebimento" title="Recebimento" description="Opções oferecidas ao cliente no checkout." onSubmit={onSubmit} dirty={formState.isDirty} pending={save.isPending} onDiscard={() => reset()}>
+    <SectionForm
+      id="sec-recebimento"
+      title="Recebimento"
+      description="Opções oferecidas ao cliente no checkout."
+      onSubmit={onSubmit}
+      dirty={formState.isDirty}
+      pending={save.isPending}
+      onDiscard={() => reset()}
+    >
       <Group legend="Formas de recebimento" hint="Ao menos uma precisa ficar ativa. A taxa de entrega é combinada pelo WhatsApp.">
-        <Controller control={control} name="pickupEnabled" render={({ field }) => <Switch label="Retirada na loja" checked={field.value} onChange={field.onChange} />} />
-        <Controller control={control} name="deliveryEnabled" render={({ field }) => <Switch label="Entrega" checked={field.value} onChange={field.onChange} />} />
+        <Controller
+          control={control}
+          name="pickupEnabled"
+          render={({ field }) => <Switch label="Retirada na loja" checked={field.value} onChange={field.onChange} />}
+        />
+        <Controller
+          control={control}
+          name="deliveryEnabled"
+          render={({ field }) => <Switch label="Entrega" checked={field.value} onChange={field.onChange} />}
+        />
         <FieldError message={errors.pickupEnabled?.message} />
       </Group>
       <div className="form-cols two">
-        <FormField id="pickupInfo" label="Informações da retirada (opcional)" error={errors.pickupInfo?.message} hint="Mostrado no checkout quando o cliente escolhe retirar.">
+        <FormField
+          id="pickupInfo"
+          label="Informações da retirada (opcional)"
+          error={errors.pickupInfo?.message}
+          hint="Mostrado no checkout quando o cliente escolhe retirar."
+        >
           <textarea id="pickupInfo" className="textarea" rows={3} aria-invalid={!!errors.pickupInfo} {...register('pickupInfo')} />
         </FormField>
         <FormField id="deliveryInfo" label="Informações da entrega (opcional)" error={errors.deliveryInfo?.message} hint="Área atendida, prazos, taxa…">
@@ -401,10 +485,17 @@ function FulfillmentSection({ settings }: { settings: AdminSettings }) {
 
 const socialSchema = z.object({ instagramUrl: httpsOptional, facebookUrl: httpsOptional, tiktokUrl: httpsOptional });
 type SocialValues = z.infer<typeof socialSchema>;
-const toSocialValues = (s: AdminSettings): SocialValues => ({ instagramUrl: s.instagramUrl ?? '', facebookUrl: s.facebookUrl ?? '', tiktokUrl: s.tiktokUrl ?? '' });
+const toSocialValues = (s: AdminSettings): SocialValues => ({
+  instagramUrl: s.instagramUrl ?? '',
+  facebookUrl: s.facebookUrl ?? '',
+  tiktokUrl: s.tiktokUrl ?? '',
+});
 
 function SocialSection({ settings }: { settings: AdminSettings }) {
-  const { register, handleSubmit, formState, reset, setError } = useForm<SocialValues>({ resolver: zodResolver(socialSchema), defaultValues: toSocialValues(settings) });
+  const { register, handleSubmit, formState, reset, setError } = useForm<SocialValues>({
+    resolver: zodResolver(socialSchema),
+    defaultValues: toSocialValues(settings),
+  });
   const errors = formState.errors;
   useEffect(() => {
     reset(toSocialValues(settings), { keepDirtyValues: true });
@@ -425,7 +516,15 @@ function SocialSection({ settings }: { settings: AdminSettings }) {
   ] as const;
 
   return (
-    <SectionForm id="sec-redes" title="Redes sociais" description="Links exibidos no rodapé. Deixe em branco para ocultar." onSubmit={onSubmit} dirty={formState.isDirty} pending={save.isPending} onDiscard={() => reset()}>
+    <SectionForm
+      id="sec-redes"
+      title="Redes sociais"
+      description="Links exibidos no rodapé. Deixe em branco para ocultar."
+      onSubmit={onSubmit}
+      dirty={formState.isDirty}
+      pending={save.isPending}
+      onDiscard={() => reset()}
+    >
       <div className="form-cols three">
         {fields.map((f) => (
           <FormField key={f.name} id={f.name} label={`${f.label} (opcional)`} error={errors[f.name]?.message} hint="Somente endereços https://.">
@@ -475,7 +574,10 @@ const SAMPLE_ORDER: PublicOrder = {
 };
 
 function MessagesSection({ settings }: { settings: AdminSettings }) {
-  const { register, control, handleSubmit, formState, reset, setError } = useForm<MessagesValues>({ resolver: zodResolver(messagesSchema), defaultValues: toMessagesValues(settings) });
+  const { register, control, handleSubmit, formState, reset, setError } = useForm<MessagesValues>({
+    resolver: zodResolver(messagesSchema),
+    defaultValues: toMessagesValues(settings),
+  });
   const errors = formState.errors;
   useEffect(() => {
     reset(toMessagesValues(settings), { keepDirtyValues: true });
@@ -484,7 +586,11 @@ function MessagesSection({ settings }: { settings: AdminSettings }) {
   const greeting = useWatch({ control, name: 'whatsappGreeting' }) ?? '';
   const intro = useWatch({ control, name: 'orderMessageIntro' }) ?? '';
   const footer = useWatch({ control, name: 'orderMessageFooter' }) ?? '';
-  const preview = buildOrderMessage(SAMPLE_ORDER, { orderMessageIntro: intro.trim() || '(abertura da mensagem)', orderMessageFooter: footer.trim() || null }, '5549999990000');
+  const preview = buildOrderMessage(
+    SAMPLE_ORDER,
+    { orderMessageIntro: intro.trim() || '(abertura da mensagem)', orderMessageFooter: footer.trim() || null },
+    '5549999990000',
+  );
 
   const onSubmit = handleSubmit((v) =>
     save.mutate(
@@ -494,12 +600,27 @@ function MessagesSection({ settings }: { settings: AdminSettings }) {
   );
 
   return (
-    <SectionForm id="sec-mensagens" title="Mensagens do WhatsApp" description="Textos pré-preenchidos quando o cliente abre a conversa." onSubmit={onSubmit} dirty={formState.isDirty} pending={save.isPending} onDiscard={() => reset()}>
+    <SectionForm
+      id="sec-mensagens"
+      title="Mensagens do WhatsApp"
+      description="Textos pré-preenchidos quando o cliente abre a conversa."
+      onSubmit={onSubmit}
+      dirty={formState.isDirty}
+      pending={save.isPending}
+      onDiscard={() => reset()}
+    >
       <div className="adm-grid cols-2">
         <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
           <div className="field">
             <label htmlFor="whatsappGreeting">Saudação</label>
-            <textarea id="whatsappGreeting" className="textarea" rows={2} aria-invalid={!!errors.whatsappGreeting} aria-describedby="whatsappGreeting-hint" {...register('whatsappGreeting')} />
+            <textarea
+              id="whatsappGreeting"
+              className="textarea"
+              rows={2}
+              aria-invalid={!!errors.whatsappGreeting}
+              aria-describedby="whatsappGreeting-hint"
+              {...register('whatsappGreeting')}
+            />
             <span className="hint" id="whatsappGreeting-hint">
               Usada no botão flutuante do WhatsApp e na chamada "Falar no WhatsApp".{' '}
               {greeting.trim().length >= 2 && (
@@ -510,10 +631,20 @@ function MessagesSection({ settings }: { settings: AdminSettings }) {
             </span>
             <FieldError message={errors.whatsappGreeting?.message} />
           </div>
-          <FormField id="orderMessageIntro" label="Abertura da mensagem do pedido" error={errors.orderMessageIntro?.message} hint="Primeira linha da mensagem enviada com o pedido.">
+          <FormField
+            id="orderMessageIntro"
+            label="Abertura da mensagem do pedido"
+            error={errors.orderMessageIntro?.message}
+            hint="Primeira linha da mensagem enviada com o pedido."
+          >
             <textarea id="orderMessageIntro" className="textarea" rows={2} aria-invalid={!!errors.orderMessageIntro} {...register('orderMessageIntro')} />
           </FormField>
-          <FormField id="orderMessageFooter" label="Encerramento (opcional)" error={errors.orderMessageFooter?.message} hint="Última linha da mensagem, ex.: um agradecimento ou aviso de prazo.">
+          <FormField
+            id="orderMessageFooter"
+            label="Encerramento (opcional)"
+            error={errors.orderMessageFooter?.message}
+            hint="Última linha da mensagem, ex.: um agradecimento ou aviso de prazo."
+          >
             <textarea id="orderMessageFooter" className="textarea" rows={2} aria-invalid={!!errors.orderMessageFooter} {...register('orderMessageFooter')} />
           </FormField>
         </div>
@@ -524,7 +655,10 @@ function MessagesSection({ settings }: { settings: AdminSettings }) {
           <pre className="json" style={{ maxHeight: 380 }} aria-label="Prévia da mensagem do pedido (exemplo fictício)">
             {preview}
           </pre>
-          <p className="notice">Pedido fictício, apenas para visualizar. Os itens e valores reais vêm sempre do pedido registrado no servidor. No WhatsApp, *asteriscos* viram negrito.</p>
+          <p className="notice">
+            Pedido fictício, apenas para visualizar. Os itens e valores reais vêm sempre do pedido registrado no servidor. No WhatsApp, *asteriscos* viram
+            negrito.
+          </p>
         </div>
       </div>
     </SectionForm>
@@ -545,8 +679,11 @@ const CUSTOMER_MESSAGE_FIELDS: { key: keyof CustomerMessages; label: string; hin
   { key: 'cancelled', label: 'Pedido cancelado', hint: 'Não prometa reembolso ou prazo que ainda não foi combinado.' },
 ];
 const customerMessageText = required(5, 500, 'Escreva a mensagem (5 a 500 caracteres).');
-const customerMessagesSchema = z.object(Object.fromEntries(CUSTOMER_MESSAGE_FIELDS.map((f) => [f.key, customerMessageText])) as Record<keyof CustomerMessages, typeof customerMessageText>);
-const fillSample = (template: string, storeName: string) => template.replaceAll('{nome}', 'Maria').replaceAll('{pedido}', 'PS-EXEMPLO').replaceAll('{loja}', storeName);
+const customerMessagesSchema = z.object(
+  Object.fromEntries(CUSTOMER_MESSAGE_FIELDS.map((f) => [f.key, customerMessageText])) as Record<keyof CustomerMessages, typeof customerMessageText>,
+);
+const fillSample = (template: string, storeName: string) =>
+  template.replaceAll('{nome}', 'Maria').replaceAll('{pedido}', 'PS-EXEMPLO').replaceAll('{loja}', storeName);
 
 /** Textos padrão (os mesmos de backend/src/modules/settings/settings.schemas.ts), para "Restaurar texto padrão". */
 const DEFAULT_CUSTOMER_MESSAGES: CustomerMessages = {
@@ -633,7 +770,12 @@ function CustomerMessagesSection({ settings }: { settings: AdminSettings }) {
             const edited = text !== DEFAULT_CUSTOMER_MESSAGES[f.key];
             return (
               <li key={f.key}>
-                <button type="button" className={`msg-item ${f.key === selected ? 'on' : ''}`} aria-pressed={f.key === selected} onClick={() => setSelected(f.key)}>
+                <button
+                  type="button"
+                  className={`msg-item ${f.key === selected ? 'on' : ''}`}
+                  aria-pressed={f.key === selected}
+                  onClick={() => setSelected(f.key)}
+                >
                   <span className="msg-item-head">
                     <b>{f.label}</b>
                     {errors[f.key] ? <Tag tone="danger">Corrigir</Tag> : edited ? <Tag tone="gold">Editada</Tag> : null}
@@ -732,7 +874,10 @@ const contentFormSchema = z.object({
       .string()
       .trim()
       .max(300, maxMsg(300))
-      .refine((v) => INTERNAL_RE.test(v) || HTTPS_RE.test(v), 'Use um caminho interno começando com "/" (ex.: /produtos?categoria=chuteiras) ou uma URL https://.'),
+      .refine(
+        (v) => INTERNAL_RE.test(v) || HTTPS_RE.test(v),
+        'Use um caminho interno começando com "/" (ex.: /produtos?categoria=chuteiras) ou uma URL https://.',
+      ),
     brandsText: listText(splitComma, 12, 20, 'marcas'),
   }),
   cta: z.object({
@@ -804,7 +949,10 @@ function mapContentField(field: string) {
 }
 
 function HomeContentSection({ settings }: { settings: AdminSettings }) {
-  const { register, control, handleSubmit, formState, reset, setError } = useForm<ContentValues>({ resolver: zodResolver(contentFormSchema), defaultValues: toContentValues(settings) });
+  const { register, control, handleSubmit, formState, reset, setError } = useForm<ContentValues>({
+    resolver: zodResolver(contentFormSchema),
+    defaultValues: toContentValues(settings),
+  });
   const errors = formState.errors;
   useEffect(() => {
     reset(toContentValues(settings), { keepDirtyValues: true });
@@ -812,7 +960,10 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
   const save = useSaveSettings();
 
   const onSubmit = handleSubmit((v) =>
-    save.mutate({ content: { ...toContent(v), podium: settings.content.podium, customerMessages: settings.content.customerMessages } }, { onSuccess: (s) => reset(toContentValues(s)), onError: (err) => applyServerIssues(err, setError, mapContentField) }),
+    save.mutate(
+      { content: { ...toContent(v), podium: settings.content.podium, customerMessages: settings.content.customerMessages } },
+      { onSuccess: (s) => reset(toContentValues(s)), onError: (err) => applyServerIssues(err, setError, mapContentField) },
+    ),
   );
 
   const homeSwitches = [
@@ -823,14 +974,27 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
   ] as const;
 
   return (
-    <SectionForm id="sec-inicio" title="Página inicial" description="Textos e seções da vitrine. Os banners do topo são gerenciados em Banners." onSubmit={onSubmit} dirty={formState.isDirty} pending={save.isPending} onDiscard={() => reset()}>
+    <SectionForm
+      id="sec-inicio"
+      title="Página inicial"
+      description="Textos e seções da vitrine. Os banners do topo são gerenciados em Banners."
+      onSubmit={onSubmit}
+      dirty={formState.isDirty}
+      pending={save.isPending}
+      onDiscard={() => reset()}
+    >
       {errors.root?.server?.message && (
         <p className="alert alert-error" role="alert">
           {errors.root.server.message}
         </p>
       )}
       <Group legend="Barra superior">
-        <FormField id="topbarText" label="Mensagens da barra (uma por linha, até 4)" error={errors.topbarText?.message} hint="Trechos entre **asteriscos duplos** aparecem em dourado. Ex.: **PEDIDO PELO WHATSAPP** · rápido e fácil">
+        <FormField
+          id="topbarText"
+          label="Mensagens da barra (uma por linha, até 4)"
+          error={errors.topbarText?.message}
+          hint="Trechos entre **asteriscos duplos** aparecem em dourado. Ex.: **PEDIDO PELO WHATSAPP** · rápido e fácil"
+        >
           <textarea id="topbarText" className="textarea" rows={4} aria-invalid={!!errors.topbarText} {...register('topbarText')} />
         </FormField>
       </Group>
@@ -849,13 +1013,22 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
       >
         <div className="form-cols two">
           {homeSwitches.map((s) => (
-            <Controller key={s.name} control={control} name={s.name} render={({ field }) => <Switch label={s.label} checked={field.value} onChange={field.onChange} />} />
+            <Controller
+              key={s.name}
+              control={control}
+              name={s.name}
+              render={({ field }) => <Switch label={s.label} checked={field.value} onChange={field.onChange} />}
+            />
           ))}
         </div>
       </Group>
 
       <Group legend="Faixa de marcas" hint="Faixa escura exibida logo após os destaques.">
-        <Controller control={control} name="brandBanner.enabled" render={({ field }) => <Switch label="Exibir faixa de marcas" checked={field.value} onChange={field.onChange} />} />
+        <Controller
+          control={control}
+          name="brandBanner.enabled"
+          render={({ field }) => <Switch label="Exibir faixa de marcas" checked={field.value} onChange={field.onChange} />}
+        />
         <div className="form-cols three">
           <FormField id="bb-kicker" label="Chamada (acima do título)" error={errors.brandBanner?.kicker?.message}>
             <input id="bb-kicker" className="input" aria-invalid={!!errors.brandBanner?.kicker} {...register('brandBanner.kicker')} />
@@ -872,17 +1045,33 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
           <FormField id="bb-buttonLabel" label="Texto do botão" error={errors.brandBanner?.buttonLabel?.message}>
             <input id="bb-buttonLabel" className="input" aria-invalid={!!errors.brandBanner?.buttonLabel} {...register('brandBanner.buttonLabel')} />
           </FormField>
-          <FormField id="bb-buttonUrl" label="Link do botão" error={errors.brandBanner?.buttonUrl?.message} className="full" hint='Caminho interno (ex.: /produtos?categoria=chuteiras) ou URL https://.'>
+          <FormField
+            id="bb-buttonUrl"
+            label="Link do botão"
+            error={errors.brandBanner?.buttonUrl?.message}
+            className="full"
+            hint="Caminho interno (ex.: /produtos?categoria=chuteiras) ou URL https://."
+          >
             <input id="bb-buttonUrl" className="input" aria-invalid={!!errors.brandBanner?.buttonUrl} {...register('brandBanner.buttonUrl')} />
           </FormField>
-          <FormField id="bb-brands" label="Marcas (separadas por vírgula, até 12)" error={errors.brandBanner?.brandsText?.message} className="full" hint="Ex.: Nike, Adidas, Umbro. Cada marca com até 20 caracteres.">
+          <FormField
+            id="bb-brands"
+            label="Marcas (separadas por vírgula, até 12)"
+            error={errors.brandBanner?.brandsText?.message}
+            className="full"
+            hint="Ex.: Nike, Adidas, Umbro. Cada marca com até 20 caracteres."
+          >
             <input id="bb-brands" className="input" aria-invalid={!!errors.brandBanner?.brandsText} {...register('brandBanner.brandsText')} />
           </FormField>
         </div>
       </Group>
 
       <Group legend="Chamada para o WhatsApp" hint="Bloco no fim da página com o botão que abre a conversa usando a saudação configurada.">
-        <Controller control={control} name="cta.enabled" render={({ field }) => <Switch label="Exibir chamada" checked={field.value} onChange={field.onChange} />} />
+        <Controller
+          control={control}
+          name="cta.enabled"
+          render={({ field }) => <Switch label="Exibir chamada" checked={field.value} onChange={field.onChange} />}
+        />
         <div className="form-cols two">
           <FormField id="cta-title" label="Título" error={errors.cta?.title?.message}>
             <input id="cta-title" className="input" aria-invalid={!!errors.cta?.title} {...register('cta.title')} />
@@ -903,7 +1092,12 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
         <FormField id="footerAbout" label="Sobre a loja (rodapé)" error={errors.footerAbout?.message}>
           <textarea id="footerAbout" className="textarea" rows={3} aria-invalid={!!errors.footerAbout} {...register('footerAbout')} />
         </FormField>
-        <FormField id="serviceNotesText" label="Avisos de atendimento (um por linha, até 6)" error={errors.serviceNotesText?.message} hint="Listados na coluna “Atendimento” do rodapé, junto com o horário.">
+        <FormField
+          id="serviceNotesText"
+          label="Avisos de atendimento (um por linha, até 6)"
+          error={errors.serviceNotesText?.message}
+          hint="Listados na coluna “Atendimento” do rodapé, junto com o horário."
+        >
           <textarea id="serviceNotesText" className="textarea" rows={4} aria-invalid={!!errors.serviceNotesText} {...register('serviceNotesText')} />
         </FormField>
         <FormField id="cartNote" label="Observação na sacola" error={errors.cartNote?.message} hint="Aparece na sacola antes de finalizar o pedido.">
@@ -917,13 +1111,37 @@ function HomeContentSection({ settings }: { settings: AdminSettings }) {
 function IconPreview({ control, name, index }: { control: Control<ContentValues>; name: 'benefits' | 'trustItems'; index: number }) {
   const icon = useWatch({ control, name: `${name}.${index}.icon` });
   return (
-    <span aria-hidden style={{ display: 'inline-grid', placeItems: 'center', width: 40, height: 40, borderRadius: 6, background: 'var(--soft)', color: 'var(--gold)', flex: '0 0 auto' }}>
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-grid',
+        placeItems: 'center',
+        width: 40,
+        height: 40,
+        borderRadius: 6,
+        background: 'var(--soft)',
+        color: 'var(--gold)',
+        flex: '0 0 auto',
+      }}
+    >
       <InfoGlyph icon={icon ?? 'shield'} width={24} height={24} />
     </span>
   );
 }
 
-function InfoItemsEditor({ name, legend, control, register, errors }: { name: 'benefits' | 'trustItems'; legend: string; control: Control<ContentValues>; register: UseFormRegister<ContentValues>; errors: FieldErrors<ContentValues> }) {
+function InfoItemsEditor({
+  name,
+  legend,
+  control,
+  register,
+  errors,
+}: {
+  name: 'benefits' | 'trustItems';
+  legend: string;
+  control: Control<ContentValues>;
+  register: UseFormRegister<ContentValues>;
+  errors: FieldErrors<ContentValues>;
+}) {
   const { fields, append, remove, move } = useFieldArray({ control, name });
   const listErrors = errors[name];
   const blank: InfoItem = { icon: 'shield', title: '', text: '' };
@@ -956,10 +1174,22 @@ function InfoItemsEditor({ name, legend, control, register, errors }: { name: 'b
                 </FormField>
               </div>
               <div className="row-actions" style={{ alignSelf: 'center' }}>
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={`Mover item ${i + 1} para cima`}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => move(i, i - 1)}
+                  disabled={i === 0}
+                  aria-label={`Mover item ${i + 1} para cima`}
+                >
                   ↑
                 </button>
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => move(i, i + 1)} disabled={i === fields.length - 1} aria-label={`Mover item ${i + 1} para baixo`}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => move(i, i + 1)}
+                  disabled={i === fields.length - 1}
+                  aria-label={`Mover item ${i + 1} para baixo`}
+                >
                   ↓
                 </button>
                 <button type="button" className="btn btn-outline btn-sm" onClick={() => remove(i)} aria-label={`Remover item ${i + 1}`}>
@@ -985,14 +1215,25 @@ function InfoItemsEditor({ name, legend, control, register, errors }: { name: 'b
 /* ------------------------------------------------------------------ */
 
 const operationSchema = z.object({
-  heroIntervalSeconds: z.number({ error: 'Informe um número de segundos.' }).int('Use um número inteiro.').min(3, 'Mínimo de 3 segundos.').max(30, 'Máximo de 30 segundos.'),
-  pendingOrderTtlHours: z.number({ error: 'Informe um número de horas.' }).int('Use um número inteiro.').min(1, 'Mínimo de 1 hora.').max(720, 'Máximo de 720 horas (30 dias).'),
+  heroIntervalSeconds: z
+    .number({ error: 'Informe um número de segundos.' })
+    .int('Use um número inteiro.')
+    .min(3, 'Mínimo de 3 segundos.')
+    .max(30, 'Máximo de 30 segundos.'),
+  pendingOrderTtlHours: z
+    .number({ error: 'Informe um número de horas.' })
+    .int('Use um número inteiro.')
+    .min(1, 'Mínimo de 1 hora.')
+    .max(720, 'Máximo de 720 horas (30 dias).'),
 });
 type OperationValues = z.infer<typeof operationSchema>;
 const toOperationValues = (s: AdminSettings): OperationValues => ({ heroIntervalSeconds: s.heroIntervalSeconds, pendingOrderTtlHours: s.pendingOrderTtlHours });
 
 function OperationSection({ settings }: { settings: AdminSettings }) {
-  const { register, handleSubmit, formState, reset, setError } = useForm<OperationValues>({ resolver: zodResolver(operationSchema), defaultValues: toOperationValues(settings) });
+  const { register, handleSubmit, formState, reset, setError } = useForm<OperationValues>({
+    resolver: zodResolver(operationSchema),
+    defaultValues: toOperationValues(settings),
+  });
   const errors = formState.errors;
   useEffect(() => {
     reset(toOperationValues(settings), { keepDirtyValues: true });
@@ -1004,15 +1245,44 @@ function OperationSection({ settings }: { settings: AdminSettings }) {
   return (
     <SectionForm id="sec-pedidos" title="Pedidos e vitrine" onSubmit={onSubmit} dirty={formState.isDirty} pending={save.isPending} onDiscard={() => reset()}>
       <div className="form-cols two">
-        <FormField id="heroIntervalSeconds" label="Troca dos banners (segundos)" error={errors.heroIntervalSeconds?.message} hint="Tempo que cada banner do topo fica na tela antes de passar para o próximo (3 a 30).">
-          <input id="heroIntervalSeconds" type="number" min={3} max={30} step={1} className="input" aria-invalid={!!errors.heroIntervalSeconds} {...register('heroIntervalSeconds', { valueAsNumber: true })} />
+        <FormField
+          id="heroIntervalSeconds"
+          label="Troca dos banners (segundos)"
+          error={errors.heroIntervalSeconds?.message}
+          hint="Tempo que cada banner do topo fica na tela antes de passar para o próximo (3 a 30)."
+        >
+          <input
+            id="heroIntervalSeconds"
+            type="number"
+            min={3}
+            max={30}
+            step={1}
+            className="input"
+            aria-invalid={!!errors.heroIntervalSeconds}
+            {...register('heroIntervalSeconds', { valueAsNumber: true })}
+          />
         </FormField>
-        <FormField id="pendingOrderTtlHours" label="Prazo de pedidos pendentes (horas)" error={errors.pendingOrderTtlHours?.message} hint="De 1 a 720 horas (30 dias).">
-          <input id="pendingOrderTtlHours" type="number" min={1} max={720} step={1} className="input" aria-invalid={!!errors.pendingOrderTtlHours} {...register('pendingOrderTtlHours', { valueAsNumber: true })} />
+        <FormField
+          id="pendingOrderTtlHours"
+          label="Prazo de pedidos pendentes (horas)"
+          error={errors.pendingOrderTtlHours?.message}
+          hint="De 1 a 720 horas (30 dias)."
+        >
+          <input
+            id="pendingOrderTtlHours"
+            type="number"
+            min={1}
+            max={720}
+            step={1}
+            className="input"
+            aria-invalid={!!errors.pendingOrderTtlHours}
+            {...register('pendingOrderTtlHours', { valueAsNumber: true })}
+          />
         </FormField>
       </div>
       <p className="notice">
-        Pedidos que continuam <b>aguardando atendimento</b> depois desse prazo são marcados como <b>expirados</b> automaticamente, e o estoque reservado para eles volta a ficar disponível na loja. Pedidos já aceitos não expiram. Fuso horário da loja: {settings.timezone}.
+        Pedidos que continuam <b>aguardando atendimento</b> depois desse prazo são marcados como <b>expirados</b> automaticamente, e o estoque reservado para
+        eles volta a ficar disponível na loja. Pedidos já aceitos não expiram. Fuso horário da loja: {settings.timezone}.
       </p>
     </SectionForm>
   );

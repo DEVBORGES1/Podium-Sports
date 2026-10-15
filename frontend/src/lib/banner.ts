@@ -85,7 +85,8 @@ export const deviceLook = (d: Pick<SlideData, 'layout' | 'overlay' | 'mobileLayo
  * Proporção da área da imagem no celular (a imagem fica acima do texto). Serve de orientação para quem
  * prepara a foto exclusiva do celular.
  */
-export const mobileImageSize = (layout: BannerLayout) => (layout === 'split' ? { ratio: '4:3', size: '1200 × 900 px' } : { ratio: '16:10', size: '1200 × 750 px' });
+export const mobileImageSize = (layout: BannerLayout) =>
+  layout === 'split' ? { ratio: '4:3', size: '1200 × 900 px' } : { ratio: '16:10', size: '1200 × 750 px' };
 
 /**
  * Desconto exibido no banner: só quando os dois preços são válidos e o original é maior.
@@ -119,7 +120,13 @@ export function slideStyle(d: SlideData, onMobile = false): CSSProperties {
     '--ov': String(clamp(deviceLook(d, onMobile).overlay, 0, 90) / 100),
     '--imgbg': d.imageBg && HEX.test(d.imageBg) ? d.imageBg : 'transparent',
     // Cor atrás da foto no celular: a da foto exclusiva, se houver; senão a mesma do computador.
-    '--imgbg-m': d.mobileImageUrl ? (d.mobileImageBg && HEX.test(d.mobileImageBg) ? d.mobileImageBg : 'transparent') : d.imageBg && HEX.test(d.imageBg) ? d.imageBg : 'transparent',
+    '--imgbg-m': d.mobileImageUrl
+      ? d.mobileImageBg && HEX.test(d.mobileImageBg)
+        ? d.mobileImageBg
+        : 'transparent'
+      : d.imageBg && HEX.test(d.imageBg)
+        ? d.imageBg
+        : 'transparent',
     ...frameVars(desktop, 'd'),
     ...frameVars(mobile, 'm'),
   } as CSSProperties;
@@ -198,7 +205,10 @@ export async function sampleEdgeColor(url: string): Promise<string | null> {
       }
     }
     if (!n) return null;
-    const hex = (v: number) => Math.round(v / n).toString(16).padStart(2, '0');
+    const hex = (v: number) =>
+      Math.round(v / n)
+        .toString(16)
+        .padStart(2, '0');
     return `#${hex(r)}${hex(g)}${hex(b)}`;
   } catch {
     return null;

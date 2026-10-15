@@ -60,7 +60,10 @@ test.describe('operação da loja', () => {
   test('pedido: aceitar, marcar pago e ver no dashboard; cancelar devolve estoque', async ({ page }) => {
     const code = await placeOrder(page, 'umbro-pro-5-shark');
     await login(page, USERS.owner.email);
-    await page.getByRole('link', { name: /Pedidos/ }).first().click();
+    await page
+      .getByRole('link', { name: /Pedidos/ })
+      .first()
+      .click();
     // Pedido novo aparece na coluna "Novos" do quadro; abre no painel lateral.
     await page.getByRole('button', { name: new RegExp(`Abrir pedido ${code}`) }).click();
     const drawer = page.getByRole('dialog', { name: 'Detalhes do pedido' });
@@ -121,7 +124,10 @@ test.describe('operação da loja', () => {
   test('entrada de estoque fica registrada no histórico', async ({ page }) => {
     await login(page, USERS.staff.email);
     await page.goto('/admin/inventory?q=luva training infantil');
-    await page.getByRole('button', { name: /Lançar movimentação de/ }).first().click();
+    await page
+      .getByRole('button', { name: /Lançar movimentação de/ })
+      .first()
+      .click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel(/Quantidade/).fill('5');
     await dialog.getByLabel(/Motivo|Justificativa/).fill('NF 1234');
@@ -147,7 +153,10 @@ test.describe('operação da loja', () => {
     await expect(bar).toHaveCount(0);
 
     // Saída pelo − exige motivo antes de salvar.
-    await page.getByRole('button', { name: /^Diminuir estoque de/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Diminuir estoque de/ })
+      .first()
+      .click();
     await bar.getByRole('button', { name: 'Salvar ajustes' }).click();
     await expect(bar.getByRole('alert')).toContainText('Informe o motivo das saídas');
     await bar.getByLabel('Motivo dos ajustes').fill('Avaria na vitrine');
@@ -163,7 +172,10 @@ test.describe('operação da loja', () => {
     await page.getByRole('link', { name: /Nova promoção/ }).click();
     await page.getByLabel('Nome').fill('Semana do Whey');
     await page.getByLabel(/Tipo de desconto/).selectOption('PERCENTAGE');
-    await page.getByLabel(/Percentual|Desconto \(%\)|Valor/).first().fill('10');
+    await page
+      .getByLabel(/Percentual|Desconto \(%\)|Valor/)
+      .first()
+      .fill('10');
     const start = new Date(Date.now() - 3600_000);
     const end = new Date(Date.now() + 7 * 86_400_000);
     const local = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
@@ -185,7 +197,10 @@ test.describe('operação da loja', () => {
     await page.getByRole('link', { name: /Banners/ }).click();
     await page.getByRole('link', { name: /Novo banner/ }).click();
     await page.getByLabel('Título', { exact: true }).fill('Black Friday');
-    await page.getByLabel(/Destaque/).first().fill('Podium');
+    await page
+      .getByLabel(/Destaque/)
+      .first()
+      .fill('Podium');
     await page.getByRole('button', { name: /Criar banner|Salvar/ }).click();
     await expect(page).toHaveURL(/\/admin\/banners$/);
     await page.goto('/');
@@ -259,7 +274,10 @@ test.describe('operação da loja', () => {
     await page.getByRole('link', { name: 'Configurações' }).click();
     const field = page.getByLabel(/Número do WhatsApp|WhatsApp/).first();
     await field.fill('5549911112222');
-    await page.getByRole('button', { name: /Salvar/ }).first().click();
+    await page
+      .getByRole('button', { name: /Salvar/ })
+      .first()
+      .click();
     await expect(page.getByText(/salv/i).first()).toBeVisible();
     await page.goto('/');
     for (const link of await page.getByRole('link', { name: /Falar no WhatsApp/ }).all()) {

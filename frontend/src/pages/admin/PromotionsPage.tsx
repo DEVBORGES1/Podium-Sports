@@ -37,7 +37,10 @@ export default function PromotionsPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [deleting, setDeleting] = useState<AdminPromotion | null>(null);
 
-  const promotions = useQuery({ queryKey: ['admin', 'promotions'], queryFn: () => adminApi.get<{ items: AdminPromotion[] }>('/promotions').then((r) => r.items) });
+  const promotions = useQuery({
+    queryKey: ['admin', 'promotions'],
+    queryFn: () => adminApi.get<{ items: AdminPromotion[] }>('/promotions').then((r) => r.items),
+  });
   const toggle = useAdminMutation((v: { id: string; isActive: boolean }) => adminApi.patch<AdminPromotion>(`/promotions/${v.id}`, { isActive: v.isActive }), {
     success: (p) => (p.isActive ? 'Promoção ativada.' : 'Promoção desativada.'),
     invalidate: INVALIDATE,
@@ -64,12 +67,18 @@ export default function PromotionsPage() {
         }
       />
       <p className="notice" style={{ marginBottom: 12 }}>
-        O servidor confere se a promoção está vigente e recalcula os preços em todo pedido; promoções vencidas deixam de valer automaticamente. Quando um produto tem mais de um desconto, vale o
-        menor preço.
+        O servidor confere se a promoção está vigente e recalcula os preços em todo pedido; promoções vencidas deixam de valer automaticamente. Quando um
+        produto tem mais de um desconto, vale o menor preço.
       </p>
       <div className="period-bar" role="group" aria-label="Filtrar por situação" style={{ marginBottom: 14 }}>
         {FILTERS.map((f) => (
-          <button key={f.value} type="button" className={`chip ${filter === f.value ? 'active' : ''}`} aria-pressed={filter === f.value} onClick={() => setFilter(f.value)}>
+          <button
+            key={f.value}
+            type="button"
+            className={`chip ${filter === f.value ? 'active' : ''}`}
+            aria-pressed={filter === f.value}
+            onClick={() => setFilter(f.value)}
+          >
             {f.label}
             {promotions.data ? ` (${count(f.value)})` : ''}
           </button>
@@ -147,7 +156,8 @@ export default function PromotionsPage() {
           title="Excluir promoção?"
           message={
             <>
-              A promoção <b>{deleting.name}</b> será removida e os produtos voltam ao preço normal. Pedidos já realizados não são alterados. Esta ação não pode ser desfeita.
+              A promoção <b>{deleting.name}</b> será removida e os produtos voltam ao preço normal. Pedidos já realizados não são alterados. Esta ação não pode
+              ser desfeita.
             </>
           }
           confirmLabel="Excluir"

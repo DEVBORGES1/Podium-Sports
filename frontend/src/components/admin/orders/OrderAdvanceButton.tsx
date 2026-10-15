@@ -42,13 +42,16 @@ export function OrderAdvanceButton({ order: o, className = '', arrow = false }: 
           title={`${orderActionLabel(confirming, o.fulfillment)}?`}
           message={
             <p>
-              O pedido <b>{o.code}</b> de {o.customerName} será marcado como <b>{orderStatusLabel(confirming, o.fulfillment)}</b> e não volta para etapas anteriores.
+              O pedido <b>{o.code}</b> de {o.customerName} será marcado como <b>{orderStatusLabel(confirming, o.fulfillment)}</b> e não volta para etapas
+              anteriores.
               {o.paymentStatus === 'UNPAID' && ' O pagamento ainda consta como não pago.'}
             </p>
           }
           confirmLabel={orderActionLabel(confirming, o.fulfillment)}
           busy={change.isPending}
-          onConfirm={() => change.mutate({ id: o.id, code: o.code, fulfillment: o.fulfillment, from: o.status, to: confirming }, { onError: () => setConfirming(null) })}
+          onConfirm={() =>
+            change.mutate({ id: o.id, code: o.code, fulfillment: o.fulfillment, from: o.status, to: confirming }, { onError: () => setConfirming(null) })
+          }
           onCancel={() => !change.isPending && setConfirming(null)}
         />
       )}

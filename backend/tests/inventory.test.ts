@@ -77,7 +77,13 @@ describe('ajustes em lote (+ / − na tabela)', () => {
   it('aplica entradas e saídas de vários produtos de uma vez, com histórico e auditoria', async () => {
     const a = await createProduct({ stock: 5 });
     const b = await createProduct({ stock: 2 });
-    const res = await batch({ reason: 'Contagem de sexta', items: [{ productId: a.id, delta: 3 }, { productId: b.id, delta: -2 }] });
+    const res = await batch({
+      reason: 'Contagem de sexta',
+      items: [
+        { productId: a.id, delta: 3 },
+        { productId: b.id, delta: -2 },
+      ],
+    });
     expect(res.status).toBe(201);
     expect(res.body.items).toHaveLength(2);
     expect(await stockOf(a.id)).toBe(8);
@@ -93,7 +99,13 @@ describe('ajustes em lote (+ / − na tabela)', () => {
   it('é tudo ou nada: uma saída sem saldo cancela o lote inteiro', async () => {
     const a = await createProduct({ stock: 5 });
     const b = await createProduct({ stock: 1 });
-    const res = await batch({ reason: 'Avaria', items: [{ productId: a.id, delta: 4 }, { productId: b.id, delta: -2 }] });
+    const res = await batch({
+      reason: 'Avaria',
+      items: [
+        { productId: a.id, delta: 4 },
+        { productId: b.id, delta: -2 },
+      ],
+    });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('INSUFFICIENT_STOCK');
     expect(await stockOf(a.id)).toBe(5);
@@ -105,7 +117,17 @@ describe('ajustes em lote (+ / − na tabela)', () => {
     expect((await batch({ items: [{ productId: a.id, delta: -1 }] })).status).toBe(400);
     expect((await batch({ items: [{ productId: a.id, delta: 0 }] })).status).toBe(400);
     expect((await batch({ items: [] })).status).toBe(400);
-    expect((await batch({ reason: 'x', items: [{ productId: a.id, delta: 1 }, { productId: a.id, delta: 1 }] })).status).toBe(400);
+    expect(
+      (
+        await batch({
+          reason: 'x',
+          items: [
+            { productId: a.id, delta: 1 },
+            { productId: a.id, delta: 1 },
+          ],
+        })
+      ).status,
+    ).toBe(400);
     // Só entradas: justificativa opcional.
     const ok = await batch({ items: [{ productId: a.id, delta: 2 }] });
     expect(ok.status).toBe(201);

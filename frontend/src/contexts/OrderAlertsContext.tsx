@@ -85,7 +85,9 @@ export function OrderAlertsProvider({ children }: { children: ReactNode }) {
   const [soundPref, setSoundPref] = useState(readSoundPref);
   const [audioReady, setAudioReady] = useState(() => audioState() === 'running');
   const [desktopPref, setDesktopPref] = useState(readDesktopPref);
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => (notificationSupported() ? Notification.permission : 'unsupported'));
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() =>
+    notificationSupported() ? Notification.permission : 'unsupported',
+  );
 
   // Estado da consulta guardado em refs: não reinicia o ciclo a cada renderização.
   const cursor = useRef<string | null>(null);
@@ -156,7 +158,11 @@ export function OrderAlertsProvider({ children }: { children: ReactNode }) {
         failures = 0;
         if (lastChange.current !== null && data.lastChangeAt !== lastChange.current) {
           // Algo mudou (pedido novo ou alterado por outra pessoa): atualiza listas e detalhes abertos.
-          refreshQueries(qc, [['admin', 'orders'], ['admin', 'order'], ['admin', 'dashboard']]);
+          refreshQueries(qc, [
+            ['admin', 'orders'],
+            ['admin', 'order'],
+            ['admin', 'dashboard'],
+          ]);
         }
         lastChange.current = data.lastChangeAt ?? '';
         if (fresh.length > 0) await handleFresh(fresh, reconnected);
@@ -273,7 +279,25 @@ export function OrderAlertsProvider({ children }: { children: ReactNode }) {
       disableDesktop,
       refresh,
     }),
-    [connection, lastError, lastSyncAt, counts, newOrderIds, alert, dismissAlert, markSeen, sound, enableSound, disableSound, testSound, desktopPref, permission, enableDesktop, disableDesktop, refresh],
+    [
+      connection,
+      lastError,
+      lastSyncAt,
+      counts,
+      newOrderIds,
+      alert,
+      dismissAlert,
+      markSeen,
+      sound,
+      enableSound,
+      disableSound,
+      testSound,
+      desktopPref,
+      permission,
+      enableDesktop,
+      disableDesktop,
+      refresh,
+    ],
   );
   return <OrderAlertsContext.Provider value={value}>{children}</OrderAlertsContext.Provider>;
 }

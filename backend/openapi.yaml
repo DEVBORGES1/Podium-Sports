@@ -166,7 +166,13 @@ components:
           type: [string, 'null']
           enum: [split, full, null]
           description: 'Formato no celular (largura do banner < 760 px), independente do computador. Na resposta vem sempre preenchido (banners antigos repetem layout); no envio, nulo = usa layout'
-        mobileOverlay: { type: [integer, 'null'], minimum: 0, maximum: 90, description: 'Escurecimento no celular (%). Na resposta vem sempre preenchido; no envio, nulo = usa overlay' }
+        mobileOverlay:
+          {
+            type: [integer, 'null'],
+            minimum: 0,
+            maximum: 90,
+            description: 'Escurecimento no celular (%). Na resposta vem sempre preenchido; no envio, nulo = usa overlay',
+          }
         imageFrame: { oneOf: [{ $ref: '#/components/schemas/BannerImageFrame' }, { type: 'null' }] }
         imageBg: { type: [string, 'null'], description: 'Cor atrás da foto (#RRGGBB)' }
         mobileImageUrl: { type: [string, 'null'], description: 'Foto exclusiva do celular (largura do banner < 760 px). Nula = o celular usa imageUrl' }
@@ -302,7 +308,12 @@ paths:
       tags: [Loja]
       summary: Categorias ativas com contagem de produtos ativos
       responses:
-        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Category' } } } } } } }
+        '200':
+          {
+            description: OK,
+            content:
+              { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Category' } } } } } },
+          }
   /sitemap.xml:
     get:
       tags: [Loja]
@@ -371,7 +382,8 @@ paths:
       summary: Recalcula a sacola com preços e disponibilidade oficiais
       requestBody:
         required: true
-        content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/OrderItemInput' } } } } } }
+        content:
+          { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/OrderItemInput' } } } } } }
       responses:
         '200': { description: Linhas com preço, disponibilidade (`issue`) e totais; `canCheckout` indica se pode finalizar }
         '400': { $ref: '#/components/responses/Error' }
@@ -399,8 +411,16 @@ paths:
                   accessToken: { type: string, description: Necessário para consultar o pedido e registrar a abertura do WhatsApp }
         '200': { description: Repetição idempotente — pedido já existente }
         '400': { $ref: '#/components/responses/Error' }
-        '409': { description: 'Estoque insuficiente (INSUFFICIENT_STOCK) ou chave reutilizada (IDEMPOTENCY_KEY_REUSED)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '422': { description: 'Itens indisponíveis (ITEMS_UNAVAILABLE) ou forma de recebimento desativada', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409':
+          {
+            description: 'Estoque insuficiente (INSUFFICIENT_STOCK) ou chave reutilizada (IDEMPOTENCY_KEY_REUSED)',
+            content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+          }
+        '422':
+          {
+            description: 'Itens indisponíveis (ITEMS_UNAVAILABLE) ou forma de recebimento desativada',
+            content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+          }
         '429': { $ref: '#/components/responses/Error' }
   /orders/{code}:
     get:
@@ -604,7 +624,8 @@ paths:
       summary: Reordena as imagens
       security: [{ bearer: [] }]
       parameters: [{ $ref: '#/components/parameters/id' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { imageIds: { type: array, items: { type: string } } } } } } }
+      requestBody:
+        { required: true, content: { application/json: { schema: { type: object, properties: { imageIds: { type: array, items: { type: string } } } } } } }
       responses:
         '200': { description: OK }
   /admin/products/{id}/images/{imageId}:
@@ -613,7 +634,8 @@ paths:
       summary: Altera texto alternativo ou define como principal
       security: [{ bearer: [] }]
       parameters: [{ $ref: '#/components/parameters/id' }, { name: imageId, in: path, required: true, schema: { type: string } }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { altText: { type: string }, isPrimary: { const: true } } } } } }
+      requestBody:
+        { required: true, content: { application/json: { schema: { type: object, properties: { altText: { type: string }, isPrimary: { const: true } } } } } }
       responses:
         '200': { description: OK }
     delete:
@@ -687,9 +709,21 @@ paths:
           application/json:
             schema:
               oneOf:
-                - { type: object, required: [type, productId, quantity], properties: { type: { const: IN }, productId: { type: string }, quantity: { type: integer }, reason: { type: string } } }
-                - { type: object, required: [type, productId, quantity, reason], properties: { type: { const: OUT }, productId: { type: string }, quantity: { type: integer }, reason: { type: string } } }
-                - { type: object, required: [type, productId, newBalance, reason], properties: { type: { const: ADJUSTMENT }, productId: { type: string }, newBalance: { type: integer }, reason: { type: string } } }
+                - {
+                    type: object,
+                    required: [type, productId, quantity],
+                    properties: { type: { const: IN }, productId: { type: string }, quantity: { type: integer }, reason: { type: string } },
+                  }
+                - {
+                    type: object,
+                    required: [type, productId, quantity, reason],
+                    properties: { type: { const: OUT }, productId: { type: string }, quantity: { type: integer }, reason: { type: string } },
+                  }
+                - {
+                    type: object,
+                    required: [type, productId, newBalance, reason],
+                    properties: { type: { const: ADJUSTMENT }, productId: { type: string }, newBalance: { type: integer }, reason: { type: string } },
+                  }
       responses:
         '201': { description: Movimentação registrada }
         '409': { description: Estoque insuficiente, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -711,10 +745,24 @@ paths:
                   type: array
                   minItems: 1
                   maxItems: 100
-                  items: { type: object, required: [productId, delta], properties: { productId: { type: string, format: uuid }, variantId: { type: [string, 'null'], format: uuid, description: Obrigatória para produtos com estoque por variação }, delta: { type: integer, description: 'Positivo entra, negativo sai; diferente de zero.' } } }
+                  items:
+                    {
+                      type: object,
+                      required: [productId, delta],
+                      properties:
+                        {
+                          productId: { type: string, format: uuid },
+                          variantId: { type: [string, 'null'], format: uuid, description: Obrigatória para produtos com estoque por variação },
+                          delta: { type: integer, description: 'Positivo entra, negativo sai; diferente de zero.' },
+                        },
+                    }
       responses:
         '201': { description: Movimentações registradas }
-        '409': { description: Estoque insuficiente em algum item (nenhum ajuste é aplicado), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409':
+          {
+            description: Estoque insuficiente em algum item (nenhum ajuste é aplicado),
+            content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+          }
         '422': { description: Dados inválidos }
   /admin/inventory/{productId}:
     patch:
@@ -731,7 +779,12 @@ paths:
       summary: Lista pedidos com filtros
       security: [{ bearer: [] }]
       parameters:
-        - { name: status, in: query, schema: { type: string, examples: ['PENDING', 'ACCEPTED,PROCESSING'] }, description: 'Um ou mais status separados por vírgula: PENDING, ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED, EXPIRED' }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, examples: ['PENDING', 'ACCEPTED,PROCESSING'] },
+            description: 'Um ou mais status separados por vírgula: PENDING, ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED, EXPIRED',
+          }
         - { name: paymentStatus, in: query, schema: { type: string, enum: [UNPAID, PAID, REFUNDED] } }
         - { name: q, in: query, schema: { type: string }, description: Código, nome ou telefone }
         - { name: from, in: query, schema: { type: string, format: date-time } }
@@ -764,7 +817,27 @@ paths:
       summary: Altera o status (cancelamento devolve o estoque uma única vez)
       security: [{ bearer: [] }]
       parameters: [{ $ref: '#/components/parameters/id' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED] }, expectedStatus: { type: string, description: 'Status exibido na tela; se o pedido mudou, responde 409 ORDER_STATE_CHANGED' }, note: { type: string } } } } } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [status],
+                      properties:
+                        {
+                          status: { type: string, enum: [ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED] },
+                          expectedStatus: { type: string, description: 'Status exibido na tela; se o pedido mudou, responde 409 ORDER_STATE_CHANGED' },
+                          note: { type: string },
+                        },
+                    },
+                },
+            },
+        }
       description: OUT_FOR_DELIVERY só é aceito para pedidos com entrega.
       responses:
         '200': { description: OK }
@@ -776,7 +849,22 @@ paths:
       summary: Registra manualmente o pagamento (a loja confirma; nada é marcado como pago automaticamente)
       security: [{ bearer: [] }]
       parameters: [{ $ref: '#/components/parameters/id' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [paymentStatus], properties: { paymentStatus: { type: string, enum: [UNPAID, PAID, REFUNDED] }, note: { type: string } } } } } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [paymentStatus],
+                      properties: { paymentStatus: { type: string, enum: [UNPAID, PAID, REFUNDED] }, note: { type: string } },
+                    },
+                },
+            },
+        }
       responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Error' } }
   /admin/orders/{id}/messages:
     post:
@@ -787,7 +875,22 @@ paths:
         cliques repetidos incrementam o contador). `status` deve ser o status atual do pedido (senão 409).
       security: [{ bearer: [] }]
       parameters: [{ $ref: '#/components/parameters/id' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED] } } } } } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [status],
+                      properties: { status: { type: string, enum: [ACCEPTED, PROCESSING, READY, OUT_FOR_DELIVERY, COMPLETED, CANCELLED] } },
+                    },
+                },
+            },
+        }
       responses: { '201': { description: Registrado }, '409': { $ref: '#/components/responses/Error' }, '422': { $ref: '#/components/responses/Error' } }
   /admin/orders/{id}/messages/{messageId}/confirm:
     post:
@@ -897,7 +1000,22 @@ paths:
       tags: [Admin · Usuários]
       summary: Convida um administrador por e-mail (SUPER_ADMIN)
       security: [{ bearer: [] }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name, email], properties: { name: { type: string }, email: { type: string }, role: { type: string, enum: [ADMIN, SUPER_ADMIN] } } } } } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [name, email],
+                      properties: { name: { type: string }, email: { type: string }, role: { type: string, enum: [ADMIN, SUPER_ADMIN] } },
+                    },
+                },
+            },
+        }
       responses: { '201': { description: Convite enviado }, '409': { $ref: '#/components/responses/Error' } }
   /admin/users/{id}:
     patch:
@@ -905,7 +1023,17 @@ paths:
       summary: Altera nome, função ou status (SUPER_ADMIN; mantém ao menos um superadministrador ativo)
       security: [{ bearer: [] }]
       parameters: [{ $ref: '#/components/parameters/id' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { name: { type: string }, role: { type: string }, status: { type: string, enum: [ACTIVE, DISABLED] } } } } } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema: { type: object, properties: { name: { type: string }, role: { type: string }, status: { type: string, enum: [ACTIVE, DISABLED] } } },
+                },
+            },
+        }
       responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Error' } }
   /admin/audit-logs:
     get:

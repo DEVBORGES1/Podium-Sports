@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
-const reduceMotion = () => typeof window === 'undefined' || !('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduceMotion = () =>
+  typeof window === 'undefined' || !('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /**
  * Animação "revelar ao rolar" do site original, aplicada aos elementos com data-reveal.

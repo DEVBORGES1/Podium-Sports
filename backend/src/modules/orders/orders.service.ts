@@ -403,7 +403,13 @@ export async function updateOrderStatus(orderId: string, input: z.infer<typeof u
       await tx.orderStatusHistory.create({ data: { orderId, fromStatus: order.status, toStatus, note, profileId } });
     }
     await audit(
-      { profileId, action: 'order.status_change', entityType: 'order', entityId: orderId, metadata: { code: order.code, from: order.status, to: toStatus, note } },
+      {
+        profileId,
+        action: 'order.status_change',
+        entityType: 'order',
+        entityId: orderId,
+        metadata: { code: order.code, from: order.status, to: toStatus, note },
+      },
       tx,
     );
   });
@@ -668,7 +674,10 @@ export async function confirmCustomerMessage(orderId: string, messageId: string,
     const row = await tx.orderMessage.findFirst({ where: { id: messageId, orderId } });
     if (!row) throw notFound('Mensagem não encontrada.');
     if (!row.confirmedAt) {
-      const result = await tx.orderMessage.updateMany({ where: { id: messageId, confirmedAt: null }, data: { confirmedAt: new Date(), confirmedById: profileId } });
+      const result = await tx.orderMessage.updateMany({
+        where: { id: messageId, confirmedAt: null },
+        data: { confirmedAt: new Date(), confirmedById: profileId },
+      });
       if (result.count > 0) {
         await audit({ profileId, action: 'order.message_confirmed', entityType: 'order', entityId: orderId, metadata: { status: row.status } }, tx);
       }

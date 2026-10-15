@@ -58,7 +58,13 @@ export function QuickSearchDialog({ pages, onClose }: { pages: QuickPage[]; onCl
 
   const term = normalize(text.trim());
   const results: Result[] = [
-    ...(term ? pages.filter((p) => normalize(p.label).includes(term)) : pages).map((p) => ({ key: `p:${p.to}`, group: 'Ir para', title: p.label, to: p.to, icon: p.icon })),
+    ...(term ? pages.filter((p) => normalize(p.label).includes(term)) : pages).map((p) => ({
+      key: `p:${p.to}`,
+      group: 'Ir para',
+      title: p.label,
+      to: p.to,
+      icon: p.icon,
+    })),
     ...(enabled
       ? (orders.data?.items ?? []).map((o) => ({
           key: `o:${o.id}`,
@@ -88,7 +94,13 @@ export function QuickSearchDialog({ pages, onClose }: { pages: QuickPage[]; onCl
             to: `/admin/orders?modo=lista&view=all&q=${encodeURIComponent(text.trim())}`,
             icon: OrdersIcon,
           },
-          { key: 'all-products', group: 'Buscar em tudo', title: `Produtos com “${text.trim()}”`, to: `/admin/products?q=${encodeURIComponent(text.trim())}`, icon: ProductIcon },
+          {
+            key: 'all-products',
+            group: 'Buscar em tudo',
+            title: `Produtos com “${text.trim()}”`,
+            to: `/admin/products?q=${encodeURIComponent(text.trim())}`,
+            icon: ProductIcon,
+          },
         ]
       : []),
   ];
@@ -151,7 +163,9 @@ export function QuickSearchDialog({ pages, onClose }: { pages: QuickPage[]; onCl
               </button>
             </li>
           ))}
-          {enabled && !loading && orders.data?.items.length === 0 && products.data?.items.length === 0 && <li className="quick-empty">Nenhum pedido ou produto encontrado.</li>}
+          {enabled && !loading && orders.data?.items.length === 0 && products.data?.items.length === 0 && (
+            <li className="quick-empty">Nenhum pedido ou produto encontrado.</li>
+          )}
         </ul>
         <p className="quick-foot">
           <span>

@@ -49,7 +49,12 @@ describe('foto exclusiva do celular no banner', () => {
   it('na loja escolhe pela largura da tela e baixa só uma foto', () => {
     const original = window.matchMedia;
     const setNarrow = (narrow: boolean) =>
-      (window.matchMedia = ((q: string) => ({ matches: narrow && q === '(max-width: 759px)', media: q, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia);
+      (window.matchMedia = ((q: string) => ({
+        matches: narrow && q === '(max-width: 759px)',
+        media: q,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      })) as unknown as typeof window.matchMedia);
     try {
       setNarrow(false);
       const desktop = render(<BannerSlide data={withMobile} active links={false} />, { wrapper: MemoryRouter });
@@ -75,7 +80,12 @@ describe('foto exclusiva do celular no banner', () => {
 
   it('o enquadramento e a cor do computador não são aplicados à foto do celular', () => {
     expect(framesOf(withMobile).mobile).toEqual(defaultFrame('full'));
-    expect(framesOf({ ...withMobile, imageFrame: { desktop: base.imageFrame!.desktop, mobile: { mode: 'fit', x: 50, y: 30, zoom: 1 } } }).mobile).toEqual({ mode: 'fit', x: 50, y: 30, zoom: 1 });
+    expect(framesOf({ ...withMobile, imageFrame: { desktop: base.imageFrame!.desktop, mobile: { mode: 'fit', x: 50, y: 30, zoom: 1 } } }).mobile).toEqual({
+      mode: 'fit',
+      x: 50,
+      y: 30,
+      zoom: 1,
+    });
     expect(slideStyle(withMobile)).toMatchObject({ '--imgbg': '#f2f2f2', '--imgbg-m': '#ffffff' });
     expect(slideStyle({ ...withMobile, mobileImageBg: null })).toMatchObject({ '--imgbg-m': 'transparent' });
   });
@@ -106,7 +116,12 @@ describe('formato independente por dispositivo', () => {
   it('na loja escolhe o formato pela largura da tela', () => {
     const original = window.matchMedia;
     const setNarrow = (narrow: boolean) =>
-      (window.matchMedia = ((q: string) => ({ matches: narrow && q === '(max-width: 759px)', media: q, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia);
+      (window.matchMedia = ((q: string) => ({
+        matches: narrow && q === '(max-width: 759px)',
+        media: q,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      })) as unknown as typeof window.matchMedia);
     try {
       setNarrow(false);
       const desktop = render(<BannerSlide data={mixed} active />, { wrapper: MemoryRouter });
@@ -126,7 +141,10 @@ describe('formato independente por dispositivo', () => {
     expect(framesOf(base).mobile).toEqual(base.imageFrame!.desktop);
     expect(framesOf(mixed).mobile).toEqual(defaultFrame('split'));
     const tuned = { mode: 'fit' as const, x: 40, y: 20, zoom: 1.1 };
-    expect(framesOf({ ...mixed, imageFrame: { desktop: base.imageFrame!.desktop, mobile: tuned } })).toEqual({ desktop: base.imageFrame!.desktop, mobile: tuned });
+    expect(framesOf({ ...mixed, imageFrame: { desktop: base.imageFrame!.desktop, mobile: tuned } })).toEqual({
+      desktop: base.imageFrame!.desktop,
+      mobile: tuned,
+    });
   });
 
   it('o escurecimento segue o dispositivo', () => {

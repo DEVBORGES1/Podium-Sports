@@ -69,9 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (err instanceof ApiError && err.status === 401) {
           // Login aceito pelo Supabase, mas o token foi recusado pela API: quase sempre configuração do servidor.
           setStatus('error');
-          setError(
-            'O login foi aceito, mas o servidor recusou a sessão. Verifique no Render as variáveis SUPABASE_URL e SUPABASE_JWT_SECRET.',
-          );
+          setError('O login foi aceito, mas o servidor recusou a sessão. Verifique no Render as variáveis SUPABASE_URL e SUPABASE_JWT_SECRET.');
         } else if (err instanceof ApiError && err.status === 0) {
           setStatus('error');
           setError('Não foi possível falar com o servidor da loja. Ele pode estar iniciando — aguarde alguns segundos e recarregue a página.');
@@ -113,7 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updatePassword = useCallback(async (password: string) => {
     if (!supabase) throw new Error('Autenticação não configurada.');
     const { error: e } = await supabase.auth.updateUser({ password });
-    if (e) throw new Error(/should be different/i.test(e.message) ? 'A nova senha deve ser diferente da anterior.' : 'Não foi possível salvar a senha. O link pode ter expirado.');
+    if (e)
+      throw new Error(
+        /should be different/i.test(e.message) ? 'A nova senha deve ser diferente da anterior.' : 'Não foi possível salvar a senha. O link pode ter expirado.',
+      );
   }, []);
 
   const value = useMemo(

@@ -7,6 +7,8 @@
     "dev:api": "npm --prefix backend run dev",
     "dev:web": "npm --prefix frontend run dev",
     "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "format": "npm --prefix backend run format && npm --prefix frontend run format",
+    "format:check": "npm --prefix backend run format:check && npm --prefix frontend run format:check",
     "test": "npm --prefix backend test && npm --prefix frontend test",
     "test:e2e": "npm --prefix frontend run test:e2e",
     "build": "npm --prefix backend run build && npm --prefix frontend run build"

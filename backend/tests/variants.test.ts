@@ -43,7 +43,13 @@ beforeEach(async () => {
 describe('variações (estoque por tamanho/sabor)', () => {
   it('ativar variações zera o estoque único e passa a somar as opções', async () => {
     const p = await createProduct({ stock: 7 });
-    const res = await setVariants(p.id, { variantType: 'Sabor', variants: [{ label: 'Chocolate', stockDelta: 4 }, { label: 'Morango', stockDelta: 1 }] });
+    const res = await setVariants(p.id, {
+      variantType: 'Sabor',
+      variants: [
+        { label: 'Chocolate', stockDelta: 4 },
+        { label: 'Morango', stockDelta: 1 },
+      ],
+    });
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ variantType: 'Sabor', stockQuantity: 5 });
     expect(res.body.variants.map((v: { label: string; stockQuantity: number }) => [v.label, v.stockQuantity])).toEqual([
@@ -148,7 +154,13 @@ describe('variações (estoque por tamanho/sabor)', () => {
     const batch = await api(app)
       .post('/api/v1/admin/inventory/movements/batch')
       .set('Authorization', admin.auth)
-      .send({ reason: 'Avaria', items: [{ productId: product.id, variantId: ids['38'], delta: -1 }, { productId: product.id, variantId: ids['40'], delta: 2 }] });
+      .send({
+        reason: 'Avaria',
+        items: [
+          { productId: product.id, variantId: ids['38'], delta: -1 },
+          { productId: product.id, variantId: ids['40'], delta: 2 },
+        ],
+      });
     expect(batch.status).toBe(201);
     expect(await stockOf(product.id)).toEqual({ total: 10, byLabel: { '38': 1, '40': 5, '42': 4 } });
 
@@ -195,7 +207,13 @@ describe('variações (estoque por tamanho/sabor)', () => {
     expect(removing.body.error.code).toBe('VARIANT_RESERVED');
 
     // Exclui uma opção sem reserva: o estoque dela sai do total.
-    const ok = await setVariants(product.id, { variantType: 'Tamanho', variants: [{ id: ids['38'], label: '38' }, { id: ids['42'], label: '42' }] });
+    const ok = await setVariants(product.id, {
+      variantType: 'Tamanho',
+      variants: [
+        { id: ids['38'], label: '38' },
+        { id: ids['42'], label: '42' },
+      ],
+    });
     expect(ok.status).toBe(200);
     expect(await stockOf(product.id)).toEqual({ total: 1, byLabel: { '38': 1, '42': 0 } });
 
@@ -300,7 +318,10 @@ describe('fotos leves', () => {
     const mem = new MemoryStorage();
     storage.set(mem);
     const p = await createProduct();
-    const res = await api(app).post(`/api/v1/admin/products/${p.id}/images`).set('Authorization', admin.auth).attach('images', await photo(), 'a.jpg');
+    const res = await api(app)
+      .post(`/api/v1/admin/products/${p.id}/images`)
+      .set('Authorization', admin.auth)
+      .attach('images', await photo(), 'a.jpg');
     expect(res.status).toBe(201);
     const img = res.body.images[0];
     expect(img.thumbUrl).toMatch(/-thumb\.webp$/);
@@ -326,7 +347,9 @@ describe('fotos leves', () => {
     for (let i = 0; i < 3; i++) {
       const path = `products/00000000-0000-4000-8000-00000000000${i}.jpg`;
       await mem.upload(path, await photo(), 'image/jpeg');
-      await prisma.productImage.create({ data: { productId: p.id, storagePath: path, mimeType: 'image/jpeg', sizeBytes: 1, sortOrder: i, isPrimary: i === 0 } });
+      await prisma.productImage.create({
+        data: { productId: p.id, storagePath: path, mimeType: 'image/jpeg', sizeBytes: 1, sortOrder: i, isPrimary: i === 0 },
+      });
     }
     const first = await api(app).post('/api/v1/admin/products/images/optimize').set('Authorization', admin.auth).send({ limit: 2 });
     expect(first.body).toEqual({ processed: 2, failed: [], remaining: 1 });

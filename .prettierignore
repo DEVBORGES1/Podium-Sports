@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+legacy
+**/package-lock.json
+backend/supabase/*.sql
+backend/prisma/migrations
+frontend/playwright-report
+frontend/test-results
+*.md
+# CSS segue o estilo compacto do projeto (uma regra por linha)
+*.css
+frontend/scripts/og

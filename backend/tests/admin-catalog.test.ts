@@ -50,7 +50,10 @@ describe('produtos', () => {
 
   it('não exclui produto com pedidos (preserva histórico) mas permite desativar', async () => {
     const p = await createProduct({ stock: 5 });
-    await api(app).post('/api/v1/orders').set('Idempotency-Key', idemKey()).send(orderBody([{ productId: p.id, quantity: 1 }]));
+    await api(app)
+      .post('/api/v1/orders')
+      .set('Idempotency-Key', idemKey())
+      .send(orderBody([{ productId: p.id, quantity: 1 }]));
     const del = await api(app).delete(`/api/v1/admin/products/${p.id}`).set('Authorization', admin.auth);
     expect(del.status).toBe(409);
     expect(del.body.error.code).toBe('PRODUCT_HAS_ORDERS');
@@ -87,13 +90,19 @@ describe('pódio', () => {
     await prisma.product.update({ where: { id: antigo.id }, data: { sortOrder: 37 } });
     const a = await createProduct({ name: 'A' });
     const b = await createProduct({ name: 'B' });
-    const res = await api(app).put('/api/v1/admin/products/podium').set('Authorization', admin.auth).send({ productIds: [b.id, a.id] });
+    const res = await api(app)
+      .put('/api/v1/admin/products/podium')
+      .set('Authorization', admin.auth)
+      .send({ productIds: [b.id, a.id] });
     expect(res.status).toBe(200);
     expect(names(res.body)).toEqual(['B', 'A']);
     // Quem sai do pódio deixa de ser destaque, mas mantém a ordem que tinha no catálogo.
     expect(await prisma.product.findUniqueOrThrow({ where: { id: antigo.id } })).toMatchObject({ isFeatured: false, sortOrder: 37 });
     const saved = await prisma.product.findMany({ where: { id: { in: [a.id, b.id] } }, orderBy: { sortOrder: 'asc' } });
-    expect(saved.map((p) => [p.name, p.isFeatured, p.sortOrder])).toEqual([['B', true, 0], ['A', true, 1]]);
+    expect(saved.map((p) => [p.name, p.isFeatured, p.sortOrder])).toEqual([
+      ['B', true, 0],
+      ['A', true, 1],
+    ]);
     expect(saved[0]!.updatedAt.getTime()).toBeGreaterThan(b.updatedAt.getTime());
     const store = await api(app).get('/api/v1/products?featured=true');
     expect(names(store.body)).toEqual(['B', 'A']);
@@ -130,11 +139,17 @@ describe('imagens', () => {
     const [first, second] = up.body.images;
     for (const path of mem.files.keys()) expect(path).toMatch(/^products\/[0-9a-f-]{36}(\.png|-thumb\.webp|-medium\.webp)$/);
 
-    const primary = await api(app).patch(`/api/v1/admin/products/${p.id}/images/${second.id}`).set('Authorization', admin.auth).send({ isPrimary: true, altText: 'Lateral' });
+    const primary = await api(app)
+      .patch(`/api/v1/admin/products/${p.id}/images/${second.id}`)
+      .set('Authorization', admin.auth)
+      .send({ isPrimary: true, altText: 'Lateral' });
     expect(primary.body.images[0]).toMatchObject({ id: second.id, isPrimary: true, altText: 'Lateral' });
     expect(await prisma.productImage.count({ where: { productId: p.id, isPrimary: true } })).toBe(1);
 
-    const reorder = await api(app).put(`/api/v1/admin/products/${p.id}/images/order`).set('Authorization', admin.auth).send({ imageIds: [first.id] });
+    const reorder = await api(app)
+      .put(`/api/v1/admin/products/${p.id}/images/order`)
+      .set('Authorization', admin.auth)
+      .send({ imageIds: [first.id] });
     expect(reorder.status).toBe(422);
 
     const del = await api(app).delete(`/api/v1/admin/products/${p.id}/images/${second.id}`).set('Authorization', admin.auth);

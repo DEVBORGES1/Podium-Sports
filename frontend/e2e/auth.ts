@@ -24,7 +24,15 @@ async function sessionFor(user: { id: string; email: string }) {
     expires_in: 3600,
     expires_at: now + 3600,
     refresh_token: `refresh-${user.id}`,
-    user: { id: user.id, aud: 'authenticated', role: 'authenticated', email: user.email, app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() },
+    user: {
+      id: user.id,
+      aud: 'authenticated',
+      role: 'authenticated',
+      email: user.email,
+      app_metadata: {},
+      user_metadata: {},
+      created_at: new Date().toISOString(),
+    },
   };
 }
 
@@ -36,7 +44,10 @@ export async function mockSupabaseAuth(page: Page) {
       const body = JSON.parse(req.postData() ?? '{}') as { email: string; password: string };
       const user = Object.values(USERS).find((u) => u.email === body.email);
       if (!user || body.password !== 'senha-correta') {
-        return route.fulfill({ status: 400, json: { error: 'invalid_grant', error_description: 'Invalid login credentials', code: 'invalid_credentials', msg: 'Invalid login credentials' } });
+        return route.fulfill({
+          status: 400,
+          json: { error: 'invalid_grant', error_description: 'Invalid login credentials', code: 'invalid_credentials', msg: 'Invalid login credentials' },
+        });
       }
       return route.fulfill({ json: await sessionFor(user) });
     }

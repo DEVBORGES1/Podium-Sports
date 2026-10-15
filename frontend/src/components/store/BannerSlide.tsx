@@ -129,7 +129,7 @@ export function BannerSlide({
     </div>
   ) : null;
   const art = !hasImage ? <SlideArt data={data} /> : null;
-  const aside = split ? media ?? art : art;
+  const aside = split ? (media ?? art) : art;
   const classes = ['slide', `layout-${layout}`, `align-${data.contentAlign}`, active && 'active', hasImage && 'has-photo', !aside && 'no-aside'];
 
   return (

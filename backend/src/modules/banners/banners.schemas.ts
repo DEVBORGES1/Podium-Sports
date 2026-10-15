@@ -4,7 +4,10 @@ import { hexColor, optionalText, safeLink } from '../../lib/validation.js';
 import { buttonTargetSchema } from './banners.targets.js';
 
 const link = safeLink.nullish().transform((v) => v || null);
-const date = z.coerce.date().nullish().transform((v) => v ?? null);
+const date = z.coerce
+  .date()
+  .nullish()
+  .transform((v) => v ?? null);
 const cents = z
   .number()
   .int('Use um valor em centavos.')
@@ -97,7 +100,8 @@ const fields = {
 const periodOk = (v: { startsAt?: Date | null; endsAt?: Date | null }) => !v.startsAt || !v.endsAt || v.endsAt > v.startsAt;
 const pricesOk = (v: { priceOriginalCents?: number | null; priceSaleCents?: number | null }) =>
   !v.priceOriginalCents || !v.priceSaleCents || v.priceOriginalCents > v.priceSaleCents;
-const buttonsOk = (v: { buttonLabel?: string | null; buttonUrl?: string | null; buttonTarget?: unknown }) => !v.buttonLabel === !(v.buttonUrl || v.buttonTarget);
+const buttonsOk = (v: { buttonLabel?: string | null; buttonUrl?: string | null; buttonTarget?: unknown }) =>
+  !v.buttonLabel === !(v.buttonUrl || v.buttonTarget);
 const period = { message: 'A data final deve ser posterior à inicial.', path: ['endsAt'] };
 const prices = { message: 'O preço original deve ser maior que o preço promocional.', path: ['priceOriginalCents'] };
 const button = { message: 'Informe o texto e o destino do botão juntos.', path: ['buttonTarget'] };

@@ -31,7 +31,10 @@ export default function ProductPage() {
   const d = product.data;
   usePageMeta({
     title: d?.name,
-    description: d ? d.description || `${d.name}${d.brand ? ` (${d.brand})` : ''} por ${brl(d.priceCents)} na Podium Sports, em Videira, SC. Peça pelo site e finalize pelo WhatsApp.` : undefined,
+    description: d
+      ? d.description ||
+        `${d.name}${d.brand ? ` (${d.brand})` : ''} por ${brl(d.priceCents)} na Podium Sports, em Videira, SC. Peça pelo site e finalize pelo WhatsApp.`
+      : undefined,
     image: d?.images[0]?.url,
     path: `/produto/${slug}`,
   });
@@ -50,7 +53,12 @@ export default function ProductPage() {
           url: `${siteUrl}/produto/${d.slug}`,
           priceCurrency: 'BRL',
           price: (d.priceCents / 100).toFixed(2),
-          availability: d.availability === 'OUT_OF_STOCK' ? 'https://schema.org/OutOfStock' : d.availability === 'LOW_STOCK' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
+          availability:
+            d.availability === 'OUT_OF_STOCK'
+              ? 'https://schema.org/OutOfStock'
+              : d.availability === 'LOW_STOCK'
+                ? 'https://schema.org/LimitedAvailability'
+                : 'https://schema.org/InStock',
           seller: { '@type': 'Organization', name: 'Podium Sports' },
         },
       },
@@ -158,7 +166,11 @@ export default function ProductPage() {
             {p.onSale && <span className="sr-only">por </span>}
             {brl(p.priceCents)}
           </p>
-          {p.promotion && <p className="promo-note">{p.promotion.name} · válida até {formatDate(p.promotion.endsAt)}</p>}
+          {p.promotion && (
+            <p className="promo-note">
+              {p.promotion.name} · válida até {formatDate(p.promotion.endsAt)}
+            </p>
+          )}
           <span className={`availability ${availability.cls}`}>● {availability.label}</span>
 
           {hasVariants && !soldOut && (
@@ -260,9 +272,7 @@ export default function ProductPage() {
       </div>
       {p.related.length > 0 && (
         <section className="sec" aria-labelledby="related-title">
-          <h2 id="related-title">
-            Você também pode gostar
-          </h2>
+          <h2 id="related-title">Você também pode gostar</h2>
           <div className="grid">
             {p.related.map((r, i) => (
               <ProductCard key={r.id} product={r} index={i} />

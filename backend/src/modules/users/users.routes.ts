@@ -11,7 +11,10 @@ import { currentProfile } from '../../middlewares/auth.js';
 
 const createUserSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  email: z.email('E-mail inválido.').max(254).transform((v) => v.toLowerCase()),
+  email: z
+    .email('E-mail inválido.')
+    .max(254)
+    .transform((v) => v.toLowerCase()),
   role: z.enum(['ADMIN', 'SUPER_ADMIN']).default('ADMIN'),
 });
 const updateUserSchema = z
@@ -70,8 +73,7 @@ adminUsersRouter.patch('/users/:id', async (req, res) => {
     if (target.id === actor.id && (input.role || input.status)) {
       throw unprocessable('Você não pode alterar a própria função ou desativar a própria conta.');
     }
-    const losesSuper =
-      target.role === 'SUPER_ADMIN' && target.status === 'ACTIVE' && (input.role === 'ADMIN' || input.status === 'DISABLED');
+    const losesSuper = target.role === 'SUPER_ADMIN' && target.status === 'ACTIVE' && (input.role === 'ADMIN' || input.status === 'DISABLED');
     if (losesSuper) {
       // Trava as linhas de superadministradores para evitar duas remoções simultâneas.
       const supers = await tx.$queryRaw<{ id: string }[]>`
@@ -80,7 +82,13 @@ adminUsersRouter.patch('/users/:id', async (req, res) => {
     }
     const saved = await tx.profile.update({ where: { id }, data: input });
     await audit(
-      { profileId: actor.id, action: 'user.update', entityType: 'profile', entityId: id, metadata: { email: target.email, changes: diff(target, input) } as object },
+      {
+        profileId: actor.id,
+        action: 'user.update',
+        entityType: 'profile',
+        entityId: id,
+        metadata: { email: target.email, changes: diff(target, input) } as object,
+      },
       tx,
     );
     return saved;

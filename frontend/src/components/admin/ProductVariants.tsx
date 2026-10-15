@@ -81,7 +81,10 @@ export function ProductVariants({ product }: { product: AdminProduct }) {
     });
   const applyPreset = (preset: (typeof PRESETS)[number]) => {
     setType(preset.type);
-    setRows((list) => [...list.filter((r) => r.label.trim() || r.id), ...preset.options.filter((o) => !list.some((r) => r.label.trim() === o)).map((o) => newRow(o))]);
+    setRows((list) => [
+      ...list.filter((r) => r.label.trim() || r.id),
+      ...preset.options.filter((o) => !list.some((r) => r.label.trim() === o)).map((o) => newRow(o)),
+    ]);
     setEditing(true);
   };
   const submit = () =>
@@ -118,8 +121,8 @@ export function ProductVariants({ product }: { product: AdminProduct }) {
       {!editing ? (
         <div style={{ display: 'grid', gap: 10 }}>
           <p className="notice">
-            Este produto tem estoque único. Se ele vem em tamanhos, numerações ou sabores, cadastre as opções: o cliente escolhe na loja e o estoque passa a ser controlado por
-            opção.
+            Este produto tem estoque único. Se ele vem em tamanhos, numerações ou sabores, cadastre as opções: o cliente escolhe na loja e o estoque passa a ser
+            controlado por opção.
           </p>
           {presets}
         </div>
@@ -165,7 +168,15 @@ export function ProductVariants({ product }: { product: AdminProduct }) {
                   <label className="sr-only" htmlFor={`vs-${r.key}`}>
                     Estoque de {r.label || `opção ${i + 1}`}
                   </label>
-                  <input id={`vs-${r.key}`} className="input" type="number" inputMode="numeric" min={0} value={r.stock} onChange={(e) => set(r.key, { stock: toStock(e.target.value) })} />
+                  <input
+                    id={`vs-${r.key}`}
+                    className="input"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={r.stock}
+                    onChange={(e) => set(r.key, { stock: toStock(e.target.value) })}
+                  />
                 </span>
                 <span role="cell">
                   <label className="vt-check">
@@ -174,13 +185,30 @@ export function ProductVariants({ product }: { product: AdminProduct }) {
                   </label>
                 </span>
                 <span role="cell" className="vt-tools">
-                  <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Subir ${r.label}`}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm btn-icon"
+                    onClick={() => move(i, -1)}
+                    disabled={i === 0}
+                    aria-label={`Subir ${r.label}`}
+                  >
                     ↑
                   </button>
-                  <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, 1)} disabled={i === rows.length - 1} aria-label={`Descer ${r.label}`}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm btn-icon"
+                    onClick={() => move(i, 1)}
+                    disabled={i === rows.length - 1}
+                    aria-label={`Descer ${r.label}`}
+                  >
                     ↓
                   </button>
-                  <button type="button" className="btn btn-danger-outline btn-sm btn-icon" onClick={() => setRows((list) => list.filter((x) => x.key !== r.key))} aria-label={`Excluir ${r.label}`}>
+                  <button
+                    type="button"
+                    className="btn btn-danger-outline btn-sm btn-icon"
+                    onClick={() => setRows((list) => list.filter((x) => x.key !== r.key))}
+                    aria-label={`Excluir ${r.label}`}
+                  >
                     <CloseIcon />
                   </button>
                 </span>

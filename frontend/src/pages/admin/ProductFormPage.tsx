@@ -43,7 +43,6 @@ type FormValues = z.infer<typeof schema>;
 
 const toNumber = (v: string) => (v === '' ? 0 : Math.max(0, Math.floor(Number(v)) || 0));
 
-
 export default function ProductFormPage() {
   const { id } = useParams();
   const isNew = !id;
@@ -51,12 +50,28 @@ export default function ProductFormPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   useDocumentTitle(isNew ? 'Cadastrar produto' : 'Editar produto');
 
-  const categories = useQuery({ queryKey: ['admin', 'categories'], queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items) });
+  const categories = useQuery({
+    queryKey: ['admin', 'categories'],
+    queryFn: () => adminApi.get<{ items: AdminCategory[] }>('/categories').then((r) => r.items),
+  });
   const product = useQuery({ queryKey: ['admin', 'product', id], queryFn: () => adminApi.get<AdminProduct>(`/products/${id}`), enabled: !isNew });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', slug: '', brand: '', description: '', categoryId: '', priceCents: 0, salePriceCents: null, initialStock: 0, minStock: 2, sortOrder: 100, isActive: true, isFeatured: false },
+    defaultValues: {
+      name: '',
+      slug: '',
+      brand: '',
+      description: '',
+      categoryId: '',
+      priceCents: 0,
+      salePriceCents: null,
+      initialStock: 0,
+      minStock: 2,
+      sortOrder: 100,
+      isActive: true,
+      isFeatured: false,
+    },
   });
   const { register, control, handleSubmit, formState, reset, setError } = form;
   const errors = formState.errors;
@@ -163,7 +178,13 @@ export default function ProductFormPage() {
             <section className="adm-card">
               <h2>1. Informações principais</h2>
               <div className="form-cols two">
-                <FormField id="name" label="Nome do produto" error={errors.name?.message} className="full" hint="Como aparece na loja. Ex.: Chuteira Nike Tiempo Futsal">
+                <FormField
+                  id="name"
+                  label="Nome do produto"
+                  error={errors.name?.message}
+                  className="full"
+                  hint="Como aparece na loja. Ex.: Chuteira Nike Tiempo Futsal"
+                >
                   <input id="name" className="input" aria-invalid={!!errors.name} {...register('name')} />
                 </FormField>
                 <FormField id="categoryId" label="Categoria" error={errors.categoryId?.message}>
@@ -182,7 +203,13 @@ export default function ProductFormPage() {
                 <FormField id="brand" label="Marca (opcional)" error={errors.brand?.message} hint="Ex.: Nike, Adidas, Max Titanium">
                   <input id="brand" className="input" {...register('brand')} />
                 </FormField>
-                <FormField id="description" label="Descrição (opcional)" error={errors.description?.message} className="full" hint="Tamanhos, sabores, material, indicações…">
+                <FormField
+                  id="description"
+                  label="Descrição (opcional)"
+                  error={errors.description?.message}
+                  className="full"
+                  hint="Tamanhos, sabores, material, indicações…"
+                >
                   <textarea id="description" className="textarea" rows={5} {...register('description')} />
                 </FormField>
               </div>
@@ -197,14 +224,23 @@ export default function ProductFormPage() {
                   <Controller
                     control={control}
                     name="priceCents"
-                    render={({ field }) => <MoneyInput id="priceCents" value={field.value || null} onChange={(c) => field.onChange(c ?? 0)} invalid={!!errors.priceCents} />}
+                    render={({ field }) => (
+                      <MoneyInput id="priceCents" value={field.value || null} onChange={(c) => field.onChange(c ?? 0)} invalid={!!errors.priceCents} />
+                    )}
                   />
                 </FormField>
-                <FormField id="salePriceCents" label="Preço promocional (opcional)" error={errors.salePriceCents?.message} hint="Vale até ser apagado. Para ofertas com data de início e fim, use Promoções.">
+                <FormField
+                  id="salePriceCents"
+                  label="Preço promocional (opcional)"
+                  error={errors.salePriceCents?.message}
+                  hint="Vale até ser apagado. Para ofertas com data de início e fim, use Promoções."
+                >
                   <Controller
                     control={control}
                     name="salePriceCents"
-                    render={({ field }) => <MoneyInput id="salePriceCents" value={field.value} onChange={field.onChange} invalid={!!errors.salePriceCents} placeholder="—" />}
+                    render={({ field }) => (
+                      <MoneyInput id="salePriceCents" value={field.value} onChange={field.onChange} invalid={!!errors.salePriceCents} placeholder="—" />
+                    )}
                   />
                 </FormField>
               </div>
@@ -233,20 +269,40 @@ export default function ProductFormPage() {
             <section className="adm-card">
               <h2>4. Publicação e destaque</h2>
               <div style={{ display: 'grid', gap: 12 }}>
-                <Controller control={control} name="isActive" render={({ field }) => <Switch label="Publicado na loja" checked={field.value} onChange={field.onChange} />} />
-                <Controller control={control} name="isFeatured" render={({ field }) => <Switch label="Destaque na página inicial" checked={field.value} onChange={field.onChange} />} />
+                <Controller
+                  control={control}
+                  name="isActive"
+                  render={({ field }) => <Switch label="Publicado na loja" checked={field.value} onChange={field.onChange} />}
+                />
+                <Controller
+                  control={control}
+                  name="isFeatured"
+                  render={({ field }) => <Switch label="Destaque na página inicial" checked={field.value} onChange={field.onChange} />}
+                />
               </div>
             </section>
             <section className="adm-card">
               <h2>5. Estoque</h2>
               <div style={{ display: 'grid', gap: 12 }}>
                 {isNew ? (
-                  <FormField id="initialStock" label="Quantidade em estoque" hint="Quantas unidades a loja tem agora. Fica registrado como carga inicial. Se o produto tiver tamanhos, deixe 0 e lance o estoque de cada tamanho depois de salvar.">
-                    <input id="initialStock" className="input" type="number" inputMode="numeric" min={0} {...register('initialStock', { setValueAs: toNumber })} />
+                  <FormField
+                    id="initialStock"
+                    label="Quantidade em estoque"
+                    hint="Quantas unidades a loja tem agora. Fica registrado como carga inicial. Se o produto tiver tamanhos, deixe 0 e lance o estoque de cada tamanho depois de salvar."
+                  >
+                    <input
+                      id="initialStock"
+                      className="input"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      {...register('initialStock', { setValueAs: toNumber })}
+                    />
                   </FormField>
                 ) : p?.variants?.length ? (
                   <p className="notice">
-                    Estoque por {(p.variantType ?? 'opção').toLowerCase()}: <b>{p.stockQuantity}</b> no total. Ajuste cada opção na seção <b>{p.variantType ?? 'Opções'}</b> ou em{' '}
+                    Estoque por {(p.variantType ?? 'opção').toLowerCase()}: <b>{p.stockQuantity}</b> no total. Ajuste cada opção na seção{' '}
+                    <b>{p.variantType ?? 'Opções'}</b> ou em{' '}
                     <Link to={`/admin/inventory?q=${encodeURIComponent(p.name)}`} className="link-btn">
                       Estoque
                     </Link>
@@ -261,7 +317,12 @@ export default function ProductFormPage() {
                     — assim cada mudança fica no histórico.
                   </p>
                 )}
-                <FormField id="minStock" label="Avisar quando chegar a" error={errors.minStock?.message} hint="Abaixo dessa quantidade o produto aparece como estoque baixo.">
+                <FormField
+                  id="minStock"
+                  label="Avisar quando chegar a"
+                  error={errors.minStock?.message}
+                  hint="Abaixo dessa quantidade o produto aparece como estoque baixo."
+                >
                   <input id="minStock" className="input" type="number" inputMode="numeric" min={0} {...register('minStock', { setValueAs: toNumber })} />
                 </FormField>
               </div>
@@ -269,7 +330,12 @@ export default function ProductFormPage() {
             <details className="adm-card advanced">
               <summary>Configurações avançadas</summary>
               <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-                <FormField id="slug" label="Endereço da página" error={errors.slug?.message} hint={isNew ? 'Deixe em branco: é gerado a partir do nome.' : `loja/produto/${p?.slug ?? ''}`}>
+                <FormField
+                  id="slug"
+                  label="Endereço da página"
+                  error={errors.slug?.message}
+                  hint={isNew ? 'Deixe em branco: é gerado a partir do nome.' : `loja/produto/${p?.slug ?? ''}`}
+                >
                   <input id="slug" className="input" {...register('slug')} />
                 </FormField>
                 <FormField id="sortOrder" label="Ordem de exibição" hint="Menor número aparece primeiro.">
@@ -285,14 +351,19 @@ export default function ProductFormPage() {
                     Excluir definitivamente
                   </button>
                 ) : (
-                  <p className="notice">Este produto aparece em {p.orderCount} pedido(s) e não pode ser excluído (o histórico é preservado). Desligue “Publicado na loja” para tirá-lo da vitrine.</p>
+                  <p className="notice">
+                    Este produto aparece em {p.orderCount} pedido(s) e não pode ser excluído (o histórico é preservado). Desligue “Publicado na loja” para
+                    tirá-lo da vitrine.
+                  </p>
                 )}
               </section>
             )}
           </div>
         </div>
         <div className="form-bar">
-          <span className="notice">{formState.isDirty ? 'Há alterações não salvas.' : isNew ? 'Campos obrigatórios: nome, categoria e preço.' : 'Tudo salvo.'}</span>
+          <span className="notice">
+            {formState.isDirty ? 'Há alterações não salvas.' : isNew ? 'Campos obrigatórios: nome, categoria e preço.' : 'Tudo salvo.'}
+          </span>
           <Link to="/admin/products" className="btn btn-quiet">
             Cancelar
           </Link>
@@ -391,7 +462,14 @@ function ProductImages({ product }: { product: AdminProduct }) {
           <ImageIcon className="dz-icon" />
           <b>{upload.isPending ? 'Enviando…' : 'Arraste as fotos aqui ou clique para escolher'}</b>
           <span>Até 8 por vez</span>
-          <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => pick(e.target.files)} disabled={upload.isPending} />
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="sr-only"
+            onChange={(e) => pick(e.target.files)}
+            disabled={upload.isPending}
+          />
         </label>
       )}
       {images.length > 0 && (
@@ -421,10 +499,22 @@ function ProductImages({ product }: { product: AdminProduct }) {
                       Tornar principal
                     </button>
                   )}
-                  <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || reorder.isPending} aria-label="Mover para a esquerda">
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm btn-icon"
+                    onClick={() => move(i, -1)}
+                    disabled={i === 0 || reorder.isPending}
+                    aria-label="Mover para a esquerda"
+                  >
                     ←
                   </button>
-                  <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, 1)} disabled={i === images.length - 1 || reorder.isPending} aria-label="Mover para a direita">
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm btn-icon"
+                    onClick={() => move(i, 1)}
+                    disabled={i === images.length - 1 || reorder.isPending}
+                    aria-label="Mover para a direita"
+                  >
                     →
                   </button>
                   <button type="button" className="btn btn-danger-outline btn-sm btn-icon" onClick={() => setRemoving(img.id)} aria-label="Remover imagem">

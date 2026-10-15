@@ -59,9 +59,7 @@ class SupabaseStorage implements StorageProvider {
     this.client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   }
   async upload(path: string, data: Buffer, contentType: string) {
-    const { error } = await this.client.storage
-      .from(this.bucket)
-      .upload(path, data, { contentType, cacheControl: '31536000', upsert: false });
+    const { error } = await this.client.storage.from(this.bucket).upload(path, data, { contentType, cacheControl: '31536000', upsert: false });
     if (error) throw new AppError(502, 'STORAGE_ERROR', 'Falha ao enviar a imagem para o armazenamento.');
   }
   async download(path: string) {
@@ -112,9 +110,7 @@ class UnconfiguredStorage implements StorageProvider {
     this.fail();
   }
   publicUrl(path: string) {
-    return env.SUPABASE_URL
-      ? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/${env.STORAGE_BUCKET}/${path}`
-      : `/media-not-configured/${path}`;
+    return env.SUPABASE_URL ? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/${env.STORAGE_BUCKET}/${path}` : `/media-not-configured/${path}`;
   }
 }
 

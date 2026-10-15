@@ -54,7 +54,11 @@ export function CartDrawer({ note }: { note: string }) {
                 return (
                   <li className="item" key={item.key}>
                     <div className="mini" aria-hidden>
-                      {item.snapshot.imageUrl ? <img src={item.snapshot.imageUrl} alt="" /> : <CategoryGlyph icon={productGlyph(item.snapshot.icon, item.snapshot.categorySlug)} />}
+                      {item.snapshot.imageUrl ? (
+                        <img src={item.snapshot.imageUrl} alt="" />
+                      ) : (
+                        <CategoryGlyph icon={productGlyph(item.snapshot.icon, item.snapshot.categorySlug)} />
+                      )}
                     </div>
                     <div>
                       <Link to={`/produto/${item.snapshot.slug}`} onClick={close}>
@@ -69,14 +73,17 @@ export function CartDrawer({ note }: { note: string }) {
                         <button type="button" className="remove" onClick={() => setQuantity(item.key, max)}>
                           Ajustar para {max}
                         </button>
-                      )}
-                      {' '}
+                      )}{' '}
                       <button type="button" className="remove" onClick={() => remove(item.key)}>
                         Remover
                       </button>
                     </div>
                     <div className="qty">
-                      <button type="button" onClick={() => setQuantity(item.key, item.quantity - 1)} aria-label={`Diminuir quantidade de ${item.snapshot.name}`}>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(item.key, item.quantity - 1)}
+                        aria-label={`Diminuir quantidade de ${item.snapshot.name}`}
+                      >
                         −
                       </button>
                       <output aria-live="polite" aria-label={`Quantidade de ${item.snapshot.name}`}>

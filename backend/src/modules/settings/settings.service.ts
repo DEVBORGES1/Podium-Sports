@@ -90,10 +90,7 @@ export async function updateSettings(input: z.infer<typeof updateSettingsSchema>
     });
     const changes = diff(current as unknown as Record<string, unknown>, rest as Record<string, unknown>);
     if (content) changes.content = { from: '(conteúdo anterior)', to: '(conteúdo atualizado)' };
-    await audit(
-      { profileId, action: 'settings.update', entityType: 'store_settings', entityId: '1', metadata: changes as Prisma.InputJsonValue },
-      tx,
-    );
+    await audit({ profileId, action: 'settings.update', entityType: 'store_settings', entityId: '1', metadata: changes as Prisma.InputJsonValue }, tx);
     return saved;
   });
   return updated;

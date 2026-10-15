@@ -53,12 +53,27 @@ export default function SetPasswordPage() {
             <p className="notice">Conta: {session.user.email}</p>
             <div className="field">
               <label htmlFor="new-password">Nova senha</label>
-              <input id="new-password" className="input" type="password" autoComplete="new-password" minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input
+                id="new-password"
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                minLength={10}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
               <span className="hint">Mínimo de 10 caracteres. Prefira uma frase longa.</span>
             </div>
             <div className="field">
               <label htmlFor="confirm-password">Confirme a senha</label>
-              <input id="confirm-password" className="input" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <input
+                id="confirm-password"
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+              />
             </div>
             {error && (
               <p className="alert alert-error" role="alert">

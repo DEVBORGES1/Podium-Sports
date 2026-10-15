@@ -46,12 +46,15 @@ export default function UsersPage() {
 
   const users = useQuery({ queryKey: [...USERS_KEY], queryFn: () => adminApi.get<{ items: AdminUser[] }>('/users').then((r) => r.items) });
 
-  const update = useAdminMutation((v: { id: string; body: Partial<Pick<AdminUser, 'name' | 'role' | 'status'>> }) => adminApi.patch<AdminUser>(`/users/${v.id}`, v.body), {
-    success: 'Usuário atualizado.',
-    invalidate: [[...USERS_KEY]],
-    silentError: true,
-    onSuccess: () => setPending(null),
-  });
+  const update = useAdminMutation(
+    (v: { id: string; body: Partial<Pick<AdminUser, 'name' | 'role' | 'status'>> }) => adminApi.patch<AdminUser>(`/users/${v.id}`, v.body),
+    {
+      success: 'Usuário atualizado.',
+      invalidate: [[...USERS_KEY]],
+      silentError: true,
+      onSuccess: () => setPending(null),
+    },
+  );
 
   const openConfirm = (p: Pending) => {
     update.reset();
@@ -72,7 +75,8 @@ export default function UsersPage() {
             </p>
           ) : (
             <p>
-              <b>{u.name}</b> deixará de acessar usuários e auditoria, mas continua gerenciando produtos, estoque, pedidos, banners e promoções. A loja precisa manter ao menos um superadministrador ativo.
+              <b>{u.name}</b> deixará de acessar usuários e auditoria, mas continua gerenciando produtos, estoque, pedidos, banners e promoções. A loja precisa
+              manter ao menos um superadministrador ativo.
             </p>
           ),
         confirmLabel: to === 'SUPER_ADMIN' ? 'Promover' : 'Alterar função',
@@ -85,7 +89,8 @@ export default function UsersPage() {
       title: disabling ? 'Desativar acesso?' : 'Reativar acesso?',
       message: disabling ? (
         <p>
-          O acesso de <b>{u.name}</b> ao painel é cortado <b>imediatamente</b>: qualquer sessão aberta deixa de funcionar na próxima ação. O histórico (pedidos atendidos, auditoria) é preservado e a conta pode ser reativada depois.
+          O acesso de <b>{u.name}</b> ao painel é cortado <b>imediatamente</b>: qualquer sessão aberta deixa de funcionar na próxima ação. O histórico (pedidos
+          atendidos, auditoria) é preservado e a conta pode ser reativada depois.
         </p>
       ) : (
         <p>
@@ -113,7 +118,8 @@ export default function UsersPage() {
         }
       />
       <p className="notice" style={{ marginBottom: 12 }}>
-        Administradores nunca são criados pelo site público: o acesso é sempre por convite. Você não pode alterar a sua própria função nem desativar a sua própria conta (peça a outro superadministrador).
+        Administradores nunca são criados pelo site público: o acesso é sempre por convite. Você não pode alterar a sua própria função nem desativar a sua
+        própria conta (peça a outro superadministrador).
       </p>
 
       <div className="table-wrap">
@@ -234,7 +240,10 @@ const inviteSchema = z.object({
 type InviteValues = z.infer<typeof inviteSchema>;
 
 function InviteModal({ onClose }: { onClose: () => void }) {
-  const { register, handleSubmit, formState, setError } = useForm<InviteValues>({ resolver: zodResolver(inviteSchema), defaultValues: { name: '', email: '', role: 'ADMIN' } });
+  const { register, handleSubmit, formState, setError } = useForm<InviteValues>({
+    resolver: zodResolver(inviteSchema),
+    defaultValues: { name: '', email: '', role: 'ADMIN' },
+  });
   const errors = formState.errors;
   const invite = useAdminMutation((v: InviteValues) => adminApi.post<AdminUser>('/users', { ...v, email: v.email.toLowerCase() }), {
     success: (u) => `Convite enviado para ${u.email}.`,
@@ -248,7 +257,8 @@ function InviteModal({ onClose }: { onClose: () => void }) {
       onError: (err) => {
         if (!(err instanceof ApiError)) return;
         if (err.status === 409) setError('email', { type: 'server', message: err.message || 'Já existe um administrador com este e-mail.' });
-        for (const issue of err.fieldIssues) if (issue.field === 'name' || issue.field === 'email' || issue.field === 'role') setError(issue.field, { type: 'server', message: issue.message });
+        for (const issue of err.fieldIssues)
+          if (issue.field === 'name' || issue.field === 'email' || issue.field === 'role') setError(issue.field, { type: 'server', message: issue.message });
       },
     }),
   );
@@ -272,7 +282,8 @@ function InviteModal({ onClose }: { onClose: () => void }) {
     >
       <form id="invite-form" onSubmit={onSubmit} noValidate style={{ display: 'grid', gap: 14 }}>
         <p className="notice" style={{ margin: 0 }}>
-          A pessoa recebe um e-mail de convite enviado pelo Supabase Auth e define a própria senha na página <b>/admin/definir-senha</b>. Ninguém além dela conhece a senha. Administradores nunca são criados pelo site público.
+          A pessoa recebe um e-mail de convite enviado pelo Supabase Auth e define a própria senha na página <b>/admin/definir-senha</b>. Ninguém além dela
+          conhece a senha. Administradores nunca são criados pelo site público.
         </p>
         {showBanner && (
           <p className="alert alert-error" role="alert">
@@ -311,7 +322,8 @@ function EditNameModal({ user, onClose }: { user: AdminUser; onClose: () => void
   const onSubmit = handleSubmit((v) =>
     save.mutate(v, {
       onError: (err) => {
-        if (err instanceof ApiError) for (const issue of err.fieldIssues) if (issue.field === 'name') setError('name', { type: 'server', message: issue.message });
+        if (err instanceof ApiError)
+          for (const issue of err.fieldIssues) if (issue.field === 'name') setError('name', { type: 'server', message: issue.message });
       },
     }),
   );

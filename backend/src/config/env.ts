@@ -25,7 +25,10 @@ const schema = z
     SUPABASE_URL: z.url().optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
     SUPABASE_JWT_SECRET: z.string().min(32).optional(),
-    STORAGE_BUCKET: z.string().regex(/^[a-z0-9-]{3,63}$/).default('store-media'),
+    STORAGE_BUCKET: z
+      .string()
+      .regex(/^[a-z0-9-]{3,63}$/)
+      .default('store-media'),
     ORDER_TOKEN_SECRET: z.string().min(32).optional(),
     ADMIN_APP_URL: z.url().optional(),
     API_DOCS_ENABLED: bool(true),

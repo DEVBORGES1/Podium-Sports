@@ -132,7 +132,12 @@ export function SiteHeader({ categories, logoUrl, storeName }: { categories: Cat
           <nav className="main-nav" aria-label="Categorias" ref={navRef}>
             {items.map((item) => (
               // Link (não NavLink): o NavLink compara só o caminho e marcaria todas as categorias em /produtos.
-              <Link key={item.to} to={item.to} className={`${item.sale ? 'sale' : ''} ${item.active ? 'active' : ''}`} aria-current={item.active ? 'page' : undefined}>
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`${item.sale ? 'sale' : ''} ${item.active ? 'active' : ''}`}
+                aria-current={item.active ? 'page' : undefined}
+              >
                 {item.label}
               </Link>
             ))}

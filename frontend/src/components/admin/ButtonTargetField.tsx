@@ -87,7 +87,14 @@ export function ProductPickerModal({
         <label htmlFor="product-picker-search" className="sr-only">
           Buscar produto
         </label>
-        <input id="product-picker-search" className="input" placeholder="Buscar pelo nome ou pela marca…" value={term} onChange={(e) => setTerm(e.target.value)} autoComplete="off" />
+        <input
+          id="product-picker-search"
+          className="input"
+          placeholder="Buscar pelo nome ou pela marca…"
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+          autoComplete="off"
+        />
       </div>
       {results.isError ? (
         <p className="alert alert-error" role="alert">
@@ -121,7 +128,11 @@ export function ProductPickerModal({
               );
             })}
           </ul>
-          {results.data && results.data.total > items.length && <p className="notice">Mostrando {items.length} de {results.data.total}. Digite parte do nome para encontrar outros.</p>}
+          {results.data && results.data.total > items.length && (
+            <p className="notice">
+              Mostrando {items.length} de {results.data.total}. Digite parte do nome para encontrar outros.
+            </p>
+          )}
         </>
       )}
     </Modal>
@@ -324,8 +335,8 @@ export function ButtonTargetField({
             onChange={(e) => set({ whatsappMessage: e.target.value })}
           />
           <span className="hint">
-            Abre uma conversa com {settings.data ? (settings.data.phoneDisplay ?? formatPhone(settings.data.whatsappNumber)) : 'o WhatsApp da loja'} com esta mensagem já escrita. Em branco, usa a saudação das
-            configurações.
+            Abre uma conversa com {settings.data ? (settings.data.phoneDisplay ?? formatPhone(settings.data.whatsappNumber)) : 'o WhatsApp da loja'} com esta
+            mensagem já escrita. Em branco, usa a saudação das configurações.
           </span>
         </div>
       )}

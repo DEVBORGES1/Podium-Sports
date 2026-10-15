@@ -3,7 +3,11 @@ import { prisma } from '../src/lib/prisma.js';
 import { api, createProduct, idemKey, makeApp, orderBody, resetDb } from './helpers.js';
 
 const app = makeApp();
-const post = (body: unknown, key = idemKey()) => api(app).post('/api/v1/orders').set('Idempotency-Key', key).send(body as object);
+const post = (body: unknown, key = idemKey()) =>
+  api(app)
+    .post('/api/v1/orders')
+    .set('Idempotency-Key', key)
+    .send(body as object);
 
 beforeEach(resetDb);
 
@@ -77,7 +81,9 @@ describe('POST /orders', () => {
 
   it('exige Idempotency-Key', async () => {
     const p = await createProduct();
-    const res = await api(app).post('/api/v1/orders').send(orderBody([{ productId: p.id, quantity: 1 }]));
+    const res = await api(app)
+      .post('/api/v1/orders')
+      .send(orderBody([{ productId: p.id, quantity: 1 }]));
     expect(res.status).toBe(400);
   });
 
@@ -106,7 +112,12 @@ describe('POST /orders', () => {
     const b = await createProduct({ stock: 1 });
     // Esvazia "b" entre a validação e a transação simulando concorrência.
     await prisma.product.update({ where: { id: b.id }, data: { stockQuantity: 0 } });
-    const res = await post(orderBody([{ productId: a.id, quantity: 1 }, { productId: b.id, quantity: 1 }]));
+    const res = await post(
+      orderBody([
+        { productId: a.id, quantity: 1 },
+        { productId: b.id, quantity: 1 },
+      ]),
+    );
     expect(res.status).toBe(422);
     expect((await prisma.product.findUniqueOrThrow({ where: { id: a.id } })).stockQuantity).toBe(5);
     expect(await prisma.order.count()).toBe(0);
@@ -114,7 +125,12 @@ describe('POST /orders', () => {
 
   it('recusa produtos inativos ou inexistentes', async () => {
     const p = await createProduct({ isActive: false });
-    const res = await post(orderBody([{ productId: p.id, quantity: 1 }, { productId: '00000000-0000-4000-8000-000000000000', quantity: 1 }]));
+    const res = await post(
+      orderBody([
+        { productId: p.id, quantity: 1 },
+        { productId: '00000000-0000-4000-8000-000000000000', quantity: 1 },
+      ]),
+    );
     expect(res.status).toBe(422);
     expect(res.body.error.details.map((d: { issue: string }) => d.issue).sort()).toEqual(['NOT_FOUND', 'UNAVAILABLE']);
   });

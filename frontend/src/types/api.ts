@@ -243,7 +243,14 @@ export interface PublicOrder {
   fulfillment: Fulfillment;
   address: Address | null;
   notes: string | null;
-  items: { productName: string; variantLabel?: string | null; quantity: number; unitPriceCents: number; originalUnitPriceCents: number; subtotalCents: number }[];
+  items: {
+    productName: string;
+    variantLabel?: string | null;
+    quantity: number;
+    unitPriceCents: number;
+    originalUnitPriceCents: number;
+    subtotalCents: number;
+  }[];
   subtotalCents: number;
   discountCents: number;
   totalCents: number;

@@ -13,8 +13,21 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 const TABLES = [
-  'profiles', 'categories', 'products', 'product_images', 'inventory_movements', 'banners', 'promotions',
-  'promotion_products', 'orders', 'order_items', 'order_status_history', 'order_messages', 'product_variants', 'store_settings', 'audit_logs',
+  'profiles',
+  'categories',
+  'products',
+  'product_images',
+  'inventory_movements',
+  'banners',
+  'promotions',
+  'promotion_products',
+  'orders',
+  'order_items',
+  'order_status_history',
+  'order_messages',
+  'product_variants',
+  'store_settings',
+  'audit_logs',
   '_prisma_migrations',
 ];
 const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' };

@@ -64,7 +64,9 @@ const GROUPS: { title?: string; items: NavItem[]; superOnly?: boolean }[] = [
 /** Trilha do cabeçalho ("PAINEL / PEDIDOS"): a primeira rota do menu que corresponde ao endereço atual. */
 const ALL_ITEMS = GROUPS.flatMap((g) => g.items);
 function sectionLabel(pathname: string) {
-  const match = ALL_ITEMS.filter((n) => (n.end ? pathname === n.to || pathname === `${n.to}/` : pathname.startsWith(n.to))).sort((a, b) => b.to.length - a.to.length)[0];
+  const match = ALL_ITEMS.filter((n) => (n.end ? pathname === n.to || pathname === `${n.to}/` : pathname.startsWith(n.to))).sort(
+    (a, b) => b.to.length - a.to.length,
+  )[0];
   return match?.label ?? 'Painel';
 }
 

@@ -43,9 +43,7 @@ export default function LoginPage() {
           <img src={logo} alt="Podium Sports" />
         </div>
         <h1>{mode === 'login' ? 'Painel administrativo' : 'Recuperar senha'}</h1>
-        {status === 'unconfigured' && (
-          <p className="alert alert-warn">Autenticação não configurada. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.</p>
-        )}
+        {status === 'unconfigured' && <p className="alert alert-warn">Autenticação não configurada. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.</p>}
         {status === 'forbidden' && (
           <div className="alert alert-error" role="alert">
             {authError ?? 'Esta conta não tem acesso ao painel.'}{' '}

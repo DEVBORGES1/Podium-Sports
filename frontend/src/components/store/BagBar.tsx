@@ -9,7 +9,12 @@ export function BagBar() {
   if (count === 0) return null;
   return (
     <div className="bagbar">
-      <button type="button" className="bagbar-info" onClick={open} aria-label={`Ver sacola: ${count} ${count === 1 ? 'item' : 'itens'}, ${brl(estimatedTotal(items))}`}>
+      <button
+        type="button"
+        className="bagbar-info"
+        onClick={open}
+        aria-label={`Ver sacola: ${count} ${count === 1 ? 'item' : 'itens'}, ${brl(estimatedTotal(items))}`}
+      >
         <span>
           Sacola · {count} {count === 1 ? 'item' : 'itens'}
         </span>

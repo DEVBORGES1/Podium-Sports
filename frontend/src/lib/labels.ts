@@ -80,7 +80,9 @@ export const needsConfirmation = (to: OrderStatus) => to === 'COMPLETED' || to =
 
 /** Etapas exibidas no indicador de progresso, conforme a modalidade. */
 export function orderSteps(fulfillment: Fulfillment): OrderStatus[] {
-  return fulfillment === 'DELIVERY' ? ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'OUT_FOR_DELIVERY', 'COMPLETED'] : ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED'];
+  return fulfillment === 'DELIVERY'
+    ? ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'OUT_FOR_DELIVERY', 'COMPLETED']
+    : ['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED'];
 }
 
 export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: Tone }> = {
@@ -98,7 +100,11 @@ export const MOVEMENT_TYPE: Record<MovementType, { label: string; tone: Tone }> 
   ORDER_RELEASE: { label: 'Devolução de pedido cancelado', tone: 'gold' },
 };
 
-export const AVAILABILITY_LABEL = { IN_STOCK: { label: 'Normal', tone: 'ok' }, LOW_STOCK: { label: 'Baixo', tone: 'warn' }, OUT_OF_STOCK: { label: 'Esgotado', tone: 'danger' } } as const;
+export const AVAILABILITY_LABEL = {
+  IN_STOCK: { label: 'Normal', tone: 'ok' },
+  LOW_STOCK: { label: 'Baixo', tone: 'warn' },
+  OUT_OF_STOCK: { label: 'Esgotado', tone: 'danger' },
+} as const;
 
 export const CONTENT_STATE: Record<string, { label: string; tone: Tone }> = {
   LIVE: { label: 'No ar', tone: 'ok' },

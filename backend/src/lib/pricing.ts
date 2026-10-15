@@ -55,11 +55,7 @@ export function promotionPrice(basePriceCents: number, discountType: DiscountTyp
  * Calcula o preço oficial de um produto: o menor entre o preço cheio, o preço promocional
  * do produto e as promoções vigentes. É a única fonte de preço usada nos pedidos.
  */
-export function computeEffectivePrice(
-  product: PricedProduct,
-  promotions: PromotionLike[],
-  now: Date = new Date(),
-): EffectivePrice {
+export function computeEffectivePrice(product: PricedProduct, promotions: PromotionLike[], now: Date = new Date()): EffectivePrice {
   const regular = product.priceCents;
   let best = regular;
   let promotion: EffectivePrice['promotion'] = null;

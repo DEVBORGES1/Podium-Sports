@@ -13,7 +13,15 @@ const live = (recentOrders: LiveOrder[], pending: number, lastChangeAt = '2026-1
   lastChangeAt,
   recentOrders,
 });
-const o = (id: string, status = 'PENDING'): LiveOrder => ({ id, code: `PS-${id}`, customerName: 'Maria Souza', fulfillment: 'DELIVERY', totalCents: 15990, status, createdAt: new Date().toISOString() });
+const o = (id: string, status = 'PENDING'): LiveOrder => ({
+  id,
+  code: `PS-${id}`,
+  customerName: 'Maria Souza',
+  fulfillment: 'DELIVERY',
+  totalCents: 15990,
+  status,
+  createdAt: new Date().toISOString(),
+});
 
 function Probe() {
   const a = useOrderAlerts();

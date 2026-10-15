@@ -28,7 +28,15 @@ const MOBILE_QUERY = '(max-width: 899px)';
 const pad = (n: number) => String(n).padStart(2, '0');
 const plural = (n: number) => `${n} produto${n === 1 ? '' : 's'}`;
 
-function SortButtons({ value, onChange, className }: { value: ProductQuery['sort']; onChange: (v: NonNullable<ProductQuery['sort']>) => void; className: string }) {
+function SortButtons({
+  value,
+  onChange,
+  className,
+}: {
+  value: ProductQuery['sort'];
+  onChange: (v: NonNullable<ProductQuery['sort']>) => void;
+  className: string;
+}) {
   return (
     <div className={className} role="group" aria-label="Ordenar por">
       {SORTS.map((s) => (
@@ -47,7 +55,10 @@ export default function CatalogPage() {
   const category = params.get('categoria') ?? '';
   const onSale = params.get('ofertas') === '1';
   // Marcas escolhidas (várias, separadas por vírgula na URL).
-  const brands = (params.get('marca') ?? '').split(',').map((b) => b.trim()).filter(Boolean);
+  const brands = (params.get('marca') ?? '')
+    .split(',')
+    .map((b) => b.trim())
+    .filter(Boolean);
   const sort = (SORTS.find((s) => s.value === params.get('ordem'))?.value ?? 'relevance') as ProductQuery['sort'];
   const page = Math.max(1, Number(params.get('pagina')) || 1);
   const min = params.get('min') ?? '';
@@ -150,7 +161,13 @@ export default function CatalogPage() {
   const total = products.data?.total;
   const wa = settings.data ? whatsappLink(settings.data.whatsappNumber, settings.data.whatsappGreeting) : null;
   const catButtons = [
-    { key: 'todos', name: 'Todos', count: undefined as number | undefined, active: !category && !onSale, select: () => update({ categoria: null, ofertas: null }) },
+    {
+      key: 'todos',
+      name: 'Todos',
+      count: undefined as number | undefined,
+      active: !category && !onSale,
+      select: () => update({ categoria: null, ofertas: null }),
+    },
     ...allCategories
       .filter((c) => !c.parentId)
       .flatMap((c) => [
@@ -159,7 +176,14 @@ export default function CatalogPage() {
         ...(c.id === openParentId
           ? allCategories
               .filter((sub) => sub.parentId === c.id)
-              .map((sub) => ({ key: sub.slug, name: sub.name, count: sub.productCount, active: category === sub.slug, sub: true, select: () => update({ categoria: sub.slug }) }))
+              .map((sub) => ({
+                key: sub.slug,
+                name: sub.name,
+                count: sub.productCount,
+                active: category === sub.slug,
+                sub: true,
+                select: () => update({ categoria: sub.slug }),
+              }))
           : []),
       ]),
     { key: 'ofertas', name: 'Ofertas', count: undefined, active: onSale && !category, select: () => update({ ofertas: '1', categoria: null }) },
@@ -205,7 +229,14 @@ export default function CatalogPage() {
             <label htmlFor="catalog-search" className="sr-only">
               Buscar produto ou marca
             </label>
-            <input id="catalog-search" type="search" placeholder="Buscar produto, marca…" value={search} onChange={(e) => setSearch(e.target.value)} maxLength={80} />
+            <input
+              id="catalog-search"
+              type="search"
+              placeholder="Buscar produto, marca…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              maxLength={80}
+            />
           </div>
 
           <div className="f-group f-cats" role="group" aria-label="Filtrar por categoria">
@@ -213,7 +244,13 @@ export default function CatalogPage() {
               Categoria
             </span>
             {catButtons.map((c) => (
-              <button key={c.key} type="button" className={[c.active ? 'active' : '', 'sub' in c ? 'sub' : ''].filter(Boolean).join(' ')} aria-pressed={c.active} onClick={c.select}>
+              <button
+                key={c.key}
+                type="button"
+                className={[c.active ? 'active' : '', 'sub' in c ? 'sub' : ''].filter(Boolean).join(' ')}
+                aria-pressed={c.active}
+                onClick={c.select}
+              >
                 {c.name}
                 {c.count !== undefined && <span aria-hidden>{c.count}</span>}
               </button>
@@ -311,7 +348,11 @@ export default function CatalogPage() {
                 </button>
               ))}
               {chips.length > 1 && (
-                <button type="button" className="clear-all" onClick={() => update({ categoria: null, marca: null, q: null, ofertas: null, min: null, max: null })}>
+                <button
+                  type="button"
+                  className="clear-all"
+                  onClick={() => update({ categoria: null, marca: null, q: null, ofertas: null, min: null, max: null })}
+                >
                   Limpar tudo
                 </button>
               )}

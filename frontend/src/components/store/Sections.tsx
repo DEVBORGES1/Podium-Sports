@@ -294,7 +294,17 @@ export function Showcase({ tabs }: { tabs: ShowcaseTab[] }) {
 }
 
 /** Atendimento: chamado para o WhatsApp com uma conversa ilustrativa ao lado. */
-export function CtaBand({ data, whatsappNumber, greeting, storeName }: { data: StoreContent['cta']; whatsappNumber: string; greeting: string; storeName: string }) {
+export function CtaBand({
+  data,
+  whatsappNumber,
+  greeting,
+  storeName,
+}: {
+  data: StoreContent['cta'];
+  whatsappNumber: string;
+  greeting: string;
+  storeName: string;
+}) {
   if (!data.enabled) return null;
   return (
     <section className="sec" aria-label="Atendimento">

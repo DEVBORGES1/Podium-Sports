@@ -13,8 +13,7 @@ export function parseMoneyToCents(value: string): number | null {
   return Math.round(n * 100);
 }
 
-export const centsToInput = (cents: number | null | undefined) =>
-  cents === null || cents === undefined ? '' : (cents / 100).toFixed(2).replace('.', ',');
+export const centsToInput = (cents: number | null | undefined) => (cents === null || cents === undefined ? '' : (cents / 100).toFixed(2).replace('.', ','));
 
 const dateTime = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const dateOnly = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
@@ -22,11 +21,7 @@ export const formatDateTime = (iso: string | Date) => dateTime.format(new Date(i
 export const formatDate = (iso: string | Date) => dateOnly.format(new Date(iso));
 
 /** Remove acentos para busca ("Tênis" → "tenis"). */
-export const normalize = (t: string) =>
-  t
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
+export const normalize = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export function formatPhone(digits: string) {
   const d = digits.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');

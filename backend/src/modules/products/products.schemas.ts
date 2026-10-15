@@ -16,7 +16,14 @@ const brandList = z
   .string()
   .trim()
   .max(400)
-  .transform((v) => [...new Set(v.split(',').map((s) => s.trim()).filter(Boolean))])
+  .transform((v) => [
+    ...new Set(
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ])
   .pipe(z.array(z.string().max(80)).max(20));
 
 export const publicListQuery = z.object({

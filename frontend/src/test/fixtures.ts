@@ -35,8 +35,32 @@ export const settings: StoreSettings = {
 };
 
 export const categories: Category[] = [
-  { id: 'c1', name: 'Chuteiras', slug: 'chuteiras', description: null, icon: 'ball', colorFrom: '#2b6a3c', colorTo: '#0d2414', imageUrl: null, sortOrder: 0, showOnHome: true, productCount: 2 },
-  { id: 'c2', name: 'Suplementos', slug: 'suplementos', description: null, icon: 'jar', colorFrom: '#7a4a10', colorTo: '#1c1206', imageUrl: null, sortOrder: 1, showOnHome: true, productCount: 1 },
+  {
+    id: 'c1',
+    name: 'Chuteiras',
+    slug: 'chuteiras',
+    description: null,
+    icon: 'ball',
+    colorFrom: '#2b6a3c',
+    colorTo: '#0d2414',
+    imageUrl: null,
+    sortOrder: 0,
+    showOnHome: true,
+    productCount: 2,
+  },
+  {
+    id: 'c2',
+    name: 'Suplementos',
+    slug: 'suplementos',
+    description: null,
+    icon: 'jar',
+    colorFrom: '#7a4a10',
+    colorTo: '#1c1206',
+    imageUrl: null,
+    sortOrder: 1,
+    showOnHome: true,
+    productCount: 1,
+  },
 ];
 
 export function product(over: Partial<Product> = {}): Product {

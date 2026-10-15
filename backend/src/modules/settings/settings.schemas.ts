@@ -44,10 +44,7 @@ export const contentSchema = z.object({
       text: z.string().trim().max(200).default('Chuteiras de futsal, society e campo das marcas que você confia.'),
       buttonLabel: z.string().trim().max(40).default('Ver chuteiras →'),
       buttonUrl: safeLink.default('/produtos?categoria=chuteiras'),
-      brands: z
-        .array(z.string().trim().min(1).max(20))
-        .max(12)
-        .default(['Nike', 'Adidas', 'Umbro', 'Joma', 'Penalty', 'Poker']),
+      brands: z.array(z.string().trim().min(1).max(20)).max(12).default(['Nike', 'Adidas', 'Umbro', 'Joma', 'Penalty', 'Poker']),
     })
     .prefault({}),
   cta: z
@@ -75,15 +72,8 @@ export const contentSchema = z.object({
       text: z.string().trim().max(200).default('Os mais pedidos pelo WhatsApp. Adicione na sacola e confirme tamanho e sabor na conversa.'),
     })
     .prefault({}),
-  footerAbout: z
-    .string()
-    .trim()
-    .max(300)
-    .default('Loja de artigos esportivos, suplementação, tênis e moda fitness em Videira, SC.'),
-  serviceNotes: z
-    .array(z.string().trim().min(1).max(120))
-    .max(6)
-    .default(['Como comprar: monte a sacola e envie pelo WhatsApp', 'Trocas: combine com a loja']),
+  footerAbout: z.string().trim().max(300).default('Loja de artigos esportivos, suplementação, tênis e moda fitness em Videira, SC.'),
+  serviceNotes: z.array(z.string().trim().min(1).max(120)).max(6).default(['Como comprar: monte a sacola e envie pelo WhatsApp', 'Trocas: combine com a loja']),
   cartNote: z.string().trim().max(160).default('Tamanho, cor e sabor a gente confirma no WhatsApp.'),
   /**
    * Mensagens de atualização enviadas ao cliente pelo painel (link do WhatsApp aberto pela loja).
@@ -124,7 +114,11 @@ export const updateSettingsSchema = z
       .transform((v) => v.replace(/\D/g, ''))
       .pipe(z.string().regex(/^[0-9]{12,13}$/, 'Informe o número com DDI e DDD, ex.: 55 49 99809-0818.')),
     phoneDisplay: optionalText(30),
-    email: z.email('E-mail inválido.').max(254).nullish().transform((v) => v || null),
+    email: z
+      .email('E-mail inválido.')
+      .max(254)
+      .nullish()
+      .transform((v) => v || null),
     address: optionalText(200),
     city: optionalText(100),
     openingHours: optionalText(300),

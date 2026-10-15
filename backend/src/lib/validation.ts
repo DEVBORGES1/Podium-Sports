@@ -21,9 +21,7 @@ export const pagination = {
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 };
 
-export const booleanQuery = z
-  .enum(['true', 'false', '1', '0'])
-  .transform((v) => v === 'true' || v === '1');
+export const booleanQuery = z.enum(['true', 'false', '1', '0']).transform((v) => v === 'true' || v === '1');
 
 export const optionalText = (max: number) =>
   z

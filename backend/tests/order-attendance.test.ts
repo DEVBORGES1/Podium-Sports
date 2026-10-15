@@ -13,7 +13,10 @@ const DELIVERY = {
 };
 
 async function placeOrder(productId: string, extra: Record<string, unknown> = {}) {
-  const res = await api(app).post('/api/v1/orders').set('Idempotency-Key', idemKey()).send(orderBody([{ productId, quantity: 1 }], extra));
+  const res = await api(app)
+    .post('/api/v1/orders')
+    .set('Idempotency-Key', idemKey())
+    .send(orderBody([{ productId, quantity: 1 }], extra));
   expect(res.status).toBe(201);
   return prisma.order.findUniqueOrThrow({ where: { code: res.body.order.code } });
 }
@@ -36,7 +39,9 @@ describe('etapas por modalidade', () => {
     expect(ready.body.statusLabel).toBe('Pronto para envio');
 
     expect((await setStatus(order.id, { status: 'OUT_FOR_DELIVERY' })).status).toBe(200);
-    const inventory = await api(app).get(`/api/v1/admin/inventory?q=${encodeURIComponent(p.name)}`).set('Authorization', admin.auth);
+    const inventory = await api(app)
+      .get(`/api/v1/admin/inventory?q=${encodeURIComponent(p.name)}`)
+      .set('Authorization', admin.auth);
     expect(inventory.body.items[0].reservedInOpenOrders).toBe(1);
 
     // Cancelar depois de sair para entrega (entrega frustrada) devolve o estoque.
@@ -188,7 +193,10 @@ describe('mensagens de atualização para o cliente', () => {
 
   it('mensagens personalizadas nas configurações valem para o painel e não aparecem na loja', async () => {
     const settings = await api(app).get('/api/v1/admin/store/settings').set('Authorization', admin.auth);
-    const content = { ...settings.body.content, customerMessages: { ...settings.body.content.customerMessages, accepted: 'Oi {nome}, a {loja} aceitou o pedido {pedido}!' } };
+    const content = {
+      ...settings.body.content,
+      customerMessages: { ...settings.body.content.customerMessages, accepted: 'Oi {nome}, a {loja} aceitou o pedido {pedido}!' },
+    };
     expect((await api(app).patch('/api/v1/admin/store/settings').set('Authorization', admin.auth).send({ content })).status).toBe(200);
 
     const p = await createProduct();
@@ -210,7 +218,11 @@ describe('mensagens de atualização para o cliente', () => {
 });
 
 describe('novidades para o painel (consulta periódica)', () => {
-  const live = (since?: string) => api(app).get('/api/v1/admin/orders/live').query(since ? { since } : {}).set('Authorization', admin.auth);
+  const live = (since?: string) =>
+    api(app)
+      .get('/api/v1/admin/orders/live')
+      .query(since ? { since } : {})
+      .set('Authorization', admin.auth);
 
   it('primeira consulta só devolve a janela de sobreposição; as seguintes trazem os pedidos novos', async () => {
     const p = await createProduct({ stock: 10 });

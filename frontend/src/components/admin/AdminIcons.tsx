@@ -6,7 +6,17 @@ type P = SVGProps<SVGSVGElement>;
 function icon(children: ReactNode) {
   return function Icon(props: P) {
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable={false} {...props}>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+        focusable={false}
+        {...props}
+      >
         {children}
       </svg>
     );

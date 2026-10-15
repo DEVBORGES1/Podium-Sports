@@ -205,9 +205,7 @@ export async function listBrands(category?: string) {
   });
   // Junta grafias diferentes da mesma marca ("POKER" e "Poker"). A grafia exibida é a mais usada;
   // em empate vale a ordem de código dos caracteres, para o resultado não depender do banco.
-  const ordered = [...rows].sort(
-    (a, b) => b._count._all - a._count._all || (a.brand! < b.brand! ? -1 : a.brand! > b.brand! ? 1 : 0),
-  );
+  const ordered = [...rows].sort((a, b) => b._count._all - a._count._all || (a.brand! < b.brand! ? -1 : a.brand! > b.brand! ? 1 : 0));
   const merged = new Map<string, { name: string; count: number }>();
   for (const r of ordered) {
     const name = r.brand!.trim();
@@ -376,9 +374,7 @@ export async function updateProduct(id: string, input: z.infer<typeof updateProd
     const priceCents = input.priceCents ?? current.priceCents;
     const salePriceCents = input.salePriceCents !== undefined ? input.salePriceCents : current.salePriceCents;
     if (salePriceCents !== null && salePriceCents >= priceCents) {
-      throw unprocessable('O preço promocional deve ser menor que o preço.', [
-        { field: 'salePriceCents', message: 'Deve ser menor que o preço.' },
-      ]);
+      throw unprocessable('O preço promocional deve ser menor que o preço.', [{ field: 'salePriceCents', message: 'Deve ser menor que o preço.' }]);
     }
     const category = input.categoryId ? await requireCategory(tx, input.categoryId) : current.category;
     if (input.slug && input.slug !== current.slug) {
@@ -635,7 +631,10 @@ async function uploadDerived(originalPath: string, data: Buffer) {
     await storage.get().upload(mediumPath, derived.medium, 'image/webp');
     uploaded.push(mediumPath);
   } catch (err) {
-    await storage.get().remove(uploaded).catch(() => undefined);
+    await storage
+      .get()
+      .remove(uploaded)
+      .catch(() => undefined);
     throw err;
   }
   return { thumbPath, mediumPath, uploaded };
@@ -682,24 +681,19 @@ export async function addImages(productId: string, files: Express.Multer.File[],
           },
         });
       }
-      await audit(
-        { profileId, action: 'product.images_add', entityType: 'product', entityId: productId, metadata: { count: prepared.length } },
-        tx,
-      );
+      await audit({ profileId, action: 'product.images_add', entityType: 'product', entityId: productId, metadata: { count: prepared.length } }, tx);
     });
   } catch (err) {
-    await storage.get().remove(uploaded).catch(() => undefined);
+    await storage
+      .get()
+      .remove(uploaded)
+      .catch(() => undefined);
     throw err;
   }
   return getAdminProduct(productId);
 }
 
-export async function updateImage(
-  productId: string,
-  imageId: string,
-  input: { altText?: string | null; isPrimary?: true },
-  profileId: string,
-) {
+export async function updateImage(productId: string, imageId: string, input: { altText?: string | null; isPrimary?: true }, profileId: string) {
   await prisma.$transaction(async (tx) => {
     const image = await tx.productImage.findFirst({ where: { id: imageId, productId } });
     if (!image) throw notFound('Imagem não encontrada.');
@@ -749,7 +743,6 @@ export async function deleteImage(productId: string, imageId: string, profileId:
   return getAdminProduct(productId);
 }
 
-
 /**
  * Gera as versões leves das fotos antigas (enviadas antes das miniaturas existirem), em lotes pequenos
  * para não estourar o tempo da requisição. O painel chama de novo enquanto "remaining" for maior que zero.
@@ -776,7 +769,11 @@ export async function optimizeImages(limit: number, profileId: string) {
         data: { thumbPath: d.thumbPath, mediumPath: d.mediumPath },
       });
       // A foto foi excluída (ou já processada) enquanto isso: descarta os arquivos novos.
-      if (result.count === 0) await storage.get().remove(d.uploaded).catch(() => undefined);
+      if (result.count === 0)
+        await storage
+          .get()
+          .remove(d.uploaded)
+          .catch(() => undefined);
       else processed++;
     } catch (err) {
       logger.warn({ err, imageId: img.id }, 'image optimization failed');

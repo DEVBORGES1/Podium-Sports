@@ -47,8 +47,24 @@ describe('enquadramento da imagem', () => {
   });
 
   it('gera as variáveis CSS por dispositivo sem alterar a imagem', () => {
-    const data = { colorFrom: '#1d4a2c', colorTo: '#08140c', overlay: 40, imageBg: '#f2f2f2', imageFrame: { desktop: { mode: 'fit', x: 70, y: 40, zoom: 1.2 }, mobile: { mode: 'fill', x: 30, y: 60, zoom: 1 } } } as SlideData;
-    expect(slideStyle(data)).toMatchObject({ '--dx': '70%', '--dy': '40%', '--dz': '1.2', '--dfit': 'contain', '--mx': '30%', '--mfit': 'cover', '--ov': '0.4', '--imgbg': '#f2f2f2', '--bgc': '#08140c' });
+    const data = {
+      colorFrom: '#1d4a2c',
+      colorTo: '#08140c',
+      overlay: 40,
+      imageBg: '#f2f2f2',
+      imageFrame: { desktop: { mode: 'fit', x: 70, y: 40, zoom: 1.2 }, mobile: { mode: 'fill', x: 30, y: 60, zoom: 1 } },
+    } as SlideData;
+    expect(slideStyle(data)).toMatchObject({
+      '--dx': '70%',
+      '--dy': '40%',
+      '--dz': '1.2',
+      '--dfit': 'contain',
+      '--mx': '30%',
+      '--mfit': 'cover',
+      '--ov': '0.4',
+      '--imgbg': '#f2f2f2',
+      '--bgc': '#08140c',
+    });
   });
 });
 
@@ -72,7 +88,15 @@ describe('destino dos botões', () => {
   });
 
   it('aceita somente URLs externas https seguras', () => {
-    for (const bad of ['javascript:alert(1)', 'data:text/html,x', 'http://x.com', 'https://', 'https://localhost', 'https://user:pw@site.com', 'https://a b.com']) {
+    for (const bad of [
+      'javascript:alert(1)',
+      'data:text/html,x',
+      'http://x.com',
+      'https://',
+      'https://localhost',
+      'https://user:pw@site.com',
+      'https://a b.com',
+    ]) {
       expect(isHttpsUrl(bad), bad).toBe(false);
     }
     expect(isHttpsUrl('https://wa.me/5549999999999')).toBe(true);

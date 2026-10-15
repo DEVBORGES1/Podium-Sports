@@ -44,7 +44,8 @@ function usePodiumSave(onSaved: () => void) {
   return useMutation({
     mutationKey: SAVE_KEY,
     scope: { id: 'podium' },
-    mutationFn: ({ ids }: { ids: string[]; preview?: PodiumItem[] }) => adminApi.put<{ items: PodiumItem[] }>('/products/podium', { productIds: ids }).then((r) => r.items),
+    mutationFn: ({ ids }: { ids: string[]; preview?: PodiumItem[] }) =>
+      adminApi.put<{ items: PodiumItem[] }>('/products/podium', { productIds: ids }).then((r) => r.items),
     onMutate: async ({ preview }) => {
       await qc.cancelQueries({ queryKey: PODIUM_KEY, exact: true });
       if (preview) qc.setQueryData(PODIUM_KEY, preview);
@@ -105,8 +106,7 @@ export default function PodiumPage() {
       <div className="podium-admin">
         <section className="adm-card" aria-labelledby="podium-places">
           <h2 id="podium-places">
-            Lugares{' '}
-            {podium.isSuccess && <small>{list.length === 0 ? 'Vazio: a seção não aparece na loja.' : `${list.length} de ${SIZE} ocupados`}</small>}
+            Lugares {podium.isSuccess && <small>{list.length === 0 ? 'Vazio: a seção não aparece na loja.' : `${list.length} de ${SIZE} ocupados`}</small>}
           </h2>
           {podium.isPending ? (
             <LoadingState />
@@ -155,7 +155,13 @@ export default function PodiumPage() {
                       ))}
                     </div>
                     <div className="podium-actions">
-                      <button type="button" className="btn btn-outline btn-sm btn-icon" onClick={() => move(i, -1)} disabled={i === 0 || waiting} aria-label={`Subir ${p.name} para o ${i}º lugar`}>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm btn-icon"
+                        onClick={() => move(i, -1)}
+                        disabled={i === 0 || waiting}
+                        aria-label={`Subir ${p.name} para o ${i}º lugar`}
+                      >
                         ↑
                       </button>
                       <button
@@ -167,7 +173,12 @@ export default function PodiumPage() {
                       >
                         ↓
                       </button>
-                      <button type="button" className="btn btn-danger-outline btn-sm" onClick={() => commit(list.filter((x) => x.id !== p.id))} disabled={waiting}>
+                      <button
+                        type="button"
+                        className="btn btn-danger-outline btn-sm"
+                        onClick={() => commit(list.filter((x) => x.id !== p.id))}
+                        disabled={waiting}
+                      >
                         Tirar
                       </button>
                     </div>
@@ -213,7 +224,19 @@ export default function PodiumPage() {
 }
 
 /** Sugestão a partir das vendas: itens de pedidos aceitos nos últimos 7 dias. */
-function TopSellers({ podiumIds, full, ready, onAdd, onReplace }: { podiumIds: string[]; full: boolean; ready: boolean; onAdd: (id: string) => void; onReplace: (ids: string[]) => void }) {
+function TopSellers({
+  podiumIds,
+  full,
+  ready,
+  onAdd,
+  onReplace,
+}: {
+  podiumIds: string[];
+  full: boolean;
+  ready: boolean;
+  onAdd: (id: string) => void;
+  onReplace: (ids: string[]) => void;
+}) {
   const [range] = useState(() => lastDaysRange(7));
   const top = useQuery({ queryKey: ['admin', 'dashboard', 'top', range], queryFn: () => adminApi.get<TopProducts>('/dashboard/top-products', range) });
   // Itens de produtos excluídos (sem id) não podem ir para o pódio.
@@ -252,7 +275,13 @@ function TopSellers({ podiumIds, full, ready, onAdd, onReplace }: { podiumIds: s
                   {inPodium ? (
                     <Tag tone="gold">No pódio</Tag>
                   ) : (
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => onAdd(t.productId)} disabled={full || !ready} title={full ? 'O pódio está cheio: tire um produto antes.' : undefined}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() => onAdd(t.productId)}
+                      disabled={full || !ready}
+                      title={full ? 'O pódio está cheio: tire um produto antes.' : undefined}
+                    >
                       Colocar no pódio
                     </button>
                   )}
@@ -279,13 +308,21 @@ const textsSchema = z.object({
 });
 type TextsValues = z.infer<typeof textsSchema>;
 
-const toTextsValues = (s: AdminSettings): TextsValues => ({ enabled: s.content.podium.enabled, eyebrow: s.content.home.featuredTitle, title: s.content.podium.title, text: s.content.podium.text });
+const toTextsValues = (s: AdminSettings): TextsValues => ({
+  enabled: s.content.podium.enabled,
+  eyebrow: s.content.home.featuredTitle,
+  title: s.content.podium.title,
+  text: s.content.podium.text,
+});
 
 /** Textos da seção na página inicial (ficam nas configurações da loja). */
 function PodiumTexts() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: SETTINGS_KEY, queryFn: () => adminApi.get<AdminSettings>('/store/settings') });
-  const { register, control, handleSubmit, formState, reset } = useForm<TextsValues>({ resolver: zodResolver(textsSchema), defaultValues: { enabled: true, eyebrow: '', title: '', text: '' } });
+  const { register, control, handleSubmit, formState, reset } = useForm<TextsValues>({
+    resolver: zodResolver(textsSchema),
+    defaultValues: { enabled: true, eyebrow: '', title: '', text: '' },
+  });
   const errors = formState.errors;
   useEffect(() => {
     if (settings.data) reset(toTextsValues(settings.data), { keepDirtyValues: true });
@@ -316,7 +353,11 @@ function PodiumTexts() {
         Textos da seção <small>Como o pódio se apresenta na página inicial</small>
       </h2>
       <div style={{ display: 'grid', gap: 14 }}>
-        <Controller control={control} name="enabled" render={({ field }) => <Switch label="Exibir o pódio na página inicial" checked={field.value} onChange={field.onChange} />} />
+        <Controller
+          control={control}
+          name="enabled"
+          render={({ field }) => <Switch label="Exibir o pódio na página inicial" checked={field.value} onChange={field.onChange} />}
+        />
         <div className="form-cols two">
           <FormField id="podium-eyebrow" label="Rótulo (acima do título)" error={errors.eyebrow?.message} hint="Texto pequeno em caixa alta, ex.: Destaques.">
             <input id="podium-eyebrow" className="input" aria-invalid={!!errors.eyebrow} {...register('eyebrow')} />

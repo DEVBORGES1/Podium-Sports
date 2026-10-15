@@ -76,7 +76,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
           const qty = legacy[map[idx]!.legacyId] ?? 0;
           // Produtos que hoje têm variações ficam de fora: o cliente precisa escolher a opção.
           if (p && p.maxQuantity > 0 && qty > 0 && !p.variants?.length) {
-            migrated.push({ key: cartKey(p.id), productId: p.id, variantId: null, variantLabel: null, quantity: Math.min(qty, p.maxQuantity), snapshot: snapshotOf(p) });
+            migrated.push({
+              key: cartKey(p.id),
+              productId: p.id,
+              variantId: null,
+              variantLabel: null,
+              quantity: Math.min(qty, p.maxQuantity),
+              snapshot: snapshotOf(p),
+            });
           }
         });
         dispatch({ type: 'replace', items: migrated });

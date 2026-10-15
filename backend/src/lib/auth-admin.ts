@@ -31,9 +31,7 @@ class UnconfiguredAuthAdmin implements AuthAdminProvider {
 }
 
 let provider: AuthAdminProvider =
-  env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY
-    ? new SupabaseAuthAdmin(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-    : new UnconfiguredAuthAdmin();
+  env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY ? new SupabaseAuthAdmin(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY) : new UnconfiguredAuthAdmin();
 
 export const authAdmin = {
   get: () => provider,

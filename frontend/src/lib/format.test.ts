@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { brl, centsToInput, formatPhone, maskPhone, normalize, parseMoneyToCents } from './format';
 
-const clean = (s: string) => s.replace(/\u00a0/g, " ");
+const clean = (s: string) => s.replace(/\u00a0/g, ' ');
 
 describe('formatação', () => {
   it('formata centavos como reais', () => {

@@ -69,9 +69,7 @@ async function validateParent(tx: Tx, parentId: string | null, selfId?: string) 
     ]);
   }
   if (selfId && (await tx.category.count({ where: { parentId: selfId } })) > 0) {
-    throw unprocessable('Esta categoria tem subcategorias e não pode virar subcategoria.', [
-      { field: 'parentId', message: 'Mova as subcategorias antes.' },
-    ]);
+    throw unprocessable('Esta categoria tem subcategorias e não pode virar subcategoria.', [{ field: 'parentId', message: 'Mova as subcategorias antes.' }]);
   }
 }
 
@@ -110,14 +108,14 @@ export async function updateCategory(id: string, input: z.infer<typeof updateCat
       const children = await tx.category.findMany({ where: { parentId: id }, select: { id: true } });
       await refreshSearchText(tx, [id, ...children.map((c) => c.id)]);
     }
-    await audit(
-      { profileId, action: 'category.update', entityType: 'category', entityId: id, metadata: diff(current, input) as object },
-      tx,
-    );
+    await audit({ profileId, action: 'category.update', entityType: 'category', entityId: id, metadata: diff(current, input) as object }, tx);
     return saved;
   });
   if (current.imagePath && current.imagePath !== updated.imagePath) {
-    await storage.get().remove([current.imagePath]).catch(() => undefined);
+    await storage
+      .get()
+      .remove([current.imagePath])
+      .catch(() => undefined);
   }
   return updated;
 }
@@ -143,5 +141,9 @@ export async function deleteCategory(id: string, profileId: string) {
     await tx.category.delete({ where: { id } });
     await audit({ profileId, action: 'category.delete', entityType: 'category', entityId: id, metadata: { name: current.name } }, tx);
   });
-  if (current.imagePath) await storage.get().remove([current.imagePath]).catch(() => undefined);
+  if (current.imagePath)
+    await storage
+      .get()
+      .remove([current.imagePath])
+      .catch(() => undefined);
 }

@@ -41,7 +41,10 @@ export default function DashboardPage() {
   const now = useNow(30_000);
   const [stage, setStage] = useState<OrderStageId>('new');
 
-  const today = useQuery({ queryKey: ['admin', 'dashboard', 'summary', 'today'], queryFn: () => adminApi.get<DashboardSummary>('/dashboard/summary', presetRange(1)) });
+  const today = useQuery({
+    queryKey: ['admin', 'dashboard', 'summary', 'today'],
+    queryFn: () => adminApi.get<DashboardSummary>('/dashboard/summary', presetRange(1)),
+  });
   const t = today.data;
 
   // Pedidos em aberto vêm do monitor ao vivo (atualiza a cada 15 s); concluídos hoje, do resumo do dia.
@@ -65,8 +68,8 @@ export default function DashboardPage() {
             {firstName ? `, ${firstName}.` : '.'}
           </h1>
           <p>
-            <b>{pending ? `${pending} pedido${pending > 1 ? 's' : ''} novo${pending > 1 ? 's' : ''} aguardando aceite` : 'Nenhum pedido novo aguardando'}</b> · o painel confere
-            novos pedidos a cada 15 s.
+            <b>{pending ? `${pending} pedido${pending > 1 ? 's' : ''} novo${pending > 1 ? 's' : ''} aguardando aceite` : 'Nenhum pedido novo aguardando'}</b> ·
+            o painel confere novos pedidos a cada 15 s.
           </p>
         </div>
         <div className="actions">

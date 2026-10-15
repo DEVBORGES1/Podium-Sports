@@ -56,10 +56,6 @@ export function buildCustomerMessage(
 ) {
   const key = templateKey(order.status, order.fulfillment);
   if (!key) return null;
-  const text = templates[key]
-    .replaceAll('{nome}', firstName(order.customerName))
-    .replaceAll('{pedido}', order.code)
-    .replaceAll('{loja}', storeName)
-    .trim();
+  const text = templates[key].replaceAll('{nome}', firstName(order.customerName)).replaceAll('{pedido}', order.code).replaceAll('{loja}', storeName).trim();
   return { status: order.status, text };
 }

@@ -42,13 +42,26 @@ function HomeCatalog({ categories }: { categories: Category[] }) {
               <label htmlFor="home-search" className="sr-only">
                 Buscar produto ou marca
               </label>
-              <input id="home-search" type="search" placeholder="Buscar produto, marca…" value={search} onChange={(e) => setSearch(e.target.value)} maxLength={80} />
+              <input
+                id="home-search"
+                type="search"
+                placeholder="Buscar produto, marca…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                maxLength={80}
+              />
             </div>
           }
         />
         <div className="toolbar" role="group" aria-label="Filtrar por categoria">
           {chips.map((c) => (
-            <button key={c.slug} type="button" className={`chip ${filter === c.slug ? 'active' : ''}`} aria-pressed={filter === c.slug} onClick={() => setFilter(c.slug)}>
+            <button
+              key={c.slug}
+              type="button"
+              className={`chip ${filter === c.slug ? 'active' : ''}`}
+              aria-pressed={filter === c.slug}
+              onClick={() => setFilter(c.slug)}
+            >
               {c.name}
             </button>
           ))}
@@ -92,7 +105,9 @@ export default function HomePage() {
   const tiles = all.filter((c) => c.showOnHome);
   const tabs = [
     ...(home.showOnSale ? [{ id: 'ofertas', label: 'Ofertas', query: { onSale: true, pageSize: 5 }, moreLink: '/produtos?ofertas=1' }] : []),
-    ...(home.showNewArrivals ? [{ id: 'novidades', label: 'Novidades', query: { sort: 'newest' as const, pageSize: 5 }, moreLink: '/produtos?ordem=newest', countShown: true }] : []),
+    ...(home.showNewArrivals
+      ? [{ id: 'novidades', label: 'Novidades', query: { sort: 'newest' as const, pageSize: 5 }, moreLink: '/produtos?ordem=newest', countShown: true }]
+      : []),
   ];
 
   return (

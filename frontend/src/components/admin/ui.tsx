@@ -29,7 +29,21 @@ export function Switch({ label, checked, onChange, disabled }: { label: string; 
   );
 }
 
-export function FormField({ id, label, error, hint, children, className }: { id: string; label: string; error?: string; hint?: string; children: ReactNode; className?: string }) {
+export function FormField({
+  id,
+  label,
+  error,
+  hint,
+  children,
+  className,
+}: {
+  id: string;
+  label: string;
+  error?: string;
+  hint?: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={`field ${className ?? ''}`}>
       <label htmlFor={id}>{label}</label>
@@ -84,7 +98,19 @@ export function MoneyInput({
   );
 }
 
-export function Modal({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  footer,
+  wide,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  wide?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useDialog(true, onClose, ref);
   return (
@@ -185,12 +211,21 @@ export function ImageUpload({
   return (
     <div className="uploader">
       {showPreview && (
-        <div className={`preview ${variant === 'square' ? 'square' : variant === 'logo' ? 'logo' : ''}`}>{url ? <img src={url} alt={`Prévia: ${label}`} /> : <span>Sem imagem</span>}</div>
+        <div className={`preview ${variant === 'square' ? 'square' : variant === 'logo' ? 'logo' : ''}`}>
+          {url ? <img src={url} alt={`Prévia: ${label}`} /> : <span>Sem imagem</span>}
+        </div>
       )}
       <div className="row-actions" style={{ justifyContent: 'flex-start' }}>
         <label className="btn btn-outline btn-sm" aria-busy={busy}>
           {busy ? 'Enviando…' : url ? 'Trocar imagem' : 'Enviar imagem'}
-          <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busy} onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+          <input
+            ref={input}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            disabled={busy}
+            onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
+          />
         </label>
         {url && onRemove && (
           <button type="button" className="btn btn-outline btn-sm" onClick={onRemove}>
@@ -208,7 +243,19 @@ export function ImageUpload({
   );
 }
 
-export function TableState({ colSpan, loading, error, empty, onRetry }: { colSpan: number; loading?: boolean; error?: unknown; empty?: string; onRetry?: () => void }) {
+export function TableState({
+  colSpan,
+  loading,
+  error,
+  empty,
+  onRetry,
+}: {
+  colSpan: number;
+  loading?: boolean;
+  error?: unknown;
+  empty?: string;
+  onRetry?: () => void;
+}) {
   return (
     <tr>
       <td colSpan={colSpan} className="empty-row">

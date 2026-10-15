@@ -29,7 +29,10 @@ describe('promoções', () => {
     expect(pub.body).toMatchObject({ priceCents: 15_000, regularPriceCents: 20_000, onSale: true, promotion: { name: 'Semana da chuteira' } });
     expect((await api(app).get('/api/v1/promotions')).body.items[0].productIds).toEqual([p.id]);
 
-    const order = await api(app).post('/api/v1/orders').set('Idempotency-Key', idemKey()).send(orderBody([{ productId: p.id, quantity: 2 }]));
+    const order = await api(app)
+      .post('/api/v1/orders')
+      .set('Idempotency-Key', idemKey())
+      .send(orderBody([{ productId: p.id, quantity: 2 }]));
     expect(order.body.order).toMatchObject({ subtotalCents: 40_000, discountCents: 10_000, totalCents: 30_000 });
   });
 
@@ -101,7 +104,11 @@ describe('banners', () => {
   });
 
   it('bloqueia links perigosos e imagens fora do Storage', async () => {
-    const send = (body: object) => api(app).post('/api/v1/admin/banners').set('Authorization', admin.auth).send({ title: 'T', ...body });
+    const send = (body: object) =>
+      api(app)
+        .post('/api/v1/admin/banners')
+        .set('Authorization', admin.auth)
+        .send({ title: 'T', ...body });
     for (const url of ['javascript:alert(1)', 'data:text/html,x', '//evil.com', 'http://inseguro.com']) {
       expect((await send({ buttonLabel: 'Ir', buttonUrl: url })).status, url).toBe(400);
     }

@@ -15,7 +15,16 @@ function seedCart(items: { p: ReturnType<typeof product>; q: number }[]) {
       items: items.map(({ p, q }) => ({
         productId: p.id,
         quantity: q,
-        snapshot: { name: p.name, slug: p.slug, priceCents: p.priceCents, regularPriceCents: p.regularPriceCents, imageUrl: null, icon: p.category.icon, categorySlug: p.category.slug, maxQuantity: p.maxQuantity },
+        snapshot: {
+          name: p.name,
+          slug: p.slug,
+          priceCents: p.priceCents,
+          regularPriceCents: p.regularPriceCents,
+          imageUrl: null,
+          icon: p.category.icon,
+          categorySlug: p.category.slug,
+          maxQuantity: p.maxQuantity,
+        },
       })),
     }),
   );
@@ -112,7 +121,13 @@ describe('produto e sacola', () => {
   it('no catálogo, produto com tamanhos leva à página para escolher', async () => {
     server.use(
       http.get(`${API}/products`, () =>
-        HttpResponse.json({ items: [product({ variantType: 'Numeração', variants: [{ id: 'v40', label: '40', available: true, maxQuantity: 2 }] })], page: 1, pageSize: 20, total: 1, totalPages: 1 }),
+        HttpResponse.json({
+          items: [product({ variantType: 'Numeração', variants: [{ id: 'v40', label: '40', available: true, maxQuantity: 2 }] })],
+          page: 1,
+          pageSize: 20,
+          total: 1,
+          totalPages: 1,
+        }),
       ),
     );
     renderStore('/produtos');
@@ -144,7 +159,19 @@ describe('produto e sacola', () => {
     server.use(
       http.post(`${API}/orders/quote`, () =>
         HttpResponse.json({
-          lines: [{ productId: product().id, quantity: 3, issue: 'INSUFFICIENT_STOCK', available: false, name: 'Chuteira F50 Messi', unitPriceCents: 39_990, regularUnitPriceCents: 59_900, subtotalCents: 119_970, maxQuantity: 1 }],
+          lines: [
+            {
+              productId: product().id,
+              quantity: 3,
+              issue: 'INSUFFICIENT_STOCK',
+              available: false,
+              name: 'Chuteira F50 Messi',
+              unitPriceCents: 39_990,
+              regularUnitPriceCents: 59_900,
+              subtotalCents: 119_970,
+              maxQuantity: 1,
+            },
+          ],
           subtotalCents: 0,
           discountCents: 0,
           totalCents: 0,
@@ -280,7 +307,11 @@ describe('banner da página inicial', () => {
   });
 
   it('sem preço original válido não exibe desconto', async () => {
-    server.use(http.get(`${API}/banners`, () => HttpResponse.json({ items: [{ ...banner, priceOriginalCents: null, secondaryButtonLabel: null, secondaryButtonUrl: null }] })));
+    server.use(
+      http.get(`${API}/banners`, () =>
+        HttpResponse.json({ items: [{ ...banner, priceOriginalCents: null, secondaryButtonLabel: null, secondaryButtonUrl: null }] }),
+      ),
+    );
     renderStore('/');
     const hero = await screen.findByRole('region', { name: 'Destaques da loja' });
     expect(within(hero).getByText('R$ 399,90')).toBeInTheDocument();

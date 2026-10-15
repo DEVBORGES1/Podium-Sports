@@ -16,7 +16,10 @@ export async function listInventory(query: z.infer<typeof inventoryListQuery>) {
   if (query.stock === 'out') conditions.push(Prisma.sql`p.stock_quantity = 0`);
   if (query.stock === 'low') conditions.push(Prisma.sql`p.stock_quantity > 0 AND p.stock_quantity <= p.min_stock`);
   if (query.stock === 'ok') conditions.push(Prisma.sql`p.stock_quantity > p.min_stock`);
-  for (const term of normalizeSearch(query.q ?? '').split(' ').filter(Boolean).slice(0, 6)) {
+  for (const term of normalizeSearch(query.q ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 6)) {
     conditions.push(Prisma.sql`p.search_text LIKE ${'%' + term.replace(/[%_\\]/g, '\\$&') + '%'}`);
   }
   const where = Prisma.join(conditions, ' AND ');
@@ -195,7 +198,14 @@ export async function createMovementsBatch(input: z.infer<typeof batchMovementsS
           action: `inventory.${type.toLowerCase()}`,
           entityType: 'product',
           entityId: item.productId,
-          metadata: { movementId: movement.id, delta: item.delta, balanceBefore: movement.balanceBefore, balanceAfter: movement.balanceAfter, reason: movement.reason, batch: true },
+          metadata: {
+            movementId: movement.id,
+            delta: item.delta,
+            balanceBefore: movement.balanceBefore,
+            balanceAfter: movement.balanceAfter,
+            reason: movement.reason,
+            batch: true,
+          },
         },
         tx,
       );

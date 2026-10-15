@@ -1,11 +1,6 @@
 /** Remove acentos e normaliza para busca ("Tênis" -> "tenis"). */
 export function normalizeSearch(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 export function slugify(text: string): string {

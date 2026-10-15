@@ -27,7 +27,9 @@ async function assertCompatible(tx: Tx, productIds: string[], discountType: Disc
   }
 }
 
-type WithProducts = Prisma.PromotionGetPayload<{ include: { products: { include: { product: { select: { id: true; name: true; slug: true; priceCents: true } } } } } }>;
+type WithProducts = Prisma.PromotionGetPayload<{
+  include: { products: { include: { product: { select: { id: true; name: true; slug: true; priceCents: true } } } } };
+}>;
 
 const include = {
   products: { include: { product: { select: { id: true, name: true, slug: true, priceCents: true } } } },

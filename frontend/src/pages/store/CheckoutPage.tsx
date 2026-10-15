@@ -121,9 +121,7 @@ export default function CheckoutPage() {
           customer: { name: v.name, phone: v.phone },
           fulfillment: v.fulfillment,
           address:
-            v.fulfillment === 'DELIVERY'
-              ? { street: v.street, number: v.number, district: v.district, city: v.city, complement: v.complement || null }
-              : null,
+            v.fulfillment === 'DELIVERY' ? { street: v.street, number: v.number, district: v.district, city: v.city, complement: v.complement || null } : null,
           notes: v.notes || null,
           items: items.map((i) => ({ productId: i.productId, ...(i.variantId ? { variantId: i.variantId } : {}), quantity: i.quantity })),
         },
@@ -186,7 +184,11 @@ export default function CheckoutPage() {
                         )}
                       </span>
                     )}
-                    {line?.unitPriceCents !== undefined && <span className="muted" style={{ display: 'block' }}>{brl(line.unitPriceCents)} cada</span>}
+                    {line?.unitPriceCents !== undefined && (
+                      <span className="muted" style={{ display: 'block' }}>
+                        {brl(line.unitPriceCents)} cada
+                      </span>
+                    )}
                   </span>
                   <span>{line?.subtotalCents !== undefined ? brl(line.subtotalCents) : '—'}</span>
                 </li>
@@ -210,7 +212,8 @@ export default function CheckoutPage() {
             <span>{brl(q.totalCents)}</span>
           </div>
           <p className="hint" style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>
-            {fulfillment === 'DELIVERY' ? (s.deliveryInfo ?? 'Taxa de entrega combinada pelo WhatsApp.') : (s.pickupInfo ?? '')} Pagamento combinado no atendimento.
+            {fulfillment === 'DELIVERY' ? (s.deliveryInfo ?? 'Taxa de entrega combinada pelo WhatsApp.') : (s.pickupInfo ?? '')} Pagamento combinado no
+            atendimento.
           </p>
         </>
       )}
@@ -233,7 +236,14 @@ export default function CheckoutPage() {
             <h2 id="form-title">Contato</h2>
             <div className="form-grid two">
               <Field id="name" label="Nome" error={errors.name?.message}>
-                <input id="name" className="input" autoComplete="name" aria-invalid={!!errors.name} aria-describedby={errors.name ? 'name-err' : undefined} {...register('name')} />
+                <input
+                  id="name"
+                  className="input"
+                  autoComplete="name"
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? 'name-err' : undefined}
+                  {...register('name')}
+                />
               </Field>
               <Field id="phone" label="WhatsApp / telefone" error={errors.phone?.message} hint="Com DDD, para a loja falar com você.">
                 <input
@@ -315,7 +325,11 @@ export default function CheckoutPage() {
                 Continuar comprando
               </Link>
             </div>
-            {q && !q.canCheckout && <p className="err" style={{ marginTop: 10 }}>Ajuste os itens indicados no resumo para continuar.</p>}
+            {q && !q.canCheckout && (
+              <p className="err" style={{ marginTop: 10 }}>
+                Ajuste os itens indicados no resumo para continuar.
+              </p>
+            )}
           </form>
         ) : (
           <section className="panel review" aria-labelledby="review-title">
@@ -344,8 +358,8 @@ export default function CheckoutPage() {
               )}
             </dl>
             <p className="alert alert-warn" style={{ marginTop: 16 }}>
-              Ao confirmar, o pedido é registrado e você será direcionado para enviá-lo pelo WhatsApp. A loja confirma disponibilidade, entrega e
-              pagamento na conversa.
+              Ao confirmar, o pedido é registrado e você será direcionado para enviá-lo pelo WhatsApp. A loja confirma disponibilidade, entrega e pagamento na
+              conversa.
             </p>
             {submitError && (
               <p className="alert alert-error" role="alert" style={{ marginTop: 12 }}>

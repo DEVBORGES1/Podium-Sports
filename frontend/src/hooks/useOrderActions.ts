@@ -29,7 +29,10 @@ export function useChangeOrderStatus(options: { onSaved?: (order: AdminOrder, ch
     mutationFn: (c: StatusChange) => adminApi.patch<AdminOrder>(`/orders/${c.id}/status`, { status: c.to, expectedStatus: c.from, note: c.note ?? null }),
     onSuccess: (order, change) => {
       qc.setQueryData(['admin', 'order', order.id], order);
-      refreshQueries(qc, [['admin', 'orders'], ['admin', 'dashboard']]);
+      refreshQueries(qc, [
+        ['admin', 'orders'],
+        ['admin', 'dashboard'],
+      ]);
       // Cancelar devolve o estoque: saldos, movimentações e a loja precisam refletir.
       if (change.to === 'CANCELLED') refreshQueries(qc, [['admin', 'inventory'], ['admin', 'products'], ['admin', 'product'], ['products']]);
       toast.show(orderStatusToast(order.code, order.status, order.fulfillment));
@@ -39,7 +42,10 @@ export function useChangeOrderStatus(options: { onSaved?: (order: AdminOrder, ch
     onError: (err, change) => {
       toast.show(errorMessage(err), { tone: 'error' });
       if (err instanceof ApiError && (err.status === 409 || err.status === 422 || err.status === 404)) {
-        refreshQueries(qc, [['admin', 'order', change.id], ['admin', 'orders']]);
+        refreshQueries(qc, [
+          ['admin', 'order', change.id],
+          ['admin', 'orders'],
+        ]);
       }
     },
   });

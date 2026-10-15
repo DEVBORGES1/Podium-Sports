@@ -22,7 +22,11 @@ export function LiveIndicator() {
       type="button"
       className={`live ${connection}`}
       onClick={refresh}
-      title={connection === 'offline' && lastError ? `${lastError} Clique para tentar agora.` : 'O painel confere novos pedidos a cada 15 segundos. Clique para conferir agora.'}
+      title={
+        connection === 'offline' && lastError
+          ? `${lastError} Clique para tentar agora.`
+          : 'O painel confere novos pedidos a cada 15 segundos. Clique para conferir agora.'
+      }
     >
       <i aria-hidden />
       <span className="live-text">{label}</span>
@@ -59,7 +63,9 @@ export function SoundControl() {
   const activate = async () => {
     const ok = await enableSound();
     toast.show(
-      ok ? 'Som ativado. Se não ouviu o aviso de teste, confira o volume do computador.' : 'O navegador bloqueou o som. Clique em qualquer lugar da página e tente de novo.',
+      ok
+        ? 'Som ativado. Se não ouviu o aviso de teste, confira o volume do computador.'
+        : 'O navegador bloqueou o som. Clique em qualquer lugar da página e tente de novo.',
       { tone: ok ? 'ok' : 'error' },
     );
   };
@@ -100,7 +106,13 @@ export function SoundControl() {
             {sound === 'blocked' ? 'Liberar e testar som' : 'Testar som'}
           </button>
           {desktop.supported && (
-            <button type="button" role="menuitemcheckbox" aria-checked={desktop.enabled} className="btn btn-outline btn-sm btn-block" onClick={() => void toggleDesktop()}>
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={desktop.enabled}
+              className="btn btn-outline btn-sm btn-block"
+              onClick={() => void toggleDesktop()}
+            >
               {desktop.enabled ? 'Desativar notificação do sistema' : 'Notificar também com a aba em segundo plano'}
             </button>
           )}

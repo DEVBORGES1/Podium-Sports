@@ -37,7 +37,11 @@ const schema = z
   })
   .superRefine((v, ctx) => {
     if (v.value === null || v.value < 1) {
-      ctx.addIssue({ code: 'custom', path: ['value'], message: v.discountType === 'PERCENTAGE' ? 'Informe o percentual.' : 'Informe um valor maior que zero.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['value'],
+        message: v.discountType === 'PERCENTAGE' ? 'Informe o percentual.' : 'Informe um valor maior que zero.',
+      });
     } else if (v.discountType === 'PERCENTAGE' && v.value > 90) {
       ctx.addIssue({ code: 'custom', path: ['value'], message: 'O percentual deve ficar entre 1% e 90%.' });
     } else if (v.value > 10_000_000) {
@@ -92,7 +96,8 @@ interface Incompatible {
 function incompatibleDetails(err: unknown): Incompatible[] {
   if (!(err instanceof ApiError) || err.code !== 'PROMOTION_INCOMPATIBLE' || !Array.isArray(err.details)) return [];
   return (err.details as unknown[]).filter(
-    (d): d is Incompatible => typeof d === 'object' && d !== null && typeof (d as Incompatible).productId === 'string' && typeof (d as Incompatible).priceCents === 'number',
+    (d): d is Incompatible =>
+      typeof d === 'object' && d !== null && typeof (d as Incompatible).productId === 'string' && typeof (d as Incompatible).priceCents === 'number',
   );
 }
 
@@ -198,7 +203,13 @@ export default function PromotionFormPage() {
                 <FormField id="name" label="Nome" error={errors.name?.message} className="full">
                   <input id="name" className="input" aria-invalid={!!errors.name} {...register('name')} />
                 </FormField>
-                <FormField id="description" label="Descrição (opcional)" error={errors.description?.message} className="full" hint="Uso interno e exibição na loja, se aplicável.">
+                <FormField
+                  id="description"
+                  label="Descrição (opcional)"
+                  error={errors.description?.message}
+                  className="full"
+                  hint="Uso interno e exibição na loja, se aplicável."
+                >
                   <textarea id="description" className="textarea" rows={3} {...register('description')} />
                 </FormField>
               </div>
@@ -218,7 +229,12 @@ export default function PromotionFormPage() {
                     ))}
                   </select>
                 </FormField>
-                <FormField id="value" label={discountType === 'PERCENTAGE' ? 'Percentual' : discountType === 'FIXED_PRICE' ? 'Preço promocional' : 'Valor do desconto'} error={errors.value?.message} hint={typeInfo?.hint}>
+                <FormField
+                  id="value"
+                  label={discountType === 'PERCENTAGE' ? 'Percentual' : discountType === 'FIXED_PRICE' ? 'Preço promocional' : 'Valor do desconto'}
+                  error={errors.value?.message}
+                  hint={typeInfo?.hint}
+                >
                   <Controller
                     control={control}
                     name="value"
@@ -263,7 +279,8 @@ export default function PromotionFormPage() {
               )}
               {incompatible.length > 0 && (
                 <div className="alert alert-error" role="alert" style={{ marginBottom: 12 }}>
-                  O desconto é incompatível com o preço destes produtos (resultaria em preço zero, negativo ou maior/igual ao preço atual). Remova-os ou ajuste o desconto:
+                  O desconto é incompatível com o preço destes produtos (resultaria em preço zero, negativo ou maior/igual ao preço atual). Remova-os ou ajuste
+                  o desconto:
                   <ul style={{ margin: '8px 0 0 18px' }}>
                     {incompatible.map((i) => (
                       <li key={i.productId}>
@@ -273,7 +290,13 @@ export default function PromotionFormPage() {
                   </ul>
                 </div>
               )}
-              <SelectedList selected={selected} discountType={discountType} value={value} serverRejected={serverRejected} onRemove={(id) => setProducts(selected.filter((s) => s.id !== id))} />
+              <SelectedList
+                selected={selected}
+                discountType={discountType}
+                value={value}
+                serverRejected={serverRejected}
+                onRemove={(id) => setProducts(selected.filter((s) => s.id !== id))}
+              />
               {invalidCount > 0 && (
                 <p className="notice" style={{ color: 'var(--danger)', marginTop: 8 }}>
                   {invalidCount} produto(s) em vermelho não aceitam este desconto e serão recusados pelo servidor.
@@ -293,8 +316,14 @@ export default function PromotionFormPage() {
                 <FormField id="endsAt" label="Fim" error={errors.endsAt?.message}>
                   <input id="endsAt" className="input" type="datetime-local" aria-invalid={!!errors.endsAt} {...register('endsAt')} />
                 </FormField>
-                <Controller control={control} name="isActive" render={({ field }) => <Switch label="Promoção ativa" checked={field.value} onChange={field.onChange} />} />
-                <p className="notice">A promoção só vale entre o início e o fim e enquanto estiver ativa. Depois do fim ela deixa de ser aplicada automaticamente.</p>
+                <Controller
+                  control={control}
+                  name="isActive"
+                  render={({ field }) => <Switch label="Promoção ativa" checked={field.value} onChange={field.onChange} />}
+                />
+                <p className="notice">
+                  A promoção só vale entre o início e o fim e enquanto estiver ativa. Depois do fim ela deixa de ser aplicada automaticamente.
+                </p>
               </div>
             </section>
           </div>
@@ -403,7 +432,14 @@ function ProductPicker({
     <div>
       <div className="field" style={{ marginBottom: 10 }}>
         <label htmlFor="product-search">Adicionar produtos</label>
-        <input id="product-search" className="input" type="search" placeholder="Buscar por nome, marca ou categoria" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input
+          id="product-search"
+          className="input"
+          type="search"
+          placeholder="Buscar por nome, marca ou categoria"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <span className="hint">Mostra até 20 produtos ativos. Refine a busca para encontrar outros.</span>
       </div>
       <div style={{ border: '1px solid var(--line)', borderRadius: 8, maxHeight: 320, overflow: 'auto' }} aria-busy={products.isFetching}>
@@ -433,9 +469,7 @@ function ProductPicker({
                       <input type="checkbox" checked={checked} onChange={() => onToggle({ id: p.id, name: p.name, priceCents: p.priceCents })} />
                       <span style={{ minWidth: 0 }}>
                         <b>{p.name}</b>
-                        <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>
-                          {[p.brand, p.category.name].filter(Boolean).join(' · ')}
-                        </span>
+                        <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>{[p.brand, p.category.name].filter(Boolean).join(' · ')}</span>
                       </span>
                     </span>
                     <span style={{ textAlign: 'right', fontSize: 13, whiteSpace: 'nowrap', color: invalid ? 'var(--danger)' : undefined }}>

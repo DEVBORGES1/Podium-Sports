@@ -1,5 +1,17 @@
 // Tipos das respostas das rotas /admin. Valores monetários em centavos.
-import type { Availability, Banner, CategoryIcon, Fulfillment, InfoItem, OrderStatus, PaymentStatus, Product, StoreContent, StoreSettings, UserRole } from './api';
+import type {
+  Availability,
+  Banner,
+  CategoryIcon,
+  Fulfillment,
+  InfoItem,
+  OrderStatus,
+  PaymentStatus,
+  Product,
+  StoreContent,
+  StoreSettings,
+  UserRole,
+} from './api';
 
 export interface AdminProductImage {
   id: string;
@@ -171,7 +183,14 @@ export interface AdminOrder {
     createdAt: string;
     user: { id: string; name: string } | null;
   }[];
-  paymentHistory: { id: string; createdAt: string; user: { id: string; name: string } | null; from?: PaymentStatus; to?: PaymentStatus; note?: string | null }[];
+  paymentHistory: {
+    id: string;
+    createdAt: string;
+    user: { id: string; name: string } | null;
+    from?: PaymentStatus;
+    to?: PaymentStatus;
+    note?: string | null;
+  }[];
 }
 
 export type BannerPage = 'home' | 'catalog' | 'offers' | 'new';
@@ -236,9 +255,7 @@ export interface AdminSettings extends StoreSettings {
   updatedAt: string;
 }
 
-export type SettingsInput = Partial<
-  Omit<AdminSettings, 'logoUrl' | 'timezone' | 'updatedAt' | 'content'> & { content: StoreContent }
->;
+export type SettingsInput = Partial<Omit<AdminSettings, 'logoUrl' | 'timezone' | 'updatedAt' | 'content'> & { content: StoreContent }>;
 
 export interface AdminUser {
   id: string;
@@ -280,7 +297,16 @@ export interface DashboardSummary {
   revenue: { confirmedCents: number; paidOrders: number; averageTicketCents: number; registeredValueCents: number };
   products: { total: number; active: number; lowStock: number; outOfStock: number };
   lowStockProducts: { id: string; name: string; stockQuantity: number; minStock: number }[];
-  recentOrders: { id: string; code: string; customerName: string; totalCents: number; status: OrderStatus; paymentStatus: PaymentStatus; fulfillment: Fulfillment; createdAt: string }[];
+  recentOrders: {
+    id: string;
+    code: string;
+    customerName: string;
+    totalCents: number;
+    status: OrderStatus;
+    paymentStatus: PaymentStatus;
+    fulfillment: Fulfillment;
+    createdAt: string;
+  }[];
 }
 
 export interface SalesSeries {

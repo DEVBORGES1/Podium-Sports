@@ -7,7 +7,10 @@ const app = makeApp();
 let admin: AdminCtx;
 
 async function placeOrder(productId: string, quantity = 2) {
-  const res = await api(app).post('/api/v1/orders').set('Idempotency-Key', idemKey()).send(orderBody([{ productId, quantity }]));
+  const res = await api(app)
+    .post('/api/v1/orders')
+    .set('Idempotency-Key', idemKey())
+    .send(orderBody([{ productId, quantity }]));
   expect(res.status).toBe(201);
   return prisma.order.findUniqueOrThrow({ where: { code: res.body.order.code } });
 }
@@ -34,13 +37,7 @@ describe('status do pedido', () => {
     expect(detail.body.status).toBe('COMPLETED');
     expect(detail.body.acceptedAt).toBeTruthy();
     expect(detail.body.completedAt).toBeTruthy();
-    expect(detail.body.statusHistory.map((h: { toStatus: string }) => h.toStatus)).toEqual([
-      'PENDING',
-      'ACCEPTED',
-      'PROCESSING',
-      'READY',
-      'COMPLETED',
-    ]);
+    expect(detail.body.statusHistory.map((h: { toStatus: string }) => h.toStatus)).toEqual(['PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED']);
     expect(detail.body.statusHistory[1].user.id).toBe(admin.profile.id);
     expect(detail.body.paymentStatus).toBe('UNPAID'); // concluir não marca como pago
     expect(await stockOf(p.id)).toBe(3); // estoque segue baixado

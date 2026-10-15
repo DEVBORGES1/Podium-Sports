@@ -41,7 +41,11 @@ function setup(podium: ReturnType<typeof admin>[]) {
       return HttpResponse.json({ items: current });
     }),
     http.get(`${API}/admin/dashboard/top-products`, () =>
-      HttpResponse.json({ period: { from: '', to: '', timezone: '' }, criteria: '', items: [{ productId: whey.id, name: whey.name, quantity: 7, valueCents: 1000, orders: 3 }] }),
+      HttpResponse.json({
+        period: { from: '', to: '', timezone: '' },
+        criteria: '',
+        items: [{ productId: whey.id, name: whey.name, quantity: 7, valueCents: 1000, orders: 3 }],
+      }),
     ),
     http.get(`${API}/admin/store/settings`, () => HttpResponse.json(settings)),
     http.patch(`${API}/admin/store/settings`, async ({ request }) => {
@@ -98,7 +102,12 @@ describe('tela Pódio do painel', () => {
     expect(names().slice(0, 3)).toEqual(['Camisa Podium', 'Chuteira F50 Messi', whey.name]);
     await waitFor(() => expect(puts).toHaveLength(1));
     release();
-    await waitFor(() => expect(puts).toEqual([[product().id, camisa.id, whey.id], [camisa.id, product().id, whey.id]]));
+    await waitFor(() =>
+      expect(puts).toEqual([
+        [product().id, camisa.id, whey.id],
+        [camisa.id, product().id, whey.id],
+      ]),
+    );
     await waitFor(() => expect(names().slice(0, 3)).toEqual(['Camisa Podium', 'Chuteira F50 Messi', whey.name]));
   });
 
@@ -123,14 +132,22 @@ describe('tela Pódio do painel', () => {
 
 describe('pódio na loja', () => {
   it('usa os textos das configurações', async () => {
-    server.use(http.get(`${API}/store/settings`, () => HttpResponse.json({ ...settings, content: { ...settings.content, podium: { enabled: true, title: 'Campeões de venda', text: 'Escolhidos a dedo.' } } })));
+    server.use(
+      http.get(`${API}/store/settings`, () =>
+        HttpResponse.json({ ...settings, content: { ...settings.content, podium: { enabled: true, title: 'Campeões de venda', text: 'Escolhidos a dedo.' } } }),
+      ),
+    );
     renderStore('/');
     expect(await screen.findByRole('heading', { name: 'Campeões de venda' })).toBeInTheDocument();
     expect(screen.getByText('Escolhidos a dedo.')).toBeInTheDocument();
   });
 
   it('some quando desativado', async () => {
-    server.use(http.get(`${API}/store/settings`, () => HttpResponse.json({ ...settings, content: { ...settings.content, podium: { ...settings.content.podium, enabled: false } } })));
+    server.use(
+      http.get(`${API}/store/settings`, () =>
+        HttpResponse.json({ ...settings, content: { ...settings.content, podium: { ...settings.content.podium, enabled: false } } }),
+      ),
+    );
     renderStore('/');
     await screen.findByRole('region', { name: 'Vantagens' });
     expect(screen.queryByRole('heading', { name: 'Pódio da semana' })).not.toBeInTheDocument();

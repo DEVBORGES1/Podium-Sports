@@ -43,10 +43,7 @@ export async function resetDb() {
 }
 
 /** Gera um access token no formato do Supabase Auth (HS256 com o segredo de teste). */
-export async function signToken(
-  sub: string,
-  overrides: { issuer?: string; audience?: string; expiresIn?: string; secret?: Uint8Array } = {},
-) {
+export async function signToken(sub: string, overrides: { issuer?: string; audience?: string; expiresIn?: string; secret?: Uint8Array } = {}) {
   return new SignJWT({ role: 'authenticated', email: 'user@test.dev' })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setSubject(sub)
@@ -87,9 +84,7 @@ export async function createProduct(
     brand: string;
   }> = {},
 ) {
-  const category = data.categoryId
-    ? await prisma.category.findUniqueOrThrow({ where: { id: data.categoryId } })
-    : await createCategory();
+  const category = data.categoryId ? await prisma.category.findUniqueOrThrow({ where: { id: data.categoryId } }) : await createCategory();
   const name = data.name ?? `Produto ${randomUUID().slice(0, 6)}`;
   return prisma.product.create({
     data: {
@@ -120,7 +115,4 @@ export function orderBody(items: { productId: string; variantId?: string | null;
 }
 
 /** PNG 1x1 válido. */
-export const PNG_1PX = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-  'base64',
-);
+export const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');

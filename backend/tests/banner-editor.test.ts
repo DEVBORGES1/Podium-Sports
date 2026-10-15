@@ -10,7 +10,11 @@ beforeEach(async () => {
   admin = await createAdmin();
 });
 
-const create = (body: object) => api(app).post('/api/v1/admin/banners').set('Authorization', admin.auth).send({ title: 'Oferta', ...body });
+const create = (body: object) =>
+  api(app)
+    .post('/api/v1/admin/banners')
+    .set('Authorization', admin.auth)
+    .send({ title: 'Oferta', ...body });
 const patch = (id: string, body: object) => api(app).patch(`/api/v1/admin/banners/${id}`).set('Authorization', admin.auth).send(body);
 const publicBanners = async () => (await api(app).get('/api/v1/banners')).body.items as Record<string, unknown>[];
 
@@ -91,7 +95,11 @@ describe('banners: destinos escolhidos no painel', () => {
     expect((await publicBanners())[0]!.secondaryButtonUrl).toBe('/produtos');
 
     const off = await patch(body.id, { secondaryButtonEnabled: false });
-    expect(off.body).toMatchObject({ secondaryButtonEnabled: false, secondaryButtonLabel: 'Ver todas', secondaryButtonTarget: { type: 'page', page: 'catalog' } });
+    expect(off.body).toMatchObject({
+      secondaryButtonEnabled: false,
+      secondaryButtonLabel: 'Ver todas',
+      secondaryButtonTarget: { type: 'page', page: 'catalog' },
+    });
     expect((await publicBanners())[0]).toMatchObject({ secondaryButtonUrl: null, secondaryButtonLabel: null });
 
     // Desligado, pode ficar incompleto; ao religar, volta a exigir texto e destino.
@@ -117,7 +125,13 @@ describe('banners: compatibilidade com links antigos', () => {
       },
     });
     const [pub] = await publicBanners();
-    expect(pub).toMatchObject({ buttonUrl: `/produto/${product.slug}`, secondaryButtonUrl: '/produtos?categoria=chuteiras', layout: 'full', overlay: 85, imageFrame: null });
+    expect(pub).toMatchObject({
+      buttonUrl: `/produto/${product.slug}`,
+      secondaryButtonUrl: '/produtos?categoria=chuteiras',
+      layout: 'full',
+      overlay: 85,
+      imageFrame: null,
+    });
 
     const list = await api(app).get('/api/v1/admin/banners').set('Authorization', admin.auth);
     expect(list.body.items[0]).toMatchObject({
@@ -145,8 +159,18 @@ describe('banners: conteúdo comercial e imagem', () => {
   it('preços: original precisa ser maior que o promocional; ocultar preços não apaga os valores', async () => {
     expect((await create({ priceOriginalCents: 39_990, priceSaleCents: 59_900 })).status).toBe(400);
     expect((await create({ priceOriginalCents: 0 })).status).toBe(400);
-    const { body } = await create({ kicker: 'Oferta especial', priceOriginalCents: 59_900, priceSaleCents: 39_990, footnote: 'Confirme o tamanho pelo WhatsApp.' });
-    expect((await publicBanners())[0]).toMatchObject({ kicker: 'Oferta especial', priceOriginalCents: 59_900, priceSaleCents: 39_990, footnote: 'Confirme o tamanho pelo WhatsApp.' });
+    const { body } = await create({
+      kicker: 'Oferta especial',
+      priceOriginalCents: 59_900,
+      priceSaleCents: 39_990,
+      footnote: 'Confirme o tamanho pelo WhatsApp.',
+    });
+    expect((await publicBanners())[0]).toMatchObject({
+      kicker: 'Oferta especial',
+      priceOriginalCents: 59_900,
+      priceSaleCents: 39_990,
+      footnote: 'Confirme o tamanho pelo WhatsApp.',
+    });
 
     // Edição parcial também confere o par de preços.
     expect((await patch(body.id, { priceSaleCents: 70_000 })).status).toBe(422);
@@ -160,8 +184,17 @@ describe('banners: conteúdo comercial e imagem', () => {
     const imageFrame = { desktop: { mode: 'fit', x: 72.345, y: 40, zoom: 1.25 }, mobile: { mode: 'fill', x: 50, y: 30, zoom: 1 } };
     const res = await create({ layout: 'split', contentAlign: 'right', overlay: 20, imageBg: '#f2f2f2', imageFrame });
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ layout: 'split', contentAlign: 'right', overlay: 20, imageBg: '#f2f2f2', imageFrame: { desktop: { x: 72.35, zoom: 1.25 }, mobile: { mode: 'fill' } } });
-    expect((await publicBanners())[0]!.imageFrame).toEqual({ desktop: { mode: 'fit', x: 72.35, y: 40, zoom: 1.25 }, mobile: { mode: 'fill', x: 50, y: 30, zoom: 1 } });
+    expect(res.body).toMatchObject({
+      layout: 'split',
+      contentAlign: 'right',
+      overlay: 20,
+      imageBg: '#f2f2f2',
+      imageFrame: { desktop: { x: 72.35, zoom: 1.25 }, mobile: { mode: 'fill' } },
+    });
+    expect((await publicBanners())[0]!.imageFrame).toEqual({
+      desktop: { mode: 'fit', x: 72.35, y: 40, zoom: 1.25 },
+      mobile: { mode: 'fill', x: 50, y: 30, zoom: 1 },
+    });
 
     const id = res.body.id;
     for (const body of [
