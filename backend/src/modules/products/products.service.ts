@@ -203,9 +203,13 @@ export async function listBrands(category?: string) {
     where: { isActive: true, brand: { not: null }, category: storeCategoryWhere(category) },
     _count: { _all: true },
   });
-  // Junta grafias diferentes da mesma marca ("POKER" e "Poker").
+  // Junta grafias diferentes da mesma marca ("POKER" e "Poker"). A grafia exibida é a mais usada;
+  // em empate vale a ordem de código dos caracteres, para o resultado não depender do banco.
+  const ordered = [...rows].sort(
+    (a, b) => b._count._all - a._count._all || (a.brand! < b.brand! ? -1 : a.brand! > b.brand! ? 1 : 0),
+  );
   const merged = new Map<string, { name: string; count: number }>();
-  for (const r of rows) {
+  for (const r of ordered) {
     const name = r.brand!.trim();
     if (!name) continue;
     const key = name.toLocaleLowerCase('pt-BR');
