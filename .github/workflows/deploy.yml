@@ -32,7 +32,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           echo "72.60.243.98 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK7EI/+xWOIIilwdEZ4gGrsIM9J6elf1Kryl/3mFEiNU" > ~/.ssh/known_hosts
       - name: Enviar backend e publicar
-        # A chave só executa /usr/local/bin/podium-deploy na VPS (forced command).
+        # A chave só executa /usr/local/bin/deploy-podium-sports na VPS (forced command).
         run: git archive HEAD:backend | ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes root@72.60.243.98
       - name: Health check
         run: curl -fsS -m 15 https://srv1388438.hstgr.cloud/api/v1/health
