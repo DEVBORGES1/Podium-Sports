@@ -2,13 +2,13 @@
 # Backup lógico diário do banco (Supabase) feito na VPS.
 #
 # Uso (como root, via cron):  /usr/local/sbin/podium-backup-db  (instalação: docs/IMPLANTACAO.md, seção 8)
-# - Lê DIRECT_URL de /opt/podium-sports/.env (conexão direta, não o pooler de transação).
+# - Lê DIRECT_URL de /opt/projetos-borges/podium-sports/.env (conexão direta, não o pooler de transação).
 # - Usa o pg_dump da imagem oficial do Postgres (não precisa instalar o cliente na VPS).
 # - Confere se o arquivo gerado é legível (pg_restore --list) antes de aceitá-lo.
 # - Mantém os últimos KEEP_DAYS dias em BACKUP_DIR (padrão: 14 dias em /var/backups/podium).
 set -euo pipefail
 
-ENV_FILE="${ENV_FILE:-/opt/podium-sports/.env}"
+ENV_FILE="${ENV_FILE:-/opt/projetos-borges/podium-sports/.env}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/podium}"
 KEEP_DAYS="${KEEP_DAYS:-14}"
 PG_IMAGE="${PG_IMAGE:-postgres:17-alpine}"

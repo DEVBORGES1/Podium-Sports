@@ -5,7 +5,7 @@ set -euo pipefail
 
 HOST="root@72.60.243.98"
 KEY="$HOME/.ssh/id_ed25519_podium"
-APP_DIR="/opt/podium-sports"
+APP_DIR="/opt/projetos-borges/podium-sports"
 HEALTH_URL="https://srv1388438.hstgr.cloud/api/v1/health"
 
 cd "$(dirname "$0")"

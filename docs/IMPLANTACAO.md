@@ -156,12 +156,12 @@ O workflow `.github/workflows/ci.yml` roda lint, typecheck, testes, build e E2E 
 
 **Banco**
 - Supabase Pro faz backup diário automático (7 dias); para recuperar um momento exato, ative *Point in Time Recovery*.
-- Backup lógico próprio, fora do Supabase, feito na VPS por `backend/scripts/backup-db.sh` (vai junto com o deploy para `/opt/podium-sports/scripts/`). Ele usa o `pg_dump` da imagem Docker `postgres:17-alpine`, lê `DIRECT_URL` do `.env`, confere o arquivo com `pg_restore --list` e guarda 14 dias em `/var/backups/podium`.
+- Backup lógico próprio, fora do Supabase, feito na VPS por `backend/scripts/backup-db.sh` (vai junto com o deploy para `/opt/projetos-borges/podium-sports/scripts/`). Ele usa o `pg_dump` da imagem Docker `postgres:17-alpine`, lê `DIRECT_URL` do `.env`, confere o arquivo com `pg_restore --list` e guarda 14 dias em `/var/backups/podium`.
 - Teste de restauração automático por `backend/scripts/restore-test.sh`: sobe um Postgres descartável em Docker, restaura o backup mais recente e falha se as tabelas essenciais vierem vazias. Não toca no banco de produção.
 - Instalação na VPS (como root). Os scripts são copiados para uma pasta do root: o cron do root nunca executa arquivos que o usuário `podium` pode alterar.
   ```bash
-  install -m 750 -o root -g root /opt/podium-sports/scripts/backup-db.sh   /usr/local/sbin/podium-backup-db
-  install -m 750 -o root -g root /opt/podium-sports/scripts/restore-test.sh /usr/local/sbin/podium-restore-test
+  install -m 750 -o root -g root /opt/projetos-borges/podium-sports/scripts/backup-db.sh   /usr/local/sbin/podium-backup-db
+  install -m 750 -o root -g root /opt/projetos-borges/podium-sports/scripts/restore-test.sh /usr/local/sbin/podium-restore-test
   ```
   Agendamento (`crontab -e`):
   ```cron
