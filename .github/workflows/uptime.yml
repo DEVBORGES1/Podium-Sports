@@ -1,6 +1,6 @@
 name: Uptime
 
-# Verifica a cada 10 minutos se a loja e a API estão no ar.
+# Verifica a cada 10 minutos se a loja e a API estão no ar (o GitHub pode atrasar execuções agendadas).
 # Quando falha, o GitHub envia e-mail para quem alterou este agendamento por último
 # (Settings → Notifications → Actions: "Only notify for failed workflows").
 on:
@@ -18,16 +18,48 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Pior caso: 4 verificações × (3 tentativas de 20 s + 2 esperas de 10 s) ≈ 5,3 min.
+    timeout-minutes: 8
     steps:
-      - name: API (saúde e banco)
+      # Todas as verificações rodam mesmo que uma falhe; o job falha no fim se alguma falhou.
+      # Em caso de falha, o log mostra o código HTTP e o início da resposta, e o resumo da execução lista o resultado de cada uma.
+      - name: Verificar serviços
         run: |
-          body=$(curl -fsS -m 20 --retry 2 --retry-delay 10 --retry-all-errors https://srv1388438.hstgr.cloud/api/v1/health)
-          echo "$body"
-          echo "$body" | grep -q '"database":"ok"'
-      - name: Loja
-        run: curl -fsS -m 20 --retry 2 --retry-delay 10 --retry-all-errors https://podiumsports.vercel.app/ | grep -q 'Podium Sports'
-      - name: API pela Vercel (rewrite /api)
-        run: curl -fsS -m 20 --retry 2 --retry-delay 10 --retry-all-errors -o /dev/null https://podiumsports.vercel.app/api/v1/store/settings
-      - name: Sitemap
-        run: curl -fsS -m 20 --retry 2 --retry-delay 10 --retry-all-errors https://podiumsports.vercel.app/sitemap.xml | grep -q '<urlset'
+          set -uo pipefail
+          failed=0
+          {
+            echo '| Verificação | HTTP | Resultado |'
+            echo '|---|---|---|'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # check <nome> <url> [texto esperado na resposta] [dica exibida na falha]
+          check() {
+            local name="$1" url="$2" pattern="${3:-}" hint="${4:-}" body code
+            body=$(mktemp)
+            # Sem -f: a resposta de erro fica no arquivo. --retry repete 5xx transitórios e erros de rede.
+            code=$(curl -sS -m 20 --retry 2 --retry-delay 10 --retry-all-errors -o "$body" -w '%{http_code}' "$url") || true
+            if [[ "$code" == 2* ]] && { [ -z "$pattern" ] || grep -qF -- "$pattern" "$body"; }; then
+              echo "✅ $name: HTTP $code"
+              echo "| $name | $code | ✅ ok |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              failed=1
+              local reason="HTTP $code"
+              [[ "$code" == 2* ]] && reason="HTTP $code, mas a resposta não contém '$pattern'"
+              echo "::error title=$name::$reason em $url"
+              [ -n "$hint" ] && echo "::error title=$name::$hint"
+              echo "--- início da resposta ---"
+              head -c 1000 "$body"
+              echo
+              echo "--------------------------"
+              echo "| $name | $code | ❌ falhou |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            rm -f "$body"
+          }
+
+          check 'API (saúde e banco)' https://srv1388438.hstgr.cloud/api/v1/health '"database":"ok"' \
+            'Se a resposta for "database":"unreachable", o banco está inacessível: confira se o projeto Supabase está pausado ou se a DATABASE_URL mudou. HTML de erro ou HTTP 000 indicam a API fora do ar na VPS (systemctl status podium-api).'
+          check 'Loja' https://podiumsports.vercel.app/ 'Podium Sports'
+          check 'API pela Vercel (rewrite /api)' https://podiumsports.vercel.app/api/v1/store/settings
+          check 'Sitemap' https://podiumsports.vercel.app/sitemap.xml '<urlset'
+
+          exit "$failed"
